@@ -1,0 +1,14 @@
+# HuggingFace token secret — PLACEHOLDER
+# Replace REPLACE_WITH_BASE64_HF_TOKEN with: echo -n 'hf_your_token' | base64
+# For production, use External Secrets Operator or Sealed Secrets instead.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hf-token
+  namespace: ai-serving
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+type: Opaque
+data:
+  token: bm90LXJlcXVpcmVk

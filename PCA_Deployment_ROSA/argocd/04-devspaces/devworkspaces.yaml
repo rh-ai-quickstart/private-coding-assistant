@@ -1,0 +1,260 @@
+# DevWorkspace definitions for each developer.
+#
+# Extension configuration summary:
+#   Roo Code  — provider_profiles.json delivered via roo-code-provider-config ConfigMap
+#               (subpath-mounted directly into Roo Code 3.x active settings path).
+#               postStart script copies it as a fallback for the che-code init race.
+#               Uses `openai` provider + streaming disabled (NOT `openai-native`).
+#
+#   Continue  — config.yaml delivered via continue-config ConfigMap (read-only, mounted at
+#               /home/user/.continue). postStart creates a writable /home/user/.continue-data/
+#               directory (CONTINUE_GLOBAL_DIR) and symlinks config.yaml into it. The symlink
+#               resolves at read-time so it is never stale, and the rest of the directory
+#               remains writable for Continue session data and SQLite index.
+#
+#   Cline     — installed but requires manual UI configuration (settings stored in VS Code
+#               globalState, not files). Enter once in Cline UI:
+#                 Provider: OpenAI Compatible
+#                 Base URL: https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+#                 Model:    Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+#                 API Key:  EMPTY
+#
+# Model endpoint (cluster-internal HTTPS, all traffic stays inside OpenShift):
+#   https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+#
+# vLLM is configured with:
+#   --enable-auto-tool-choice   required: Roo Code sends tool_choice:"auto"; vLLM rejects without this
+#   --tool-call-parser qwen3_coder  parses Qwen3-Coder XML tool calls into OpenAI tool_calls array
+#   --reasoning-parser qwen3    isolates <think> tokens from content
+---
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: code-workspace-1
+  namespace: dev1-devspaces
+  labels:
+    che.eclipse.org/devworkspace: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    che.eclipse.org/devfile-source: |
+      custom:
+        type: inline
+spec:
+  started: true
+  routingClass: che
+  contributions:
+    - name: editor
+      uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
+  template:
+    components:
+      - name: dev-tools
+        container:
+          image: registry.redhat.io/devspaces/udi-rhel8:latest
+          memoryLimit: 4Gi
+          memoryRequest: 512Mi
+          cpuLimit: "2000m"
+          cpuRequest: 250m
+          mountSources: true
+          env:
+            # llm-d EPP endpoint — for direct model access from workspace terminals/scripts
+            - name: VLLM_ENDPOINT
+              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+            # Standard OpenAI env vars — picked up automatically by many AI tools/SDKs
+            - name: OPENAI_API_KEY
+              value: "EMPTY"
+            - name: OPENAI_BASE_URL
+              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+            # Disable TLS verification for cluster-internal self-signed certs
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              value: "0"
+            # Continue reads its global config/session data from this writable directory.
+            # config.yaml is symlinked from the read-only ConfigMap mount at /home/user/.continue.
+            - name: CONTINUE_GLOBAL_DIR
+              value: "/home/user/.continue-data"
+            # Enable Kubedock so `docker` commands inside the workspace work via the Kubernetes API
+            - name: KUBEDOCK_ENABLED
+              value: "true"
+    commands:
+      - id: install-and-configure-extensions
+        exec:
+          component: dev-tools
+          commandLine: |
+            # Install extensions from OpenVSX marketplace
+            code-oss --install-extension rooveterinaryinc.roo-cline --force 2>/dev/null || true
+            code-oss --install-extension Continue.continue --force 2>/dev/null || true
+            code-oss --install-extension saoudrizwan.claude-dev --force 2>/dev/null || true
+
+            # ── Roo Code config ──────────────────────────────────────────────────────────────
+            # The roo-code-provider-config ConfigMap is subpath-mounted directly into
+            # /checode/remote/data/.../settings/ (Roo Code 3.x active path). As a fallback
+            # for the che-code init race, also copy from the legacy mount path if present.
+            mkdir -p /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              SRC=/checode/checode-linux-libc/User/globalStorage/rooveterinaryinc.roo-cline/provider_profiles.json
+              if [ -f "$SRC" ]; then
+                cp "$SRC" /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings/provider_profiles.json
+                break
+              fi
+              sleep 3
+            done
+
+            # ── Continue config ──────────────────────────────────────────────────────────────
+            # /home/user/.continue/config.yaml is a read-only ConfigMap subpath mount.
+            # Continue needs CONTINUE_GLOBAL_DIR to be writable (session data, SQLite index).
+            # Solution: create a writable dir and symlink config.yaml from the ConfigMap mount.
+            # The symlink resolves at read-time so it is always up-to-date and race-condition-free.
+            mkdir -p /home/user/.continue-data
+            rm -f /home/user/.continue-data/config.yaml
+            ln -sf /home/user/.continue/config.yaml /home/user/.continue-data/config.yaml
+
+            # Suppress harmless Continue ENOENT warning about missing ~/Desktop
+            mkdir -p /home/user/Desktop
+          label: Install and configure AI extensions
+    events:
+      postStart:
+        - install-and-configure-extensions
+---
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: code-workspace-2
+  namespace: dev2-devspaces
+  labels:
+    che.eclipse.org/devworkspace: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    che.eclipse.org/devfile-source: |
+      custom:
+        type: inline
+spec:
+  started: true
+  routingClass: che
+  contributions:
+    - name: editor
+      uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
+  template:
+    components:
+      - name: dev-tools
+        container:
+          image: registry.redhat.io/devspaces/udi-rhel8:latest
+          memoryLimit: 4Gi
+          memoryRequest: 512Mi
+          cpuLimit: "2000m"
+          cpuRequest: 250m
+          mountSources: true
+          env:
+            - name: VLLM_ENDPOINT
+              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+            - name: OPENAI_API_KEY
+              value: "EMPTY"
+            - name: OPENAI_BASE_URL
+              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              value: "0"
+            - name: CONTINUE_GLOBAL_DIR
+              value: "/home/user/.continue-data"
+            - name: KUBEDOCK_ENABLED
+              value: "true"
+    commands:
+      - id: install-and-configure-extensions
+        exec:
+          component: dev-tools
+          commandLine: |
+            code-oss --install-extension rooveterinaryinc.roo-cline --force 2>/dev/null || true
+            code-oss --install-extension Continue.continue --force 2>/dev/null || true
+
+            mkdir -p /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              SRC=/checode/checode-linux-libc/User/globalStorage/rooveterinaryinc.roo-cline/provider_profiles.json
+              if [ -f "$SRC" ]; then
+                cp "$SRC" /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings/provider_profiles.json
+                break
+              fi
+              sleep 3
+            done
+
+            mkdir -p /home/user/.continue-data
+            rm -f /home/user/.continue-data/config.yaml
+            ln -sf /home/user/.continue/config.yaml /home/user/.continue-data/config.yaml
+            mkdir -p /home/user/Desktop
+          label: Install and configure AI extensions
+    events:
+      postStart:
+        - install-and-configure-extensions
+---
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: code-workspace-3
+  namespace: dev3-devspaces
+  labels:
+    che.eclipse.org/devworkspace: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    che.eclipse.org/devfile-source: |
+      custom:
+        type: inline
+spec:
+  started: true
+  routingClass: che
+  contributions:
+    - name: editor
+      uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
+  template:
+    components:
+      - name: dev-tools
+        container:
+          image: registry.redhat.io/devspaces/udi-rhel8:latest
+          memoryLimit: 4Gi
+          memoryRequest: 512Mi
+          cpuLimit: "2000m"
+          cpuRequest: 250m
+          mountSources: true
+          env:
+            - name: VLLM_ENDPOINT
+              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+            - name: OPENAI_API_KEY
+              value: "EMPTY"
+            - name: OPENAI_BASE_URL
+              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              value: "0"
+            - name: CONTINUE_GLOBAL_DIR
+              value: "/home/user/.continue-data"
+            - name: KUBEDOCK_ENABLED
+              value: "true"
+    commands:
+      - id: install-and-configure-extensions
+        exec:
+          component: dev-tools
+          commandLine: |
+            code-oss --install-extension rooveterinaryinc.roo-cline --force 2>/dev/null || true
+            code-oss --install-extension Continue.continue --force 2>/dev/null || true
+
+            mkdir -p /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              SRC=/checode/checode-linux-libc/User/globalStorage/rooveterinaryinc.roo-cline/provider_profiles.json
+              if [ -f "$SRC" ]; then
+                cp "$SRC" /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings/provider_profiles.json
+                break
+              fi
+              sleep 3
+            done
+
+            mkdir -p /home/user/.continue-data
+            rm -f /home/user/.continue-data/config.yaml
+            ln -sf /home/user/.continue/config.yaml /home/user/.continue-data/config.yaml
+            mkdir -p /home/user/Desktop
+          label: Install and configure AI extensions
+    events:
+      postStart:
+        - install-and-configure-extensions

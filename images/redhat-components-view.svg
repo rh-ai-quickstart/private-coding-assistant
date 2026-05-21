@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v3: all control chars removed, pure ASCII XML -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f1923"/>
+      <stop offset="100%" style="stop-color:#1a2d42"/>
+    </linearGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/></filter>
+    <marker id="arrowW" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8fabc7"/>
+    </marker>
+    <marker id="arrowR" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ee0000"/>
+    </marker>
+    <marker id="arrowB" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4a90d9"/>
+    </marker>
+    <marker id="arrowG" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00d26a"/>
+    </marker>
+    <marker id="arrowC" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00b4d8"/>
+    </marker>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1920" height="4" fill="#ee0000"/>
+
+  <!-- Header -->
+  <text x="960" y="46" text-anchor="middle" fill="#fff" font-size="28" font-weight="700">Private AI Code Assistant  &#x2014;  Red Hat Components View</text>
+  <text x="960" y="70" text-anchor="middle" fill="#8fabc7" font-size="15">OpenShift Cluster Boundary &#xB7; Software Components by Namespace &#xB7; External Infrastructure</text>
+  <line x1="60" y1="84" x2="1860" y2="84" stroke="#2a4a6b" stroke-width="1"/>
+
+  <!-- Branding -->
+  <g transform="translate(60,18)"><rect width="32" height="32" rx="4" fill="#ee0000"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">RH</text></g>
+  <g transform="translate(1828,18)"><rect width="32" height="32" rx="4" fill="#ff9900"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">AWS</text></g>
+
+  <!-- PP EXTERNAL COMPONENTS (left strip) PP -->
+  <g transform="translate(60, 100)">
+    <rect width="220" height="940" rx="12" fill="#0a1220" stroke="#4a6a8a" stroke-width="1.5" stroke-dasharray="6,3" filter="url(#sh)"/>
+    <rect width="220" height="36" rx="12" fill="#0d1a2e"/>
+    <rect width="220" height="18" y="18" fill="#0d1a2e"/>
+    <text x="110" y="24" text-anchor="middle" fill="#4a6a8a" font-size="12" font-weight="700">EXTERNAL</text>
+
+    <g transform="translate(15, 48)">
+      <rect width="190" height="70" rx="8" fill="#081520" stroke="#4a6a8a" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#6a8aaa" font-size="11" font-weight="700">Developer</text>
+      <text x="95" y="36" text-anchor="middle" fill="#4a6a8a" font-size="10">Browser / Desktop IDE</text>
+      <text x="95" y="52" text-anchor="middle" fill="#4a6a8a" font-size="10">Cursor / VS Code / CLI</text>
+    </g>
+    <g transform="translate(15, 132)">
+      <rect width="190" height="56" rx="8" fill="#1a1000" stroke="#ff9900" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#cc9933" font-size="11" font-weight="700">AWS NLB</text>
+      <text x="95" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">HTTPS :443 ingress</text>
+      <text x="95" y="50" text-anchor="middle" fill="#9e7a3d" font-size="10">PrivateLink :6443</text>
+    </g>
+    <g transform="translate(15, 202)">
+      <rect width="190" height="70" rx="8" fill="#1a1000" stroke="#ff9900" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#cc9933" font-size="11" font-weight="700">AWS EC2 Nodes</text>
+      <text x="95" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">g6e.2xlarge (L40S)</text>
+      <text x="95" y="52" text-anchor="middle" fill="#9e7a3d" font-size="10">inf2.24xlarge (Inferentia2)</text>
+    </g>
+    <g transform="translate(15, 286)">
+      <rect width="190" height="56" rx="8" fill="#1a1000" stroke="#ff9900" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#cc9933" font-size="11" font-weight="700">Amazon EBS</text>
+      <text x="95" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">gp3-csi &#xB7; 300 GB / node</text>
+      <text x="95" y="50" text-anchor="middle" fill="#9e7a3d" font-size="10">PersistentVolumes</text>
+    </g>
+    <g transform="translate(15, 356)">
+      <rect width="190" height="56" rx="8" fill="#1a1000" stroke="#ff9900" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#cc9933" font-size="11" font-weight="700">AWS Direct Connect</text>
+      <text x="95" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">Dedicated private circuit</text>
+      <text x="95" y="50" text-anchor="middle" fill="#9e7a3d" font-size="10">Transit Gateway</text>
+    </g>
+    <g transform="translate(15, 426)">
+      <rect width="190" height="56" rx="8" fill="#0a1a1a" stroke="#00b4d8" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="700">Quay.io</text>
+      <text x="95" y="36" text-anchor="middle" fill="#3d8a8a" font-size="10">Red Hat container registry</text>
+      <text x="95" y="50" text-anchor="middle" fill="#3d8a8a" font-size="10">registry.redhat.io</text>
+    </g>
+    <g transform="translate(15, 496)">
+      <rect width="190" height="56" rx="8" fill="#0a1a1a" stroke="#00b4d8" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="700">HuggingFace Hub</text>
+      <text x="95" y="36" text-anchor="middle" fill="#3d8a8a" font-size="10">Model weight downloads</text>
+      <text x="95" y="50" text-anchor="middle" fill="#3d8a8a" font-size="10">Qwen3-Coder-30B</text>
+    </g>
+    <g transform="translate(15, 566)">
+      <rect width="190" height="56" rx="8" fill="#0a1a0a" stroke="#00d26a" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#00d26a" font-size="11" font-weight="700">Amazon S3</text>
+      <text x="95" y="36" text-anchor="middle" fill="#3d8a6a" font-size="10">Model artifact storage</text>
+      <text x="95" y="50" text-anchor="middle" fill="#3d8a6a" font-size="10">Backup / versioning</text>
+    </g>
+    <g transform="translate(15, 636)">
+      <rect width="190" height="56" rx="8" fill="#1a0a0a" stroke="#ee0000" stroke-width="1"/>
+      <text x="95" y="20" text-anchor="middle" fill="#ff6b6b" font-size="11" font-weight="700">Red Hat SSO / OCM</text>
+      <text x="95" y="36" text-anchor="middle" fill="#8a5a5a" font-size="10">Cluster lifecycle</text>
+      <text x="95" y="50" text-anchor="middle" fill="#8a5a5a" font-size="10">Subscription mgmt</text>
+    </g>
+
+    <text x="110" y="730" text-anchor="middle" fill="#3a5a7a" font-size="11" font-weight="700" letter-spacing="1">HOSTED BY RED HAT</text>
+    <g transform="translate(15, 740)">
+      <rect width="190" height="80" rx="8" fill="#2a0a0a" stroke="#ee0000" stroke-width="1.5"/>
+      <text x="95" y="20" text-anchor="middle" fill="#ee0000" font-size="11" font-weight="700">ROSA HCP Control Plane</text>
+      <text x="95" y="36" text-anchor="middle" fill="#cc4444" font-size="10">etcd &#xB7; API server</text>
+      <text x="95" y="52" text-anchor="middle" fill="#cc4444" font-size="10">Controllers &#xB7; Scheduler</text>
+      <text x="95" y="68" text-anchor="middle" fill="#8a3a3a" font-size="10">Not in customer VPC</text>
+    </g>
+  </g>
+
+  <!-- Arrow: External &#x2192; OpenShift cluster -->
+  <line x1="282" y1="560" x2="322" y2="560" stroke="#8fabc7" stroke-width="1.5" marker-end="url(#arrowW)"/>
+
+  <!-- PP OPENSHIFT CLUSTER BOUNDARY PP -->
+  <g transform="translate(310, 96)">
+    <rect width="1570" height="948" rx="14" fill="none" stroke="#ee0000" stroke-width="2.5"/>
+    <rect width="340" height="26" rx="4" fill="#ee0000" transform="translate(615, -13)"/>
+    <text x="785" y="6" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">RED HAT OPENSHIFT CLUSTER (ROSA HCP 4.21)</text>
+
+    <!--  NS: openshift-devspaces  -->
+    <g transform="translate(20, 20)">
+      <rect width="480" height="340" rx="10" fill="#0a1f3d" stroke="#4a90d9" stroke-width="1.5" filter="url(#sh)"/>
+      <rect width="280" height="22" rx="4" fill="#0d2d58" transform="translate(100, -11)"/>
+      <text x="240" y="5" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="700">ns: openshift-devspaces</text>
+
+      <!-- Dev Spaces operator -->
+      <g transform="translate(15, 20)">
+        <rect width="450" height="56" rx="6" fill="#0d2d44" stroke="#4a90d9" stroke-width="1"/>
+        <text x="225" y="20" text-anchor="middle" fill="#4a90d9" font-size="12" font-weight="700">OpenShift Dev Spaces 3.27 Operator</text>
+        <text x="225" y="38" text-anchor="middle" fill="#7bb8e0" font-size="11">Dashboard &#xB7; DevWorkspace Controller &#xB7; Operator</text>
+      </g>
+
+      <!-- Workspace pods -->
+      <g transform="translate(15, 90)">
+        <rect width="450" height="130" rx="6" fill="#0a2a4a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="225" y="18" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="700">Dev Spaces Workspace Pods (one per user)</text>
+        <g transform="translate(10, 28)">
+          <rect width="128" height="36" rx="5" fill="#0d3d44" stroke="#00b4d8" stroke-width="1"/>
+          <text x="64" y="15" text-anchor="middle" fill="#4dd9e8" font-size="10" font-weight="600">Continue v1.1.80</text>
+          <text x="64" y="28" text-anchor="middle" fill="#3d8a8a" font-size="9">Tab autocomplete</text>
+        </g>
+        <g transform="translate(150, 28)">
+          <rect width="128" height="36" rx="5" fill="#0d3d44" stroke="#00b4d8" stroke-width="1"/>
+          <text x="64" y="15" text-anchor="middle" fill="#4dd9e8" font-size="10" font-weight="600">Cline</text>
+          <text x="64" y="28" text-anchor="middle" fill="#3d8a8a" font-size="9">Agentic</text>
+        </g>
+        <g transform="translate(290, 28)">
+          <rect width="150" height="36" rx="5" fill="#0d3d44" stroke="#00b4d8" stroke-width="1"/>
+          <text x="75" y="15" text-anchor="middle" fill="#4dd9e8" font-size="10" font-weight="600">Roo Code v3.51</text>
+          <text x="75" y="28" text-anchor="middle" fill="#3d8a8a" font-size="9">Multi-mode agent</text>
+        </g>
+        <text x="225" y="84" text-anchor="middle" fill="#4dd9e8" font-size="10">VS Code for the Web (che-code)</text>
+        <text x="225" y="100" text-anchor="middle" fill="#3a5a7a" font-size="9">Users: dev-user1 &#xB7; dev-user2 &#xB7; dev-user3 &#xB7; (HTPasswd IDP)</text>
+        <text x="225" y="114" text-anchor="middle" fill="#3a5a7a" font-size="9">LimitRange: 8 vCPU &#xB7; 8Gi RAM per workspace</text>
+      </g>
+
+      <!-- SSH daemon -->
+      <g transform="translate(15, 234)">
+        <rect width="450" height="40" rx="6" fill="#081520" stroke="#4a6a8a" stroke-width="1"/>
+        <text x="225" y="16" text-anchor="middle" fill="#4a6a8a" font-size="10" font-weight="600">sshd :2022 (not exposed via Route  &#x2014;  oc port-forward only)</text>
+        <text x="225" y="30" text-anchor="middle" fill="#3a5a7a" font-size="9">Ephemeral SSH key &#xB7; RBAC-gated tunnel &#xB7; UBI 10 crypto</text>
+      </g>
+
+      <!-- ConfigMaps for extensions -->
+      <g transform="translate(15, 286)">
+        <rect width="450" height="40" rx="6" fill="#0a1a2a" stroke="#4a6a8a" stroke-width="1"/>
+        <text x="225" y="16" text-anchor="middle" fill="#4a6a8a" font-size="10" font-weight="700">Extension ConfigMaps</text>
+        <text x="225" y="30" text-anchor="middle" fill="#3a5a7a" font-size="9">continue-config &#xB7; roo-code-config &#xB7; roo-code-provider-config &#xB7; cline-settings-config</text>
+      </g>
+    </g>
+
+    <!--  NS: openshift-ingress / service mesh  -->
+    <g transform="translate(520, 20)">
+      <rect width="510" height="170" rx="10" fill="#0a2a2a" stroke="#00b4d8" stroke-width="1.5" filter="url(#sh)"/>
+      <rect width="340" height="22" rx="4" fill="#0a3a3a" transform="translate(85, -11)"/>
+      <text x="255" y="5" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="700">ns: openshift-ingress / istio-system</text>
+
+      <g transform="translate(15, 20)">
+        <rect width="480" height="56" rx="6" fill="#0a2a2a" stroke="#00b4d8" stroke-width="1"/>
+        <text x="240" y="20" text-anchor="middle" fill="#4dd9e8" font-size="12" font-weight="700">Service Mesh 3 (Istio)  &#x2014;  Gateway API</text>
+        <text x="240" y="38" text-anchor="middle" fill="#3d8a8a" font-size="11">ServiceMeshControlPlane &#xB7; Envoy ext_proc &#xB7; mTLS sidecar injection</text>
+      </g>
+      <g transform="translate(15, 90)">
+        <rect width="230" height="60" rx="6" fill="#081818" stroke="#00b4d8" stroke-width="1"/>
+        <text x="115" y="20" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="600">llm-d Gateway</text>
+        <text x="115" y="36" text-anchor="middle" fill="#3d8a8a" font-size="10">HTTPRoute rules</text>
+        <text x="115" y="52" text-anchor="middle" fill="#3d8a8a" font-size="10">/v1/chat/completions</text>
+      </g>
+      <g transform="translate(260, 90)">
+        <rect width="230" height="60" rx="6" fill="#081818" stroke="#00b4d8" stroke-width="1"/>
+        <text x="115" y="20" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="600">Kiali</text>
+        <text x="115" y="36" text-anchor="middle" fill="#3d8a8a" font-size="10">Service mesh observability</text>
+        <text x="115" y="52" text-anchor="middle" fill="#3d8a8a" font-size="10">Traffic topology</text>
+      </g>
+    </g>
+
+    <!--  NS: llm-d-multi-gpu  -->
+    <g transform="translate(520, 208)">
+      <rect width="510" height="156" rx="10" fill="#0a2a1a" stroke="#00d26a" stroke-width="1.5" filter="url(#sh)"/>
+      <rect width="260" height="22" rx="4" fill="#0a3a1a" transform="translate(125, -11)"/>
+      <text x="255" y="5" text-anchor="middle" fill="#00d26a" font-size="11" font-weight="700">ns: llm-d-multi-gpu</text>
+
+      <g transform="translate(15, 18)">
+        <rect width="480" height="48" rx="6" fill="#0a2a1a" stroke="#00d26a" stroke-width="1"/>
+        <text x="240" y="18" text-anchor="middle" fill="#00d26a" font-size="12" font-weight="700">llm-d Endpoint Picker (EPP)</text>
+        <text x="240" y="36" text-anchor="middle" fill="#3d8a6a" font-size="11">InferencePool CRD &#xB7; prefix 0.4 &#xB7; kv_cache 0.3 &#xB7; queue_depth 0.3</text>
+      </g>
+      <g transform="translate(15, 80)">
+        <rect width="230" height="60" rx="6" fill="#0a2a0a" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="115" y="20" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="600">vLLM Pod (CUDA)</text>
+        <text x="115" y="36" text-anchor="middle" fill="#7a6aaa" font-size="10">Qwen3-Coder-30B FP8</text>
+        <text x="115" y="52" text-anchor="middle" fill="#7a6aaa" font-size="10">g6e.2xlarge &#xB7; L40S</text>
+      </g>
+      <g transform="translate(260, 80)">
+        <rect width="230" height="60" rx="6" fill="#0a2a0a" stroke="#ff9900" stroke-width="1.5"/>
+        <text x="115" y="20" text-anchor="middle" fill="#ffb84d" font-size="11" font-weight="600">vLLM Pod (Neuron)</text>
+        <text x="115" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">Qwen3-Coder-30B BF16</text>
+        <text x="115" y="52" text-anchor="middle" fill="#9e7a3d" font-size="10">inf2.24xlarge &#xB7; TP=8</text>
+      </g>
+    </g>
+
+    <!--  NS: redhat-ods-applications (RHOAI)  -->
+    <g transform="translate(1050, 20)">
+      <rect width="500" height="340" rx="10" fill="#2a0a0a" stroke="#ee0000" stroke-width="1.5" filter="url(#sh)"/>
+      <rect width="320" height="22" rx="4" fill="#3a0f0f" transform="translate(90, -11)"/>
+      <text x="250" y="5" text-anchor="middle" fill="#ff6b6b" font-size="11" font-weight="700">ns: redhat-ods-applications (RHOAI 3.3)</text>
+
+      <g transform="translate(15, 20)">
+        <rect width="470" height="48" rx="6" fill="#2a0a0a" stroke="#ee0000" stroke-width="1"/>
+        <text x="235" y="18" text-anchor="middle" fill="#ff6b6b" font-size="12" font-weight="700">Red Hat OpenShift AI Dashboard</text>
+        <text x="235" y="36" text-anchor="middle" fill="#8a5a5a" font-size="11">DataScienceCluster CR &#xB7; Model serving UI &#xB7; HardwareProfile</text>
+      </g>
+      <g transform="translate(15, 82)">
+        <rect width="230" height="56" rx="6" fill="#1a0808" stroke="#ee0000" stroke-width="1"/>
+        <text x="115" y="18" text-anchor="middle" fill="#ff8888" font-size="11" font-weight="600">KServe Controller</text>
+        <text x="115" y="34" text-anchor="middle" fill="#8a5a5a" font-size="10">LLMInferenceService</text>
+        <text x="115" y="50" text-anchor="middle" fill="#8a5a5a" font-size="10">InferenceService CRDs</text>
+      </g>
+      <g transform="translate(255, 82)">
+        <rect width="230" height="56" rx="6" fill="#1a0808" stroke="#ee0000" stroke-width="1"/>
+        <text x="115" y="18" text-anchor="middle" fill="#ff8888" font-size="11" font-weight="600">Model Controller</text>
+        <text x="115" y="34" text-anchor="middle" fill="#8a5a5a" font-size="10">Lifecycle management</text>
+        <text x="115" y="50" text-anchor="middle" fill="#8a5a5a" font-size="10">Scaling &#xB7; health checks</text>
+      </g>
+      <g transform="translate(15, 152)">
+        <rect width="470" height="40" rx="6" fill="#1a0808" stroke="#cc4444" stroke-width="1"/>
+        <text x="235" y="16" text-anchor="middle" fill="#ff8888" font-size="11" font-weight="600">RHOAI Operator  &#x2014;  DSC Initializer</text>
+        <text x="235" y="30" text-anchor="middle" fill="#8a5a5a" font-size="10">DataScienceCluster reconciliation &#xB7; component lifecycle</text>
+      </g>
+      <g transform="translate(15, 206)">
+        <rect width="230" height="56" rx="6" fill="#1a0808" stroke="#cc4444" stroke-width="1"/>
+        <text x="115" y="18" text-anchor="middle" fill="#ff8888" font-size="11" font-weight="600">Model Registry</text>
+        <text x="115" y="34" text-anchor="middle" fill="#8a5a5a" font-size="10">Version tracking</text>
+        <text x="115" y="50" text-anchor="middle" fill="#8a5a5a" font-size="10">Experiment metadata</text>
+      </g>
+      <g transform="translate(255, 206)">
+        <rect width="230" height="56" rx="6" fill="#1a0808" stroke="#cc4444" stroke-width="1"/>
+        <text x="115" y="18" text-anchor="middle" fill="#ff8888" font-size="11" font-weight="600">Pipelines</text>
+        <text x="115" y="34" text-anchor="middle" fill="#8a5a5a" font-size="10">DataScience Pipelines</text>
+        <text x="115" y="50" text-anchor="middle" fill="#8a5a5a" font-size="10">Tekton-based</text>
+      </g>
+      <g transform="translate(15, 276)">
+        <rect width="470" height="48" rx="6" fill="#1a0808" stroke="#cc4444" stroke-width="1"/>
+        <text x="235" y="18" text-anchor="middle" fill="#ff8888" font-size="11" font-weight="600">Prometheus &#xB7; Grafana (RHOAI Monitoring)</text>
+        <text x="235" y="36" text-anchor="middle" fill="#8a5a5a" font-size="10">vLLM metrics &#xB7; GPU/Neuron metrics &#xB7; llm-d metrics &#xB7; latency histograms</text>
+      </g>
+    </g>
+
+    <!--  NS: gpu-operator-resources / neuron-*  -->
+    <g transform="translate(20, 378)">
+      <rect width="470" height="200" rx="10" fill="#1a1000" stroke="#ff9900" stroke-width="1.5" filter="url(#sh)"/>
+      <rect width="360" height="22" rx="4" fill="#251800" transform="translate(55, -11)"/>
+      <text x="235" y="5" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="700">ns: gpu-operator-resources / neuron-operator</text>
+
+      <g transform="translate(15, 20)">
+        <rect width="210" height="80" rx="6" fill="#1a0a2a" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="105" y="18" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">NVIDIA GPU Operator</text>
+        <text x="105" y="34" text-anchor="middle" fill="#7a6aaa" font-size="10">Driver Manager DaemonSet</text>
+        <text x="105" y="50" text-anchor="middle" fill="#7a6aaa" font-size="10">Device Plugin DaemonSet</text>
+        <text x="105" y="66" text-anchor="middle" fill="#7a6aaa" font-size="10">DCGM Exporter DaemonSet</text>
+      </g>
+      <g transform="translate(245, 20)">
+        <rect width="210" height="80" rx="6" fill="#1a1000" stroke="#ff9900" stroke-width="1.5"/>
+        <text x="105" y="18" text-anchor="middle" fill="#ffb84d" font-size="11" font-weight="700">AWS Neuron Operator</text>
+        <text x="105" y="34" text-anchor="middle" fill="#9e7a3d" font-size="10">Neuron Device Plugin DS</text>
+        <text x="105" y="50" text-anchor="middle" fill="#9e7a3d" font-size="10">Neuron Scheduler</text>
+        <text x="105" y="66" text-anchor="middle" fill="#9e7a3d" font-size="10">KMM &#xB7; Neuron Monitor DS</text>
+      </g>
+      <g transform="translate(15, 116)">
+        <rect width="440" height="68" rx="6" fill="#1a1200" stroke="#cc7700" stroke-width="1"/>
+        <text x="220" y="18" text-anchor="middle" fill="#ffb84d" font-size="11" font-weight="600">MutatingAdmissionWebhook (OVN Fix)</text>
+        <text x="220" y="34" text-anchor="middle" fill="#9e7a3d" font-size="10">Removes OVN k8s.ovn.org/routing-namespaces annotation</text>
+        <text x="220" y="50" text-anchor="middle" fill="#9e7a3d" font-size="10">from Neuron pods to prevent scheduling conflict (Appendix A)</text>
+      </g>
+    </g>
+
+    <!--  NS: openshift-operators (cross-cutting)  -->
+    <g transform="translate(510, 378)">
+      <rect width="520" height="200" rx="10" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1.5" filter="url(#sh)"/>
+      <rect width="340" height="22" rx="4" fill="#0d2040" transform="translate(90, -11)"/>
+      <text x="260" y="5" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="700">ns: openshift-operators (cross-cutting)</text>
+
+      <g transform="translate(15, 20)">
+        <rect width="115" height="68" rx="5" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="57" y="18" text-anchor="middle" fill="#7bb8e0" font-size="10" font-weight="600">NFD</text>
+        <text x="57" y="32" text-anchor="middle" fill="#4a7a9e" font-size="9">Node Feature</text>
+        <text x="57" y="46" text-anchor="middle" fill="#4a7a9e" font-size="9">Discovery</text>
+        <text x="57" y="60" text-anchor="middle" fill="#3a5a7a" font-size="9">PCI device labels</text>
+      </g>
+      <g transform="translate(145, 20)">
+        <rect width="115" height="68" rx="5" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="57" y="18" text-anchor="middle" fill="#7bb8e0" font-size="10" font-weight="600">cert-manager</text>
+        <text x="57" y="32" text-anchor="middle" fill="#4a7a9e" font-size="9">TLS / webhook</text>
+        <text x="57" y="46" text-anchor="middle" fill="#4a7a9e" font-size="9">certificates</text>
+      </g>
+      <g transform="translate(275, 20)">
+        <rect width="115" height="68" rx="5" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="57" y="18" text-anchor="middle" fill="#7bb8e0" font-size="10" font-weight="600">LeaderWorkerSet</text>
+        <text x="57" y="32" text-anchor="middle" fill="#4a7a9e" font-size="9">Multi-node pod</text>
+        <text x="57" y="46" text-anchor="middle" fill="#4a7a9e" font-size="9">groups (LWS CRD)</text>
+      </g>
+      <g transform="translate(395, 20)">
+        <rect width="115" height="68" rx="5" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="57" y="18" text-anchor="middle" fill="#7bb8e0" font-size="10" font-weight="600">OpenShift</text>
+        <text x="57" y="32" text-anchor="middle" fill="#4a7a9e" font-size="9">Pipelines</text>
+        <text x="57" y="46" text-anchor="middle" fill="#4a7a9e" font-size="9">(Tekton)</text>
+      </g>
+
+      <!-- OVN-K -->
+      <g transform="translate(15, 104)">
+        <rect width="490" height="80" rx="6" fill="#0a1a2a" stroke="#4a6a8a" stroke-width="1"/>
+        <text x="245" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="600">OpenShift Platform Services</text>
+        <text x="245" y="38" text-anchor="middle" fill="#4a7a9e" font-size="10">OVN-Kubernetes CNI &#xB7; CoreDNS &#xB7; Cluster Monitoring Stack</text>
+        <text x="245" y="54" text-anchor="middle" fill="#4a7a9e" font-size="10">Image Registry &#xB7; OpenShift OAuth &#xB7; Cluster Autoscaler</text>
+        <text x="245" y="70" text-anchor="middle" fill="#3a5a7a" font-size="10">Kube API Server &#xB7; etcd (HCP managed) &#xB7; Route controller</text>
+      </g>
+    </g>
+
+    <!--  SHARED PVC LAYER  -->
+    <g transform="translate(1050, 378)">
+      <rect width="500" height="200" rx="10" fill="#0a1220" stroke="#4a6a8a" stroke-width="1.5" filter="url(#sh)"/>
+      <rect width="300" height="22" rx="4" fill="#0d1a30" transform="translate(100, -11)"/>
+      <text x="250" y="5" text-anchor="middle" fill="#4a6a8a" font-size="11" font-weight="700">Persistent Storage (EBS gp3-csi)</text>
+
+      <g transform="translate(15, 20)">
+        <rect width="470" height="36" rx="5" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="235" y="14" text-anchor="middle" fill="#7bb8e0" font-size="10" font-weight="600">model-cache-pvc (300 GB)</text>
+        <text x="235" y="28" text-anchor="middle" fill="#4a7a9e" font-size="9">Qwen3-Coder-30B-A3B-Instruct weights  &#x2014;  shared across vLLM restarts</text>
+      </g>
+      <g transform="translate(15, 68)">
+        <rect width="470" height="36" rx="5" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="235" y="14" text-anchor="middle" fill="#7bb8e0" font-size="10" font-weight="600">neff-cache-pvc (300 GB)</text>
+        <text x="235" y="28" text-anchor="middle" fill="#4a7a9e" font-size="9">Neuron compiled graph cache  &#x2014;  eliminates 40min cold-compile on restart</text>
+      </g>
+      <g transform="translate(15, 116)">
+        <rect width="470" height="36" rx="5" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+        <text x="235" y="14" text-anchor="middle" fill="#7bb8e0" font-size="10" font-weight="600">hf-cache-pvc (50 GB)</text>
+        <text x="235" y="28" text-anchor="middle" fill="#4a7a9e" font-size="9">HuggingFace cache  &#x2014;  tokenizer / model card / config files</text>
+      </g>
+      <g transform="translate(15, 164)">
+        <rect width="470" height="26" rx="5" fill="#081520" stroke="#2a4a6b" stroke-width="1"/>
+        <text x="235" y="17" text-anchor="middle" fill="#3a5a7a" font-size="9">ReadWriteOnce &#xB7; Dynamic provisioning &#xB7; aws-ebs-csi-driver</text>
+      </g>
+    </g>
+
+    <!--  BOTTOM: Security + API flow summary  -->
+    <g transform="translate(20, 596)">
+      <rect width="1530" height="200" rx="10" fill="#080e18" stroke="#2a4a6b" stroke-width="1.5"/>
+      <text x="765" y="22" text-anchor="middle" fill="#4a6a8a" font-size="13" font-weight="700" letter-spacing="1">INFERENCE REQUEST FLOW (cluster-internal  &#x2014;  no external egress)</text>
+
+      <!-- Flow boxes -->
+      <g transform="translate(20, 36)">
+        <rect width="190" height="56" rx="6" fill="#0a1f3d" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="95" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="600">1. Workspace Pod</text>
+        <text x="95" y="36" text-anchor="middle" fill="#4a7a9e" font-size="10">AI extension sends</text>
+        <text x="95" y="50" text-anchor="middle" fill="#4a7a9e" font-size="10">HTTPS to ClusterIP</text>
+      </g>
+      <line x1="215" y1="64" x2="255" y2="64" stroke="#4a90d9" stroke-width="1.5" marker-end="url(#arrowB)"/>
+      <g transform="translate(258, 36)">
+        <rect width="190" height="56" rx="6" fill="#0a2a2a" stroke="#00b4d8" stroke-width="1.5"/>
+        <text x="95" y="20" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="600">2. Envoy Gateway</text>
+        <text x="95" y="36" text-anchor="middle" fill="#3d8a8a" font-size="10">TLS termination</text>
+        <text x="95" y="50" text-anchor="middle" fill="#3d8a8a" font-size="10">ext_proc &#x2192; EPP gRPC</text>
+      </g>
+      <line x1="453" y1="64" x2="493" y2="64" stroke="#00b4d8" stroke-width="1.5" marker-end="url(#arrowC)"/>
+      <g transform="translate(496, 36)">
+        <rect width="190" height="56" rx="6" fill="#0a2a1a" stroke="#00d26a" stroke-width="1.5"/>
+        <text x="95" y="20" text-anchor="middle" fill="#00d26a" font-size="11" font-weight="600">3. llm-d EPP</text>
+        <text x="95" y="36" text-anchor="middle" fill="#3d8a6a" font-size="10">Scores replicas</text>
+        <text x="95" y="50" text-anchor="middle" fill="#3d8a6a" font-size="10">Returns pod endpoint</text>
+      </g>
+      <line x1="691" y1="64" x2="731" y2="64" stroke="#00d26a" stroke-width="1.5" marker-end="url(#arrowG)"/>
+      <g transform="translate(734, 36)">
+        <rect width="190" height="56" rx="6" fill="#1a0a2a" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="95" y="20" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="600">4a. vLLM (CUDA)</text>
+        <text x="95" y="36" text-anchor="middle" fill="#7a6aaa" font-size="10">NVIDIA L40S &#xB7; FP8</text>
+        <text x="95" y="50" text-anchor="middle" fill="#7a6aaa" font-size="10">Token stream &#x2192; response</text>
+      </g>
+      <text x="940" y="67" text-anchor="middle" fill="#4a6a8a" font-size="16">or</text>
+      <g transform="translate(960, 36)">
+        <rect width="190" height="56" rx="6" fill="#0a2a0a" stroke="#ff9900" stroke-width="1.5"/>
+        <text x="95" y="20" text-anchor="middle" fill="#ffb84d" font-size="11" font-weight="600">4b. vLLM (Neuron)</text>
+        <text x="95" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">Inferentia2 &#xB7; BF16</text>
+        <text x="95" y="50" text-anchor="middle" fill="#9e7a3d" font-size="10">Token stream &#x2192; response</text>
+      </g>
+      <line x1="1155" y1="64" x2="1195" y2="64" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowB)"/>
+      <g transform="translate(1198, 36)">
+        <rect width="190" height="56" rx="6" fill="#0a1f3d" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="95" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="600">5. Response</text>
+        <text x="95" y="36" text-anchor="middle" fill="#4a7a9e" font-size="10">Back through Envoy</text>
+        <text x="95" y="50" text-anchor="middle" fill="#4a7a9e" font-size="10">to workspace pod</text>
+      </g>
+
+      <text x="765" y="130" text-anchor="middle" fill="#3a5a7a" font-size="11" font-style="italic">All hops stay within the cluster  &#x2014;  developer code never reaches an external AI service</text>
+      <text x="765" y="150" text-anchor="middle" fill="#3a5a7a" font-size="11" font-style="italic">LLMInferenceService CR provisions Gateway + EPP + vLLM deployment in a single GitOps-friendly resource</text>
+      <text x="765" y="170" text-anchor="middle" fill="#2a4a6a" font-size="10">KServe workload labels on vLLM pods enable EPP pool membership &#xB7; served-model-name identical across accelerator types</text>
+    </g>
+
+  </g><!-- end cluster boundary -->
+
+  <!-- Footer -->
+  <line x1="60" y1="1055" x2="1860" y2="1055" stroke="#2a4a6b" stroke-width="1"/>
+  <text x="960" y="1073" text-anchor="middle" fill="#3a5a7a" font-size="11">github.com/manu-joy/rosa-llm-driven-deployment &#xB7; Private AI Code Assistant on Red Hat OpenShift &#xB7; Manu Joy &#xB7; April 2026</text>
+</svg>

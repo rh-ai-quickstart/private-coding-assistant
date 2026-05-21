@@ -1,0 +1,23 @@
+# cert-manager — required by KServe for webhook certificates
+# Installed via kustomize overlay from llm-d-playbook
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: https://github.com/llm-d/llm-d-playbook.git
+    targetRevision: main
+    path: components/cert-manager/overlays/stable
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

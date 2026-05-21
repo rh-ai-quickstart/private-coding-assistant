@@ -1,0 +1,29 @@
+# OpenShift Dev Spaces instance — creates the dashboard, workspace controller, registries.
+# Configured with always-active workspaces (idle timeout disabled) to support
+# long-running OpenCode sessions without interruption.
+---
+apiVersion: org.eclipse.che/v2
+kind: CheCluster
+metadata:
+  name: devspaces
+  namespace: openshift-devspaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  devEnvironments:
+    secondsOfInactivityBeforeIdling: -1
+    secondsOfRunBeforeIdling: -1
+    storage:
+      perUserStrategyPvcConfig:
+        claimSize: 50Gi
+      perWorkspaceStrategyPvcConfig:
+        claimSize: 50Gi
+  components:
+    cheServer:
+      debug: false
+    dashboard: {}
+    devWorkspace: {}
+    devfileRegistry: {}
+    pluginRegistry: {}
+  networking: {}

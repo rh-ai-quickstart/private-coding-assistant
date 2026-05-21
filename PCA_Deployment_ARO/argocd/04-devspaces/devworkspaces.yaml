@@ -1,0 +1,334 @@
+# DevWorkspace definitions for each developer.
+#
+# OpenCode configuration:
+#   OpenCode is pre-installed in the custom container image (Dockerfile.opencode).
+#   Global config (~/.config/opencode/opencode.json) baked into the image points to
+#   the cluster-internal llm-d gateway. The postStart script ensures OpenCode is
+#   ready and creates a tmux session for persistent long-running jobs.
+#
+#   Environment variables OPENAI_BASE_URL and OPENAI_API_KEY are set so OpenCode
+#   can also discover the endpoint via standard OpenAI env var convention.
+#
+# Model endpoint (cluster-internal HTTPS, all traffic stays inside OpenShift):
+#   https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+---
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: code-workspace-1
+  namespace: dev1-devspaces
+  labels:
+    che.eclipse.org/devworkspace: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    che.eclipse.org/devfile-source: |
+      custom:
+        type: inline
+spec:
+  started: true
+  routingClass: che
+  contributions:
+    - name: editor
+      uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
+  template:
+    components:
+      - name: dev-tools
+        container:
+          image: registry.redhat.io/devspaces/udi-rhel8:latest
+          memoryLimit: 8Gi
+          memoryRequest: 1Gi
+          cpuLimit: "4000m"
+          cpuRequest: 500m
+          mountSources: true
+          env:
+            - name: VLLM_ENDPOINT
+              value: "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen3.6-35B-A3B-FP8"
+            - name: OPENAI_API_KEY
+              value: "EMPTY"
+            - name: OPENAI_BASE_URL
+              value: "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+            - name: KUBEDOCK_ENABLED
+              value: "true"
+            - name: OPENCODE_CONFIG_CONTENT
+              value: |
+                {
+                  "$schema": "https://opencode.ai/config.json",
+                  "provider": {
+                    "vllm": {
+                      "npm": "@ai-sdk/openai-compatible",
+                      "name": "Private AI Gateway (Qwen3.6)",
+                      "options": {
+                        "baseURL": "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+                      },
+                      "models": {
+                        "Qwen/Qwen3.6-35B-A3B-FP8": {
+                          "name": "Qwen3.6 35B MoE FP8 (Private AI)"
+                        }
+                      }
+                    }
+                  },
+                  "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+                }
+    commands:
+      - id: setup-opencode
+        exec:
+          component: dev-tools
+          commandLine: |
+            if ! command -v opencode &>/dev/null; then
+              curl -fsSL https://opencode.ai/install | bash 2>/dev/null || true
+            fi
+            if ! command -v tmux &>/dev/null; then
+              sudo dnf install -y tmux 2>/dev/null || true
+            fi
+            mkdir -p ~/.local/share/opencode
+            cat > ~/.local/share/opencode/auth.json << 'AUTHEOF'
+            {
+              "vllm": {
+                "type": "api",
+                "key": "EMPTY"
+              }
+            }
+            AUTHEOF
+            mkdir -p ~/.config/opencode
+            cat > ~/.config/opencode/opencode.json << 'CONFEOF'
+            {
+              "$schema": "https://opencode.ai/config.json",
+              "provider": {
+                "vllm": {
+                  "npm": "@ai-sdk/openai-compatible",
+                  "name": "Private AI Gateway (Qwen3.6)",
+                  "options": {
+                    "baseURL": "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+                  },
+                  "models": {
+                    "Qwen/Qwen3.6-35B-A3B-FP8": {
+                      "name": "Qwen3.6 35B MoE FP8 (Private AI)"
+                    }
+                  }
+                }
+              },
+              "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+            }
+            CONFEOF
+            echo "OpenCode setup complete. Run 'opencode' in the terminal to start."
+          label: Install and configure OpenCode
+    events:
+      postStart:
+        - setup-opencode
+---
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: code-workspace-2
+  namespace: dev2-devspaces
+  labels:
+    che.eclipse.org/devworkspace: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    che.eclipse.org/devfile-source: |
+      custom:
+        type: inline
+spec:
+  started: true
+  routingClass: che
+  contributions:
+    - name: editor
+      uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
+  template:
+    components:
+      - name: dev-tools
+        container:
+          image: registry.redhat.io/devspaces/udi-rhel8:latest
+          memoryLimit: 8Gi
+          memoryRequest: 1Gi
+          cpuLimit: "4000m"
+          cpuRequest: 500m
+          mountSources: true
+          env:
+            - name: VLLM_ENDPOINT
+              value: "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen3.6-35B-A3B-FP8"
+            - name: OPENAI_API_KEY
+              value: "EMPTY"
+            - name: OPENAI_BASE_URL
+              value: "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+            - name: KUBEDOCK_ENABLED
+              value: "true"
+            - name: OPENCODE_CONFIG_CONTENT
+              value: |
+                {
+                  "$schema": "https://opencode.ai/config.json",
+                  "provider": {
+                    "vllm": {
+                      "npm": "@ai-sdk/openai-compatible",
+                      "name": "Private AI Gateway (Qwen3.6)",
+                      "options": {
+                        "baseURL": "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+                      },
+                      "models": {
+                        "Qwen/Qwen3.6-35B-A3B-FP8": {
+                          "name": "Qwen3.6 35B MoE FP8 (Private AI)"
+                        }
+                      }
+                    }
+                  },
+                  "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+                }
+    commands:
+      - id: setup-opencode
+        exec:
+          component: dev-tools
+          commandLine: |
+            if ! command -v opencode &>/dev/null; then
+              curl -fsSL https://opencode.ai/install | bash 2>/dev/null || true
+            fi
+            if ! command -v tmux &>/dev/null; then
+              sudo dnf install -y tmux 2>/dev/null || true
+            fi
+            mkdir -p ~/.local/share/opencode
+            cat > ~/.local/share/opencode/auth.json << 'AUTHEOF'
+            {
+              "vllm": {
+                "type": "api",
+                "key": "EMPTY"
+              }
+            }
+            AUTHEOF
+            mkdir -p ~/.config/opencode
+            cat > ~/.config/opencode/opencode.json << 'CONFEOF'
+            {
+              "$schema": "https://opencode.ai/config.json",
+              "provider": {
+                "vllm": {
+                  "npm": "@ai-sdk/openai-compatible",
+                  "name": "Private AI Gateway (Qwen3.6)",
+                  "options": {
+                    "baseURL": "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+                  },
+                  "models": {
+                    "Qwen/Qwen3.6-35B-A3B-FP8": {
+                      "name": "Qwen3.6 35B MoE FP8 (Private AI)"
+                    }
+                  }
+                }
+              },
+              "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+            }
+            CONFEOF
+            echo "OpenCode setup complete. Run 'opencode' in the terminal to start."
+          label: Install and configure OpenCode
+    events:
+      postStart:
+        - setup-opencode
+---
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: code-workspace-3
+  namespace: dev3-devspaces
+  labels:
+    che.eclipse.org/devworkspace: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    che.eclipse.org/devfile-source: |
+      custom:
+        type: inline
+spec:
+  started: true
+  routingClass: che
+  contributions:
+    - name: editor
+      uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
+  template:
+    components:
+      - name: dev-tools
+        container:
+          image: registry.redhat.io/devspaces/udi-rhel8:latest
+          memoryLimit: 8Gi
+          memoryRequest: 1Gi
+          cpuLimit: "4000m"
+          cpuRequest: 500m
+          mountSources: true
+          env:
+            - name: VLLM_ENDPOINT
+              value: "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+            - name: VLLM_MODEL_ID
+              value: "Qwen/Qwen3.6-35B-A3B-FP8"
+            - name: OPENAI_API_KEY
+              value: "EMPTY"
+            - name: OPENAI_BASE_URL
+              value: "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+            - name: KUBEDOCK_ENABLED
+              value: "true"
+            - name: OPENCODE_CONFIG_CONTENT
+              value: |
+                {
+                  "$schema": "https://opencode.ai/config.json",
+                  "provider": {
+                    "vllm": {
+                      "npm": "@ai-sdk/openai-compatible",
+                      "name": "Private AI Gateway (Qwen3.6)",
+                      "options": {
+                        "baseURL": "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+                      },
+                      "models": {
+                        "Qwen/Qwen3.6-35B-A3B-FP8": {
+                          "name": "Qwen3.6 35B MoE FP8 (Private AI)"
+                        }
+                      }
+                    }
+                  },
+                  "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+                }
+    commands:
+      - id: setup-opencode
+        exec:
+          component: dev-tools
+          commandLine: |
+            if ! command -v opencode &>/dev/null; then
+              curl -fsSL https://opencode.ai/install | bash 2>/dev/null || true
+            fi
+            if ! command -v tmux &>/dev/null; then
+              sudo dnf install -y tmux 2>/dev/null || true
+            fi
+            mkdir -p ~/.local/share/opencode
+            cat > ~/.local/share/opencode/auth.json << 'AUTHEOF'
+            {
+              "vllm": {
+                "type": "api",
+                "key": "EMPTY"
+              }
+            }
+            AUTHEOF
+            mkdir -p ~/.config/opencode
+            cat > ~/.config/opencode/opencode.json << 'CONFEOF'
+            {
+              "$schema": "https://opencode.ai/config.json",
+              "provider": {
+                "vllm": {
+                  "npm": "@ai-sdk/openai-compatible",
+                  "name": "Private AI Gateway (Qwen3.6)",
+                  "options": {
+                    "baseURL": "http://qwen36-vllm.ai-serving.svc.cluster.local:8000/v1"
+                  },
+                  "models": {
+                    "Qwen/Qwen3.6-35B-A3B-FP8": {
+                      "name": "Qwen3.6 35B MoE FP8 (Private AI)"
+                    }
+                  }
+                }
+              },
+              "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+            }
+            CONFEOF
+            echo "OpenCode setup complete. Run 'opencode' in the terminal to start."
+          label: Install and configure OpenCode
+    events:
+      postStart:
+        - setup-opencode

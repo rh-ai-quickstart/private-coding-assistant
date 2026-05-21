@@ -1,0 +1,125 @@
+# GuideLLM benchmark sweep for Qwen3.6-35B-A3B-FP8 on NVIDIA H100 NVL.
+# Runs multiple concurrency levels across code-assistant-relevant workloads.
+# Results are stored in a PVC and printed to Job logs for extraction.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: guidellm-results
+  namespace: ai-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: guidellm-sweep-h100
+  namespace: ai-serving
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: guidellm
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: guidellm
+          image: quay.io/rh-aiservices-bu/guidellm:f1f8ca8
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+          env:
+            - name: HF_TOKEN
+              value: ""
+            - name: HF_HOME
+              value: "/tmp/hf-cache"
+            - name: HOME
+              value: "/tmp"
+            - name: GUIDELLM_TARGET
+              value: "http://qwen36-vllm:8000"
+            - name: GUIDELLM_MODEL
+              value: "Qwen/Qwen3.6-35B-A3B-FP8"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              TARGET="${GUIDELLM_TARGET}"
+              MODEL="${GUIDELLM_MODEL}"
+              RESULTS_DIR="/results"
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+              echo "============================================"
+              echo "GuideLLM Sweep — H100 NVL 94GB"
+              echo "Target: ${TARGET}"
+              echo "Model:  ${MODEL}"
+              echo "Started: $(date -u)"
+              echo "============================================"
+
+              # Wait for model endpoint to be ready
+              echo "Waiting for model endpoint..."
+              for i in $(seq 1 60); do
+                if curl -sf "${TARGET}/v1/models" > /dev/null 2>&1; then
+                  echo "Model endpoint is ready."
+                  break
+                fi
+                echo "  Waiting... ($i/60)"
+                sleep 10
+              done
+
+              # Sweep configurations for code assistant workloads:
+              #   - Short code completion (256 prompt → 128 output)
+              #   - Medium code generation (1024 prompt → 512 output)
+              #   - Large context code review (4096 prompt → 1024 output)
+              #   - Full file generation (8192 prompt → 2048 output)
+
+              run_benchmark() {
+                local prompt_tokens=$1
+                local output_tokens=$2
+                local max_seconds=$3
+                local label=$4
+
+                echo ""
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "Benchmark: ${label}"
+                echo "  prompt_tokens=${prompt_tokens}, output_tokens=${output_tokens}"
+                echo "  max_seconds=${max_seconds}"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+                guidellm benchmark run \
+                  --target "${TARGET}/v1" \
+                  --model "${MODEL}" \
+                  --data "prompt_tokens=${prompt_tokens},output_tokens=${output_tokens}" \
+                  --rate-type sweep \
+                  --max-seconds "${max_seconds}" \
+                  --output-path "${RESULTS_DIR}/${label}_${TIMESTAMP}.json" 2>&1 || echo "Benchmark ${label} failed (non-fatal)"
+              }
+
+              run_benchmark 256 128 120 "code-completion-short"
+              run_benchmark 1024 512 180 "code-generation-medium"
+              run_benchmark 4096 1024 300 "code-review-large"
+              run_benchmark 8192 2048 360 "file-generation-xlarge"
+
+              echo ""
+              echo "============================================"
+              echo "All benchmarks complete: $(date -u)"
+              echo "Results in: ${RESULTS_DIR}/"
+              echo "============================================"
+              ls -la ${RESULTS_DIR}/
+          volumeMounts:
+            - name: results
+              mountPath: /results
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: guidellm-results

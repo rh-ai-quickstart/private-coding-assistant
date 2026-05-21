@@ -1,0 +1,122 @@
+# Qwen3.6-35B-A3B-FP8 on NVIDIA H100 NVL 94 GB
+# Uses upstream vLLM v0.17.1 with CUDA compat mode (driver 550/CUDA 12.4 + compat libs)
+# Qwen3.6 MoE: 35B total / 3B active, 256 experts. FP8 weights ~35GB, fits H100 94GB.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen36-vllm
+  namespace: ai-serving
+  labels:
+    app: qwen36-vllm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qwen36-vllm
+  template:
+    metadata:
+      labels:
+        app: qwen36-vllm
+    spec:
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Equal"
+          value: "present"
+          effect: "NoSchedule"
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.19.0
+          args:
+            - "--model"
+            - "Qwen/Qwen3.6-35B-A3B-FP8"
+            - "--served-model-name"
+            - "Qwen/Qwen3.6-35B-A3B-FP8"
+            - "--tensor-parallel-size"
+            - "1"
+            - "--max-model-len"
+            - "32768"
+            - "--trust-remote-code"
+            - "--enable-prefix-caching"
+            - "--port"
+            - "8000"
+          env:
+            - name: VLLM_ENABLE_CUDA_COMPATIBILITY
+              value: "1"
+            - name: LD_LIBRARY_PATH
+              value: "/usr/local/cuda/compat:/usr/local/cuda/lib64:/usr/lib64"
+            - name: HF_HOME
+              value: "/hf-cache"
+            - name: HF_HUB_OFFLINE
+              value: "0"
+            - name: TRITON_CACHE_DIR
+              value: "/tmp/triton-cache"
+            - name: XDG_CACHE_HOME
+              value: "/tmp/cache"
+            - name: HOME
+              value: "/tmp"
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: "16"
+              memory: 120Gi
+              nvidia.com/gpu: "1"
+            requests:
+              cpu: "8"
+              memory: 80Gi
+              nvidia.com/gpu: "1"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /hf-cache
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: hf-cache
+          emptyDir:
+            sizeLimit: 100Gi
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen36-vllm
+  namespace: ai-serving
+  labels:
+    app: qwen36-vllm
+spec:
+  selector:
+    app: qwen36-vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP

@@ -1,0 +1,52 @@
+# ──────────────────────────────────────────────
+# Copy this file to terraform.tfvars and fill in values
+# NEVER commit terraform.tfvars to version control
+# ──────────────────────────────────────────────
+
+# Required: OCM token from https://console.redhat.com/openshift/token
+rhcs_token = ""
+
+# Required: AWS account ID
+aws_account_id = "123456789012"
+
+# Cluster configuration
+cluster_name      = "rosa-pca"
+openshift_version = "4.21.7"
+aws_region        = "us-east-2"
+environment       = "dev"
+
+# VPC: set use_existing_vpc = true and provide subnet IDs to skip VPC creation
+use_existing_vpc            = false
+# existing_private_subnet_ids = ["subnet-abc123", "subnet-def456", "subnet-ghi789"]
+
+# Default workers
+default_worker_instance_type = "m5.2xlarge"
+default_worker_replicas      = 3
+default_worker_autoscaling   = true
+default_worker_min_replicas  = 3
+default_worker_max_replicas  = 6
+
+# GPU pool (NVIDIA L40S)
+gpu_pool_enabled  = true
+gpu_instance_type = "g6e.2xlarge"
+gpu_pool_replicas = 1
+
+# Inferentia pool (disabled by default)
+inferentia_pool_enabled  = false
+inferentia_instance_type = "inf2.24xlarge"
+inferentia_pool_replicas = 1
+
+# Users
+cluster_admin_password = ""
+devspaces_users = [
+  { username = "dev-user1", password = "ChangeMe123!" },
+  { username = "dev-user2", password = "ChangeMe456!" },
+]
+
+# Secrets
+huggingface_token = ""
+
+# GitOps: point to your fork of this repo
+gitops_repo_url      = "https://github.com/<your-org>/rosa-llm-driven-deployment.git"
+gitops_repo_revision = "main"
+gitops_repo_path     = "PCA_deployment/argocd"

@@ -1,0 +1,12 @@
+# LeaderWorkerSet Operator instance — enables the LWS controller.
+# Applied after the LWS CRD is installed (wave 1).
+---
+apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSetOperator
+metadata:
+  name: cluster
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  managementState: Managed

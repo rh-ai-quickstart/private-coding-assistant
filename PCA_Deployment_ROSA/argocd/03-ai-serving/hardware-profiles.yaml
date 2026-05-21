@@ -1,0 +1,45 @@
+# HardwareProfile for AWS Trainium (trn1.32xlarge) — optional, for future multi-accelerator deployments
+---
+apiVersion: infrastructure.opendatahub.io/v1
+kind: HardwareProfile
+metadata:
+  name: trainium-trn1
+  namespace: redhat-ods-applications
+  labels:
+    app.opendatahub.io/hardwareprofile: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    opendatahub.io/display-name: AWS Trainium (trn1.32xlarge)
+    opendatahub.io/description: >-
+      Trainium trn1.32xlarge with up to 32 NeuronCores and 512 GiB system RAM.
+    opendatahub.io/disabled: "false"
+    opendatahub.io/dashboard-feature-visibility: '["servingRuntimes","notebookController"]'
+spec:
+  identifiers:
+    - displayName: CPU
+      identifier: cpu
+      resourceType: CPU
+      defaultCount: 16
+      minCount: 4
+      maxCount: 128
+    - displayName: Memory
+      identifier: memory
+      resourceType: Memory
+      defaultCount: 200Gi
+      minCount: 32Gi
+      maxCount: 512Gi
+    - displayName: NeuronCore
+      identifier: aws.amazon.com/neuroncore
+      defaultCount: 16
+      minCount: 2
+      maxCount: 32
+  scheduling:
+    type: Node
+    node:
+      nodeSelector:
+        node.kubernetes.io/instance-type: trn1.32xlarge
+      tolerations:
+        - key: aws.amazon.com/neuroncore
+          operator: Exists
+          effect: NoSchedule

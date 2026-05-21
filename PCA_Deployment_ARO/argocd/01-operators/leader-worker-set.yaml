@@ -1,0 +1,22 @@
+# LeaderWorkerSet Operator — required by KServe for multi-node inference
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: leader-worker-set
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: https://github.com/llm-d/llm-d-playbook.git
+    targetRevision: main
+    path: components/lws/overlays/stable
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

@@ -1,0 +1,53 @@
+# ──────────────────────────────────────────────
+# Copy this file to terraform.tfvars and fill in values.
+# NEVER commit terraform.tfvars to version control.
+# ──────────────────────────────────────────────
+
+# Required: Azure subscription ID
+# Get with: az account show --query id -o tsv
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Cluster configuration
+cluster_name = "aro-pca"
+location     = "centralus"
+aro_version  = "4.19.24"
+environment  = "dev"
+
+# Required: Red Hat pull secret (one-line JSON string)
+# Download from: https://console.redhat.com/openshift/install/pull-secret
+pull_secret = ""
+
+# Networking (defaults are fine for most deployments)
+vnet_cidr          = "10.0.0.0/8"
+master_subnet_cidr = "10.0.0.0/23"
+worker_subnet_cidr = "10.0.2.0/23"
+pod_cidr           = "10.128.0.0/14"
+service_cidr       = "172.30.0.0/16"
+
+# Default worker nodes
+worker_vm_size      = "Standard_D8s_v5"
+worker_replicas     = 3
+worker_disk_size_gb = 128
+
+# Master nodes
+master_vm_size = "Standard_D8s_v5"
+
+# GPU nodes (NVIDIA A100 80 GB — provisioned post-cluster via MachineSet)
+gpu_vm_size       = "Standard_NC24ads_A100_v4"
+gpu_node_replicas = 1
+
+# Users
+cluster_admin_password = ""
+devspaces_users = [
+  { username = "dev-user1", password = "ChangeMe123!" },
+  { username = "dev-user2", password = "ChangeMe456!" },
+  { username = "dev-user3", password = "ChangeMe789!" },
+]
+
+# Secrets
+huggingface_token = ""
+
+# GitOps: point to your fork of this repo
+gitops_repo_url      = "https://github.com/<your-org>/Private_Code_Assistant.git"
+gitops_repo_revision = "main"
+gitops_repo_path     = "PCA_Deployment_ARO/argocd"

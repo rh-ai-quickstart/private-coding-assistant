@@ -1,0 +1,151 @@
+# Root App-of-Apps: ArgoCD discovers child Applications in this directory.
+# Each child Application points to a subdirectory of manifests.
+# Sync waves ensure correct ordering: operators → platform → workloads.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: private-code-assistant
+  namespace: openshift-gitops
+spec:
+  description: Private AI Code Assistant — ARO deployment
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+# Wave 1: Operators
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-operators
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: https://github.com/manu-joy/Private_Code_Assistant
+    targetRevision: main
+    path: PCA_Deployment_ARO/argocd/01-operators
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+---
+# Wave 2: Platform Configuration
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-platform-config
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: https://github.com/manu-joy/Private_Code_Assistant
+    targetRevision: main
+    path: PCA_Deployment_ARO/argocd/02-platform-config
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+---
+# Wave 3: AI Serving (Models, Gateway, PVCs)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-ai-serving
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: https://github.com/manu-joy/Private_Code_Assistant
+    targetRevision: main
+    path: PCA_Deployment_ARO/argocd/03-ai-serving
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 60s
+        factor: 2
+        maxDuration: 10m
+---
+# Wave 4: DevSpaces Workspaces and Extension Configuration
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-devspaces
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: https://github.com/manu-joy/Private_Code_Assistant
+    targetRevision: main
+    path: PCA_Deployment_ARO/argocd/04-devspaces
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

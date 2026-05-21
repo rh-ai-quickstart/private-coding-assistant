@@ -1,0 +1,20 @@
+# Cluster-wide VS Code extension recommendations for all DevSpaces workspaces.
+# OpenCode runs in the terminal, not as a VS Code extension.
+# We keep lightweight editor extensions only.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vscode-extensions-config
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/component: workspaces-config
+    app.kubernetes.io/part-of: che.eclipse.org
+    controller.devfile.io/watch-configmap: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  .vscode-extensions.json: |
+    {
+      "recommendations": []
+    }

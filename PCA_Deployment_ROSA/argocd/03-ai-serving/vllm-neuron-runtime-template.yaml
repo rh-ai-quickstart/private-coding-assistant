@@ -1,0 +1,121 @@
+# vLLM Neuron ServingRuntime Template — for Inferentia2/Trainium deployments
+---
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: vllm-neuron-runtime-template
+  namespace: redhat-ods-applications
+  labels:
+    app: odh-dashboard
+    opendatahub.io/dashboard: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    description: >-
+      vLLM ServingRuntime for AWS Inferentia2 / Trainium (Neuron SDK).
+      Supports dense and MoE models on NeuronCores.
+    openshift.io/display-name: "vLLM AWS Neuron (Inferentia2 / Trainium) ServingRuntime for KServe"
+    openshift.io/provider-display-name: "Custom"
+    opendatahub.io/apiProtocol: REST
+    opendatahub.io/model-type: '["generative"]'
+    opendatahub.io/modelServingSupport: '["single"]'
+    tags: "rhoai,kserve,servingruntime,inferentia,trainium,neuron,vllm"
+objects:
+  - apiVersion: serving.kserve.io/v1alpha1
+    kind: ServingRuntime
+    metadata:
+      name: vllm-neuron-runtime
+      annotations:
+        opendatahub.io/recommended-accelerators: '["aws.amazon.com/neuroncore"]'
+        opendatahub.io/runtime-version: "v0.13.0"
+        openshift.io/display-name: "vLLM AWS Neuron (Inferentia2 / Trainium) ServingRuntime for KServe"
+      labels:
+        opendatahub.io/dashboard: "true"
+    spec:
+      annotations:
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+      supportedModelFormats:
+        - name: pytorch
+          version: "1"
+          autoSelect: true
+      multiModel: false
+      containers:
+        - name: kserve-container
+          image: public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.13.0-neuronx-py312-sdk2.28.0-ubuntu24.04
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          command:
+            - /bin/bash
+            - -c
+            - |
+              mkdir -p /mnt/models/neuron-cache/compiled /tmp/hf-home
+              vllm serve \
+                --model="/mnt/models" \
+                --served-model-name="${SERVED_MODEL_NAME:-model}" \
+                --tensor-parallel-size="${TP_SIZE:-2}" \
+                --max-num-seqs="${MAX_NUM_SEQS:-4}" \
+                --max-model-len="${MAX_MODEL_LEN:-2048}" \
+                --block-size="${BLOCK_SIZE:-8}" \
+                --no-enable-chunked-prefill \
+                --no-enable-prefix-caching \
+                --port=8080
+          env:
+            - name: VLLM_NEURON_FRAMEWORK
+              value: neuronx-distributed-inference
+            - name: NEURON_COMPILE_CACHE_URL
+              value: /mnt/models/neuron-cache
+            - name: NEURON_COMPILED_ARTIFACTS
+              value: /mnt/models/neuron-cache/compiled
+            - name: HF_HOME
+              value: /tmp/hf-home
+            - name: NEURON_RT_VISIBLE_CORES
+              value: "0-1"
+            - name: FI_EFA_USE_DEVICE_RDMA
+              value: "1"
+            - name: FI_PROVIDER
+              value: "efa"
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              aws.amazon.com/neuroncore: "2"
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              aws.amazon.com/neuroncore: "2"
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK
+                - SYS_ADMIN
+          readinessProbe:
+            httpGet:
+              path: /v1/models
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 120
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 2400
+            periodSeconds: 60
+            failureThreshold: 10
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /tmp/hf-home
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: hf-cache
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi

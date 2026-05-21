@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v3: all control chars removed, pure ASCII XML -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0f18"/>
+      <stop offset="100%" style="stop-color:#111d2e"/>
+    </linearGradient>
+    <linearGradient id="vpcGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f2a40"/>
+      <stop offset="100%" style="stop-color:#0a1e30"/>
+    </linearGradient>
+    <linearGradient id="azGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a1a2a"/>
+      <stop offset="100%" style="stop-color:#081520"/>
+    </linearGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.5"/></filter>
+    <marker id="arrowO" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ff9900"/>
+    </marker>
+    <marker id="arrowB" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4a90d9"/>
+    </marker>
+    <marker id="arrowG" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00d26a"/>
+    </marker>
+    <marker id="arrowC" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00b4d8"/>
+    </marker>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1920" height="4" fill="#ee0000"/>
+
+  <!-- Header -->
+  <text x="960" y="46" text-anchor="middle" fill="#fff" font-size="28" font-weight="700">Private AI Code Assistant  &#x2014;  AWS Architectural View</text>
+  <text x="960" y="70" text-anchor="middle" fill="#8fabc7" font-size="15">Enterprise Private Connectivity &#xB7; No Internet Gateway &#xB7; Source Code Never Leaves the Perimeter</text>
+  <line x1="60" y1="84" x2="1860" y2="84" stroke="#2a4a6b" stroke-width="1"/>
+
+  <!-- Branding -->
+  <g transform="translate(60,18)"><rect width="32" height="32" rx="4" fill="#ee0000"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">RH</text></g>
+  <g transform="translate(1828,18)"><rect width="32" height="32" rx="4" fill="#ff9900"/><text x="16" y="22" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">AWS</text></g>
+
+  <!-- PP CUSTOMER PREMISES PP -->
+  <g transform="translate(60, 100)">
+    <rect width="260" height="600" rx="12" fill="#0a1a2a" stroke="#4a90d9" stroke-width="2" filter="url(#sh)"/>
+    <rect width="260" height="40" rx="12" fill="#0d2d44"/>
+    <rect width="260" height="20" y="20" fill="#0d2d44"/>
+    <text x="130" y="27" text-anchor="middle" fill="#7bb8e0" font-size="13" font-weight="700">CUSTOMER PREMISES</text>
+
+    <!-- Developer -->
+    <g transform="translate(20, 58)">
+      <rect width="220" height="80" rx="8" fill="#0d2d44" stroke="#4a90d9" stroke-width="1"/>
+      <text x="110" y="22" text-anchor="middle" fill="#4a90d9" font-size="12" font-weight="700">Developer Workstations</text>
+      <text x="110" y="40" text-anchor="middle" fill="#7bb8e0" font-size="11">Browser / VS Code Desktop</text>
+      <text x="110" y="57" text-anchor="middle" fill="#7bb8e0" font-size="11">Cursor / Kiro / CLI</text>
+      <text x="110" y="72" text-anchor="middle" fill="#4a6a8a" font-size="10">Corporate network</text>
+    </g>
+
+    <!-- Corporate Firewall -->
+    <g transform="translate(20, 158)">
+      <rect width="220" height="56" rx="8" fill="#1a0a0a" stroke="#ee0000" stroke-width="1"/>
+      <text x="110" y="22" text-anchor="middle" fill="#ff6b6b" font-size="12" font-weight="700">Corporate Firewall</text>
+      <text x="110" y="40" text-anchor="middle" fill="#8a5a5a" font-size="11">Outbound HTTPS :443</text>
+    </g>
+
+    <!-- Direct Connect -->
+    <g transform="translate(20, 234)">
+      <rect width="220" height="80" rx="8" fill="#1a1000" stroke="#ff9900" stroke-width="2"/>
+      <text x="110" y="22" text-anchor="middle" fill="#ff9900" font-size="12" font-weight="700">AWS Direct Connect</text>
+      <text x="110" y="40" text-anchor="middle" fill="#cc9933" font-size="11">Dedicated circuit</text>
+      <text x="110" y="57" text-anchor="middle" fill="#cc9933" font-size="11">1 Gbps / 10 Gbps</text>
+      <text x="110" y="73" text-anchor="middle" fill="#9e7a3d" font-size="10">Private virtual interface</text>
+    </g>
+
+    <!-- Security note -->
+    <g transform="translate(20, 334)">
+      <rect width="220" height="240" rx="8" fill="#081218" stroke="#2a4a6b" stroke-width="1"/>
+      <text x="110" y="20" text-anchor="middle" fill="#4a6a8a" font-size="12" font-weight="700">Security Properties</text>
+      <text x="16" y="42" fill="#3a6a5a" font-size="10">&#x2022;  No public internet path</text>
+      <text x="16" y="58" fill="#3a6a5a" font-size="10">&#x2022;  Dedicated private circuit</text>
+      <text x="16" y="74" fill="#3a6a5a" font-size="10">&#x2022;  Corporate IDP via OIDC</text>
+      <text x="16" y="90" fill="#3a6a5a" font-size="10">&#x2022;  Source code stays in VPC</text>
+      <text x="16" y="106" fill="#3a6a5a" font-size="10">&#x2022;  GDPR / data sovereignty</text>
+      <text x="16" y="122" fill="#3a6a5a" font-size="10">&#x2022;  No vendor relay</text>
+      <text x="16" y="138" fill="#3a6a5a" font-size="10">&#x2022;  Audit trail in cluster logs</text>
+      <text x="16" y="158" fill="#3a5a7a" font-size="10">Alt: AWS VPN (IPSec)</text>
+      <text x="16" y="174" fill="#3a5a7a" font-size="10">Alt: Public HTTPS (Internet)</text>
+      <text x="16" y="190" fill="#3a5a7a" font-size="10">    (if Route exposed publicly)</text>
+      <text x="16" y="220" fill="#4a4a3a" font-size="10">Recommended: Direct Connect</text>
+    </g>
+  </g>
+
+  <!-- Arrow: Customer &#x2192; Transit Gateway -->
+  <line x1="320" y1="380" x2="390" y2="380" stroke="#ff9900" stroke-width="2.5" marker-end="url(#arrowO)"/>
+  <text x="330" y="373" fill="#cc9933" font-size="10">Private VIF</text>
+
+  <!-- PP AWS CLOUD BOUNDARY PP -->
+  <g transform="translate(380, 92)">
+    <!-- AWS outer box -->
+    <rect width="1490" height="900" rx="14" fill="none" stroke="#ff9900" stroke-width="2" stroke-dasharray="10,5"/>
+    <rect width="200" height="26" rx="4" fill="#ff9900" transform="translate(645, -13)"/>
+    <text x="745" y="6" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Amazon Web Services  &#x2014;  us-east-2 (Ohio)</text>
+
+    <!-- Transit Gateway -->
+    <g transform="translate(20, 260)">
+      <rect width="240" height="80" rx="10" fill="#1a1000" stroke="#ff9900" stroke-width="2" filter="url(#sh)"/>
+      <text x="120" y="24" text-anchor="middle" fill="#ff9900" font-size="13" font-weight="700">Transit Gateway</text>
+      <text x="120" y="42" text-anchor="middle" fill="#cc9933" font-size="11">Connects Direct Connect</text>
+      <text x="120" y="58" text-anchor="middle" fill="#cc9933" font-size="11">to ROSA VPC</text>
+      <text x="120" y="73" text-anchor="middle" fill="#9e7a3d" font-size="10">Route table association</text>
+    </g>
+
+    <!-- Arrow: TGW &#x2192; VPC -->
+    <line x1="260" y1="300" x2="310" y2="300" stroke="#ff9900" stroke-width="2" marker-end="url(#arrowO)"/>
+
+    <!-- PP ROSA VPC PP -->
+    <g transform="translate(300, 20)">
+      <rect width="1160" height="860" rx="12" fill="url(#vpcGrad)" stroke="#00b4d8" stroke-width="2" filter="url(#sh)"/>
+      <rect width="260" height="26" rx="4" fill="#00b4d8" transform="translate(450, -13)"/>
+      <text x="580" y="6" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">ROSA VPC (10.0.0.0/16)  &#x2014;  Private Subnets Only</text>
+
+      <!-- No IGW badge -->
+      <g transform="translate(20, 16)">
+        <rect width="200" height="28" rx="6" fill="#2a0a0a" stroke="#ee0000" stroke-width="1.5"/>
+        <text x="100" y="19" text-anchor="middle" fill="#ee0000" font-size="12" font-weight="700">=&#xAB; No Internet Gateway</text>
+      </g>
+
+      <!-- NLB -->
+      <g transform="translate(380, 14)">
+        <rect width="380" height="60" rx="10" fill="#1a1000" stroke="#ff9900" stroke-width="2" filter="url(#sh)"/>
+        <text x="190" y="22" text-anchor="middle" fill="#ff9900" font-size="13" font-weight="700">AWS Network Load Balancer (NLB)</text>
+        <text x="190" y="40" text-anchor="middle" fill="#cc9933" font-size="11">Internal &#xB7; HTTPS :443 &#x2192; Istio Gateway</text>
+        <text x="190" y="54" text-anchor="middle" fill="#9e7a3d" font-size="10">AWS PrivateLink endpoint for K8s API :6443</text>
+      </g>
+
+      <!-- Arrow NLB &#x2192; AZs -->
+      <line x1="160" y1="76" x2="160" y2="108" stroke="#ff9900" stroke-width="1.5" marker-end="url(#arrowO)"/>
+      <line x1="580" y1="76" x2="580" y2="108" stroke="#ff9900" stroke-width="1.5" marker-end="url(#arrowO)"/>
+      <line x1="1000" y1="76" x2="1000" y2="108" stroke="#ff9900" stroke-width="1.5" marker-end="url(#arrowO)"/>
+
+      <!--  AZ a  -->
+      <g transform="translate(20, 110)">
+        <rect width="340" height="500" rx="10" fill="url(#azGrad)" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="170" y="22" text-anchor="middle" fill="#4a90d9" font-size="12" font-weight="700">Availability Zone  &#x2014;  us-east-2a</text>
+        <text x="170" y="38" text-anchor="middle" fill="#3a6a9e" font-size="10">Private Subnet: 10.0.1.0/24</text>
+
+        <!-- Worker: g6e -->
+        <g transform="translate(15, 50)">
+          <rect width="310" height="120" rx="8" fill="#1a0a2a" stroke="#a78bfa" stroke-width="1.5"/>
+          <text x="155" y="20" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">Worker: g6e.2xlarge (L40S)</text>
+          <text x="155" y="36" text-anchor="middle" fill="#7a6aaa" font-size="10">NVIDIA L40S &#xB7; 48GB VRAM</text>
+          <text x="155" y="50" text-anchor="middle" fill="#7a6aaa" font-size="10">vLLM Pod (CUDA) &#xB7; Qwen3-Coder FP8</text>
+          <text x="155" y="64" text-anchor="middle" fill="#7a6aaa" font-size="10">LLMInferenceService / KServe</text>
+          <rect x="15" y="78" width="280" height="30" rx="5" fill="#2a0a3a" stroke="#a78bfa" stroke-width="1"/>
+          <text x="155" y="97" text-anchor="middle" fill="#a78bfa" font-size="10">300 GB EBS gp3 &#xB7; model-cache PVC</text>
+        </g>
+
+        <!-- Control plane nodes (HCP) -->
+        <g transform="translate(15, 185)">
+          <rect width="310" height="60" rx="6" fill="#1a1000" stroke="#ff9900" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#ffb84d" font-size="11" font-weight="600">ROSA HCP Control Plane</text>
+          <text x="155" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">Hosted by Red Hat (not in VPC)</text>
+          <text x="155" y="52" text-anchor="middle" fill="#9e7a3d" font-size="10">etcd &#xB7; API server &#xB7; controllers</text>
+        </g>
+
+        <!-- Dev Spaces pods -->
+        <g transform="translate(15, 260)">
+          <rect width="310" height="80" rx="6" fill="#0a2a4a" stroke="#4a90d9" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="600">Dev Spaces Workspace Pods</text>
+          <text x="155" y="36" text-anchor="middle" fill="#4a7a9e" font-size="10">VS Code &#xB7; Continue &#xB7; Cline &#xB7; Roo</text>
+          <text x="155" y="52" text-anchor="middle" fill="#4a7a9e" font-size="10">OpenAI API calls &#x2192; ClusterIP</text>
+          <text x="155" y="68" text-anchor="middle" fill="#3a5a7a" font-size="10">Stays cluster-internal</text>
+        </g>
+
+        <!-- Istio / llm-d -->
+        <g transform="translate(15, 354)">
+          <rect width="310" height="60" rx="6" fill="#0a2a2a" stroke="#00b4d8" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="600">Service Mesh + llm-d EPP</text>
+          <text x="155" y="36" text-anchor="middle" fill="#3d8a8a" font-size="10">Istio sidecar &#xB7; Envoy ext_proc</text>
+          <text x="155" y="52" text-anchor="middle" fill="#3d8a8a" font-size="10">InferencePool scoring</text>
+        </g>
+
+        <!-- EBS -->
+        <g transform="translate(15, 428)">
+          <rect width="310" height="52" rx="6" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11">Amazon EBS (gp3-csi)</text>
+          <text x="155" y="38" text-anchor="middle" fill="#3a5a7a" font-size="10">PVCs: model weights &#xB7; NEFF cache</text>
+        </g>
+      </g>
+
+      <!--  AZ b  -->
+      <g transform="translate(400, 110)">
+        <rect width="340" height="500" rx="10" fill="url(#azGrad)" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="170" y="22" text-anchor="middle" fill="#4a90d9" font-size="12" font-weight="700">Availability Zone  &#x2014;  us-east-2b</text>
+        <text x="170" y="38" text-anchor="middle" fill="#3a6a9e" font-size="10">Private Subnet: 10.0.2.0/24</text>
+
+        <!-- Worker: inf2 -->
+        <g transform="translate(15, 50)">
+          <rect width="310" height="140" rx="8" fill="#0a2a0a" stroke="#ff9900" stroke-width="1.5"/>
+          <text x="155" y="20" text-anchor="middle" fill="#ffb84d" font-size="11" font-weight="700">Worker: inf2.24xlarge (Inferentia2)</text>
+          <text x="155" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">6&#xD7; Inferentia2 &#xB7; 12 NeuronCores</text>
+          <text x="155" y="50" text-anchor="middle" fill="#9e7a3d" font-size="10">192 GB HBM &#xB7; BF16 &#xB7; TP=8</text>
+          <text x="155" y="64" text-anchor="middle" fill="#9e7a3d" font-size="10">vLLM Pod (Neuron) &#xB7; Qwen3-Coder</text>
+          <text x="155" y="78" text-anchor="middle" fill="#9e7a3d" font-size="10">InferenceService / KServe</text>
+          <rect x="15" y="94" width="280" height="30" rx="5" fill="#1a1500" stroke="#ff9900" stroke-width="1"/>
+          <text x="155" y="113" text-anchor="middle" fill="#ff9900" font-size="10">300 GB EBS gp3 &#xB7; NEFF cache PVC</text>
+        </g>
+
+        <!-- System nodes -->
+        <g transform="translate(15, 205)">
+          <rect width="310" height="60" rx="6" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="600">System / Infra Nodes</text>
+          <text x="155" y="36" text-anchor="middle" fill="#4a7a9e" font-size="10">m6i.2xlarge &#xB7; Operator pods</text>
+          <text x="155" y="52" text-anchor="middle" fill="#4a7a9e" font-size="10">Logging &#xB7; Monitoring &#xB7; DNS</text>
+        </g>
+
+        <!-- Operators -->
+        <g transform="translate(15, 280)">
+          <rect width="310" height="90" rx="6" fill="#1a1000" stroke="#ff9900" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#ffb84d" font-size="11" font-weight="600">Operator Pods</text>
+          <text x="155" y="36" text-anchor="middle" fill="#9e7a3d" font-size="10">AWS Neuron Operator</text>
+          <text x="155" y="52" text-anchor="middle" fill="#9e7a3d" font-size="10">NFD &#xB7; KMM &#xB7; cert-manager</text>
+          <text x="155" y="68" text-anchor="middle" fill="#9e7a3d" font-size="10">NVIDIA GPU Operator</text>
+        </g>
+
+        <!-- EBS -->
+        <g transform="translate(15, 384)">
+          <rect width="310" height="52" rx="6" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11">Amazon EBS (gp3-csi)</text>
+          <text x="155" y="38" text-anchor="middle" fill="#3a5a7a" font-size="10">PVCs: model weights &#xB7; NEFF cache</text>
+        </g>
+
+        <g transform="translate(15, 446)">
+          <rect width="310" height="44" rx="6" fill="#0a1a0a" stroke="#00d26a" stroke-width="1"/>
+          <text x="155" y="18" text-anchor="middle" fill="#00d26a" font-size="10">NeuronLink-v2 Ring (chip-to-chip)</text>
+          <text x="155" y="34" text-anchor="middle" fill="#2a6a4a" font-size="10">High-BW interconnect inside node</text>
+        </g>
+      </g>
+
+      <!--  AZ c  -->
+      <g transform="translate(780, 110)">
+        <rect width="340" height="500" rx="10" fill="url(#azGrad)" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="170" y="22" text-anchor="middle" fill="#4a90d9" font-size="12" font-weight="700">Availability Zone  &#x2014;  us-east-2c</text>
+        <text x="170" y="38" text-anchor="middle" fill="#3a6a9e" font-size="10">Private Subnet: 10.0.3.0/24</text>
+
+        <!-- Additional workers -->
+        <g transform="translate(15, 50)">
+          <rect width="310" height="80" rx="8" fill="#1a1000" stroke="#cc7700" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="155" y="20" text-anchor="middle" fill="#cc9933" font-size="11" font-weight="600">Additional GPU Workers</text>
+          <text x="155" y="36" text-anchor="middle" fill="#8a6a3a" font-size="10">(Scale Phase 2+)</text>
+          <text x="155" y="52" text-anchor="middle" fill="#8a6a3a" font-size="10">g6e.2xlarge  &#x2014;  llm-d pool member</text>
+          <text x="155" y="68" text-anchor="middle" fill="#6a4a2a" font-size="10">Auto-scaled via MachineSet</text>
+        </g>
+
+        <!-- PrivateLink endpoint -->
+        <g transform="translate(15, 148)">
+          <rect width="310" height="80" rx="8" fill="#1a0800" stroke="#ff6600" stroke-width="1.5"/>
+          <text x="155" y="22" text-anchor="middle" fill="#ff8844" font-size="11" font-weight="700">AWS PrivateLink</text>
+          <text x="155" y="38" text-anchor="middle" fill="#cc6633" font-size="10">K8s API :6443  &#x2014;  private endpoint</text>
+          <text x="155" y="54" text-anchor="middle" fill="#cc6633" font-size="10">oc login &#xB7; CI/CD &#xB7; GitOps</text>
+          <text x="155" y="70" text-anchor="middle" fill="#9e4a2a" font-size="10">No public API exposure</text>
+        </g>
+
+        <!-- NAT Gateway (if needed) -->
+        <g transform="translate(15, 246)">
+          <rect width="310" height="80" rx="6" fill="#0a1a1a" stroke="#00b4d8" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#4dd9e8" font-size="11" font-weight="600">NAT Gateway (optional)</text>
+          <text x="155" y="36" text-anchor="middle" fill="#3d8a8a" font-size="10">Outbound for image pulls only</text>
+          <text x="155" y="52" text-anchor="middle" fill="#3d8a8a" font-size="10">Quay.io &#xB7; registry.redhat.io</text>
+          <text x="155" y="68" text-anchor="middle" fill="#2a6a6a" font-size="10">Inbound: blocked (no IGW)</text>
+        </g>
+
+        <!-- Route 53 -->
+        <g transform="translate(15, 344)">
+          <rect width="310" height="60" rx="6" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+          <text x="155" y="20" text-anchor="middle" fill="#7bb8e0" font-size="11" font-weight="600">Route 53 (Private Hosted Zone)</text>
+          <text x="155" y="36" text-anchor="middle" fill="#4a7a9e" font-size="10">*.apps.rosa.cluster.openshiftapps.com</text>
+          <text x="155" y="52" text-anchor="middle" fill="#4a7a9e" font-size="10">Internal DNS resolution</text>
+        </g>
+
+        <!-- EBS -->
+        <g transform="translate(15, 420)">
+          <rect width="310" height="60" rx="6" fill="#0a1a2a" stroke="#4a90d9" stroke-width="1"/>
+          <text x="155" y="22" text-anchor="middle" fill="#7bb8e0" font-size="11">Amazon EBS (gp3-csi)</text>
+          <text x="155" y="38" text-anchor="middle" fill="#3a5a7a" font-size="10">Multi-AZ PVC provisioning</text>
+          <text x="155" y="54" text-anchor="middle" fill="#3a5a7a" font-size="10">ReadWriteOnce &#xB7; 300 GB</text>
+        </g>
+      </g>
+
+      <!-- S3 / HuggingFace (bottom) -->
+      <g transform="translate(20, 628)">
+        <rect width="1120" height="68" rx="8" fill="#0f1a0a" stroke="#00d26a" stroke-width="1.5"/>
+        <text x="560" y="22" text-anchor="middle" fill="#00d26a" font-size="12" font-weight="700">Model Artifact Sources (Access via NAT Gateway / VPC Endpoint)</text>
+        <g transform="translate(40, 34)">
+          <rect width="200" height="24" rx="4" fill="#1a2a0a" stroke="#00d26a" stroke-width="1"/>
+          <text x="100" y="16" text-anchor="middle" fill="#4daa6a" font-size="10">Amazon S3 (model weights)</text>
+        </g>
+        <g transform="translate(260, 34)">
+          <rect width="200" height="24" rx="4" fill="#1a2a0a" stroke="#00d26a" stroke-width="1"/>
+          <text x="100" y="16" text-anchor="middle" fill="#4daa6a" font-size="10">HuggingFace Hub (initial pull)</text>
+        </g>
+        <g transform="translate(480, 34)">
+          <rect width="200" height="24" rx="4" fill="#1a2a0a" stroke="#00d26a" stroke-width="1"/>
+          <text x="100" y="16" text-anchor="middle" fill="#4daa6a" font-size="10">Quay.io (container images)</text>
+        </g>
+        <g transform="translate(700, 34)">
+          <rect width="220" height="24" rx="4" fill="#1a2a0a" stroke="#00d26a" stroke-width="1"/>
+          <text x="110" y="16" text-anchor="middle" fill="#4daa6a" font-size="10">registry.redhat.io (Red Hat images)</text>
+        </g>
+      </g>
+
+    </g><!-- end ROSA VPC -->
+
+  </g><!-- end AWS cloud boundary -->
+
+  <!-- Footer legend -->
+  <line x1="60" y1="1050" x2="1860" y2="1050" stroke="#2a4a6b" stroke-width="1"/>
+  <g transform="translate(60, 1064)">
+    <line x1="0" y1="0" x2="60" y2="0" stroke="#ff9900" stroke-width="2" marker-end="url(#arrowO)"/>
+    <text x="70" y="4" fill="#ff9900" font-size="11">AWS Direct Connect / Transit Gateway</text>
+    <line x1="340" y1="0" x2="400" y2="0" stroke="#4a90d9" stroke-width="2" marker-end="url(#arrowB)"/>
+    <text x="410" y="4" fill="#4a90d9" font-size="11">Internal cluster traffic</text>
+    <line x1="600" y1="0" x2="660" y2="0" stroke="#00d26a" stroke-width="2" marker-end="url(#arrowG)"/>
+    <text x="670" y="4" fill="#00d26a" font-size="11">Model artifact pull</text>
+    <text x="1100" y="4" fill="#3a5a7a" font-size="11">github.com/manu-joy/rosa-llm-driven-deployment &#xB7; Manu Joy &#xB7; April 2026</text>
+  </g>
+
+</svg>

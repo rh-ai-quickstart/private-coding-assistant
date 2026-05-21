@@ -1,0 +1,41 @@
+# OpenCode configuration ConfigMaps for DevSpaces workspaces.
+#
+# These ConfigMaps are mounted into each workspace and provide the OpenCode
+# global config pointing to the cluster-internal llm-d AI gateway.
+# OpenCode also reads OPENCODE_CONFIG_CONTENT env var (set in DevWorkspace)
+# as a runtime override, so this ConfigMap serves as a belt-and-suspenders backup.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-config
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/component: workspaces-config
+    app.kubernetes.io/part-of: che.eclipse.org
+    controller.devfile.io/mount-to-devworkspace: "true"
+    controller.devfile.io/watch-configmap: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    controller.devfile.io/mount-as: subpath
+    controller.devfile.io/mount-path: /home/user/.config/opencode
+data:
+  opencode.json: |
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "provider": {
+        "vllm": {
+          "npm": "@ai-sdk/openai-compatible",
+          "name": "Private AI Gateway (llm-d)",
+          "options": {
+            "baseURL": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+          },
+          "models": {
+            "Qwen/Qwen3.6-35B-A3B-FP8": {
+              "name": "Qwen3.6 35B (Private AI)"
+            }
+          }
+        }
+      },
+      "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+    }
