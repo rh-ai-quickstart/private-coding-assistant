@@ -38,8 +38,8 @@ spec:
       FROM registry.redhat.io/devspaces/udi-rhel8:latest
       USER root
       RUN curl -fsSL https://opencode.ai/install | bash && \
-          mkdir -p /home/user/.local/bin && \
-          ln -sf /home/user/.opencode/bin/opencode /home/user/.local/bin/opencode
+          cp /home/user/.opencode/bin/opencode /usr/local/bin/opencode && \
+          chmod 755 /usr/local/bin/opencode
       RUN mkdir -p /home/user/.config/opencode /home/user/.local/share/opencode && \
           echo '{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Private AI Gateway (llm-d)","options":{"baseURL":"https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"},"models":{"Qwen/Qwen3.6-35B-A3B-FP8":{"name":"Qwen3.6 35B (Private AI)"}}}},"model":"vllm/Qwen/Qwen3.6-35B-A3B-FP8"}' > /home/user/.config/opencode/opencode.json && \
           echo '{"vllm":{"type":"api","key":"EMPTY"}}' > /home/user/.local/share/opencode/auth.json && \

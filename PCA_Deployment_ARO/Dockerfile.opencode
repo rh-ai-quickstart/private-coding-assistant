@@ -10,10 +10,12 @@ FROM registry.redhat.io/devspaces/udi-rhel8:latest
 
 USER root
 
-# Install OpenCode CLI (AI coding agent)
+# Install OpenCode CLI (AI coding agent).
+# Copy binary to /usr/local/bin (always in PATH) rather than symlink in
+# ~/.local/bin which gets overwritten by the DevSpaces runtime overlay.
 RUN curl -fsSL https://opencode.ai/install | bash && \
-    mkdir -p /home/user/.local/bin && \
-    ln -sf /home/user/.opencode/bin/opencode /home/user/.local/bin/opencode
+    cp /home/user/.opencode/bin/opencode /usr/local/bin/opencode && \
+    chmod 755 /usr/local/bin/opencode
 
 # OpenCode global config — points to the cluster-internal llm-d EPP gateway.
 RUN mkdir -p /home/user/.config/opencode /home/user/.local/share/opencode && \
