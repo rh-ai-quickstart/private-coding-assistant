@@ -9,7 +9,12 @@ metadata:
     - OpenCode
     - Private
     - Qwen3.6
-  version: 1.2.0
+  version: 1.3.0
+projects:
+  - name: private-ai-coding-assistant
+    git:
+      remotes:
+        origin: https://github.com/manujoy7/Private_AI_Coding_Assistant.git
 components:
   - name: dev-tools
     container:

@@ -22,6 +22,11 @@ data:
       name: opencode-private-ai
       displayName: "OpenCode - Private AI Code Assistant"
       description: "AI-powered coding with OpenCode + Qwen3.6 via private llm-d Gateway. Includes VS Code extension (Ctrl+Esc) and browser Web UI (port 4096)."
+    projects:
+      - name: private-ai-coding-assistant
+        git:
+          remotes:
+            origin: https://github.com/manujoy7/Private_AI_Coding_Assistant.git
     components:
       - name: dev-tools
         container:

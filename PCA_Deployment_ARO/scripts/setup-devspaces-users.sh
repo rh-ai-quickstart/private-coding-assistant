@@ -227,6 +227,11 @@ spec:
     - name: editor
       uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
   template:
+    projects:
+      - name: private-ai-coding-assistant
+        git:
+          remotes:
+            origin: ${GIT_REPO_URL}
     components:
       - name: dev-tools
         container:
@@ -328,5 +333,8 @@ for entry in "${USERS[@]}"; do
   PASSWORD="${entry#*:}"
   info "  ${USERNAME} / ${PASSWORD}"
 done
+echo ""
+info "Factory URL (users can also create workspaces by opening this in their browser):"
+info "  ${DASHBOARD}/#${GIT_REPO_URL}"
 echo ""
 info "Both VS Code extension (Ctrl+Esc) and Web UI (port 4096) are available."
