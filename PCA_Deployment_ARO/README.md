@@ -90,6 +90,10 @@ designed for multi-replica, multi-GPU scaling:
 | CUDA Compat Libs | 575.57.08 |
 | GPU Hardware | NVIDIA H100 NVL 94 GB HBM3 |
 
+> **Driver update note:** If the GPU node is reprovisioned with NVIDIA driver 580+
+> (CUDA 13.0), set `VLLM_ENABLE_CUDA_COMPATIBILITY=0` and update `LD_LIBRARY_PATH`
+> to remove compat libs. See [Troubleshooting](#troubleshooting).
+
 ### AI / ML Stack
 
 | Component | Version | Notes |
@@ -391,8 +395,10 @@ Environment variables handle non-root container constraints:
 | `TRITON_CACHE_DIR` | `/model-cache/triton-cache` | Triton MoE kernel cache on PVC |
 | `XDG_CACHE_HOME` | `/model-cache/xdg-cache` | General cache on PVC |
 | `HOME` | `/tmp` | Writable home for non-root user |
-| `VLLM_ENABLE_CUDA_COMPATIBILITY` | `1` | Bridge CUDA 12.4 driver ↔ 12.9 toolkit |
-| `LD_LIBRARY_PATH` | `/usr/local/cuda/compat:...` | Load CUDA compat libs (575.57.08) |
+| `VLLM_ENABLE_CUDA_COMPATIBILITY` | `0` | Disabled — host driver 580 (CUDA 13.0) natively supports CUDA 12.9 toolkit |
+| `LD_LIBRARY_PATH` | `/usr/local/cuda/lib64:/usr/lib64` | Standard CUDA library paths (no compat libs needed with driver 580) |
+| `DG_JIT_CACHE_DIR` | `/model-cache/deep-gemm` | DeepGEMM MoE kernel JIT cache on PVC — saves ~5 min on restart |
+| `VLLM_CACHE_ROOT` | `/model-cache/vllm-cache` | torch.compile AOT cache on PVC — saves ~30s on restart |
 
 ### InferenceService (`qwen36-vllm`)
 
@@ -426,8 +432,10 @@ python3 -m vllm.entrypoints.openai.api_server \
 ### Model Cache PVC (`model-cache`)
 
 100Gi `managed-csi` PVC stores HuggingFace model weights (~35GB), Triton JIT
-kernels, and DeepGEMM warmup artifacts. Survives pod restarts to avoid
-re-downloading the model and re-compiling kernels (~15 min saved on restart).
+kernels, DeepGEMM warmup artifacts (`DG_JIT_CACHE_DIR`), and torch.compile AOT
+cache (`VLLM_CACHE_ROOT`). Survives pod restarts to avoid re-downloading the
+model and re-compiling kernels (~17 min saved on warm restart — from 19.5 min
+→ 2.5 min cold start with populated caches).
 
 ### AI Gateway (`llm-d-gateway`)
 
@@ -488,7 +496,8 @@ available — both are enabled for every workspace:
 | Mode | How to Access | Description |
 |------|---------------|-------------|
 | **VS Code Extension** | `Ctrl+Esc` in editor | Opens OpenCode TUI in a split terminal panel. Context-aware — shares current editor selection. File reference shortcut: `Alt+Ctrl+K`. Extension `sst-dev.opencode` auto-installed via `DEFAULT_EXTENSIONS` env var (official CheCode mechanism — `.vsix` downloaded in `postStart`, then installed by the editor at startup). |
-| **Browser Web UI** | Click `opencode-web` endpoint URL | Full graphical web interface in a separate browser tab. Supports session management, multiple sessions. Runs on port 4096, protected by `OPENCODE_SERVER_PASSWORD`. |
+| **Browser Web UI (in-IDE)** | VS Code: `F1` → "Simple Browser: Show" → `http://localhost:4096` | Opens the full OpenCode Web UI inside a VS Code editor tab. **Recommended** — no routing or auth complexity. |
+| **Browser Web UI (external)** | Direct route URL from DevSpaces dashboard | Full graphical web UI in a separate browser tab. Uses a direct OpenShift route (no path-prefix issues). **Do NOT set `OPENCODE_SERVER_PASSWORD`** — it conflicts with the che-gateway OAuth, causing a double-auth loop. |
 
 ### User Accounts
 
@@ -543,7 +552,8 @@ export KUBEADMIN_PASS="<kubeadmin password>"
 | API Key | `EMPTY` (no auth required for cluster-internal traffic) |
 | TLS | Self-signed cert (`NODE_TLS_REJECT_UNAUTHORIZED=0`) |
 | Extension | `sst-dev.opencode` (auto-installed via `DEFAULT_EXTENSIONS` env var — see [CheCode docs](https://eclipse.dev/che/docs/stable/administration-guide/default-extensions-for-microsoft-visual-studio-code/)) |
-| Web UI Port | 4096 (public HTTPS endpoint) |
+| Web UI Port | 4096 (auto-started via `postStart`; access via VS Code Simple Browser at `http://localhost:4096`) |
+| Web UI Auth | None — **do NOT set `OPENCODE_SERVER_PASSWORD`** (conflicts with che-gateway OAuth causing double-auth loop) |
 
 ### Custom OpenCode Image
 
@@ -578,6 +588,31 @@ GuideLLM sweep results for Qwen3.6-35B-A3B-FP8 on H100 NVL:
 | File Generation | 8,192 | 2,048 | 13,976 | 11.15 | 208 |
 
 Full results: [`testresults_h100.md`](../testresults_h100.md)
+
+---
+
+## GPU Sizing & TCO
+
+For detailed infrastructure sizing, model comparison, and total cost of ownership
+analysis, see [`assets/GPU_Sizing_Considerations_for_AI_Code_Assistant_v3.md`](../assets/GPU_Sizing_Considerations_for_AI_Code_Assistant_v3.md).
+
+**Key findings:**
+
+| Finding | Detail |
+|---------|--------|
+| **Concurrent users per L40S** | 17 developers at 64K context (Qwen 3.6 35B-A3B) |
+| **Cost per developer** | $15–41/mo at 50–500 developers (3yr commitment, ROSA on AWS) |
+| **Peak concurrency** | ~20% of team size (65% online × 25% active × 1.2× buffer) |
+| **Throughput** | ~42 tok/s per user at 17 concurrent on L40S (exceeds 30 tok/s minimum) |
+| **KV cache efficiency** | ~10 KB/token (DeltaNet) vs 48–80 KB/token (standard transformers) |
+| **Cold start (warm PVC)** | ~2.5 min with DG_JIT_CACHE_DIR + VLLM_CACHE_ROOT on PVC |
+| **Cold start (fresh)** | ~19.5 min (includes HF download + JIT compilation) |
+
+**Recommended GPU tiers:**
+
+- **L40S** (48 GB) — Qwen 3.6 35B-A3B, single-GPU instance, $15–39/dev/mo
+- **H100** (80 GB) — Qwen3-Coder-Next 80B, single-GPU instance, $17–52/dev/mo
+- **H200** (141 GB) — Large teams (500+) only; AWS requires 8-GPU instances
 
 ---
 
@@ -656,9 +691,14 @@ The H100 node has taint `nvidia.com/gpu=present:NoSchedule`. The InferenceServic
 includes the matching toleration. If deploying custom pods, add the toleration.
 
 **CUDA driver version mismatch:**
-The host runs NVIDIA driver 550 (CUDA 12.4) but vLLM v0.19.0 needs CUDA 12.9.
-`VLLM_ENABLE_CUDA_COMPATIBILITY=1` and the compat libs (575.57.08) bridge this gap.
-If you see CUDA errors, verify `LD_LIBRARY_PATH` includes `/usr/local/cuda/compat`.
+If the GPU node has been updated to NVIDIA driver 580+ (CUDA 13.0), set
+`VLLM_ENABLE_CUDA_COMPATIBILITY=0` and remove compat libs from `LD_LIBRARY_PATH`
+(use `/usr/local/cuda/lib64:/usr/lib64` instead of `/usr/local/cuda/compat:...`).
+
+On original deployments with driver 550 (CUDA 12.4), vLLM v0.19.0 still needs
+CUDA 12.9 toolkit support. Set `VLLM_ENABLE_CUDA_COMPATIBILITY=1` and include
+the compat libs (575.57.08) in `LD_LIBRARY_PATH`. If you see CUDA errors on
+driver 550, verify `LD_LIBRARY_PATH` includes `/usr/local/cuda/compat`.
 
 **AI Gateway returns 503 or 504:**
 Check that the EPP pod is Ready (2/2 containers). Check that the InferencePool
@@ -724,6 +764,32 @@ container, (3) the workspace was fully restarted (not just reconnected). To forc
 reinstall: delete the workspace and recreate it.
 
 Reference: https://eclipse.dev/che/docs/stable/administration-guide/default-extensions-for-microsoft-visual-studio-code/
+
+**OpenCode Web UI shows blank page or password popup in browser:**
+The OpenCode Web UI uses absolute asset paths (`/assets/...`). When served through
+the che-gateway path-prefix routing (e.g., `/dev1/opencode-dev1/4096/`), assets
+fail to load because the browser resolves them against the domain root. **Do NOT
+set `urlRewriteSupported: true`** on the `opencode-web` endpoint — this causes
+path-prefix stripping which breaks asset loading.
+
+Additionally, **do NOT set `OPENCODE_SERVER_PASSWORD`** — it causes a double-auth
+loop: (1) che-gateway handles OAuth via cookies, then (2) OpenCode demands HTTP
+Basic Auth, resulting in a persistent password popup that never resolves.
+
+The correct configuration for the `opencode-web` endpoint:
+```yaml
+endpoints:
+  - name: opencode-web
+    targetPort: 4096
+    exposure: public
+    protocol: https
+    attributes:
+      cookiesAuthEnabled: true    # boolean true, NOT string "true"
+      # NO urlRewriteSupported    # OpenCode doesn't support URL rewriting
+# NO OPENCODE_SERVER_PASSWORD env var
+```
+
+For in-IDE access (recommended): use VS Code Simple Browser → `http://localhost:4096`.
 
 **OpenCode Web UI (port 4096) not starting automatically:**
 The `postStart` command requires the `opencode` binary to be in PATH. If the
