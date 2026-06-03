@@ -16,6 +16,36 @@
 # Fits H100 94GB HBM3 with ample KV cache headroom.
 #
 # PVC for model weights is defined in pvcs.yaml (100Gi managed-csi).
+#
+# ─── Tool Calling & Reasoning Parser Configuration ───────────────────────────
+#
+# Qwen3.x models use XML-format tool calls and emit <think>...</think> blocks.
+# The vLLM parser configuration MUST match the model family:
+#
+#   --tool-call-parser=qwen3_xml    Qwen3.x XML tool calls (required)
+#   --reasoning-parser=qwen3        Strips <think> into the reasoning field
+#   --enable-auto-tool-choice       Lets the model decide when to invoke tools
+#
+# DO NOT USE for Qwen3.x:
+#   --tool-call-parser=hermes       Causes </think> leak, tool calls silently dropped
+#   --tool-call-parser=qwen3_coder  Streaming bugs in vLLM 0.19 (fixed in 0.20+)
+#   tool_choice="required"          JSON-only server path; fails with XML tool calls
+#
+# Client-side requirements (OpenCode / any OpenAI-compatible client):
+#   enable_thinking: true            Default; lets model reason before tool calls
+#   tool_choice: "auto"             NEVER use "required" with Qwen3.x
+#
+# Parser compatibility matrix (change these args when swapping models):
+#
+#   Model Family          tool-call-parser   reasoning-parser   min vLLM
+#   ───────────────────── ────────────────── ────────────────── ────────
+#   Qwen3.6 / Qwen3.5    qwen3_xml          qwen3              0.19.0
+#   Qwen2.5              hermes             (none)             0.13+
+#   DeepSeek R1 / V3     hermes             deepseek_r1        0.18+
+#   Llama 3.x            llama3_json        (none)             0.15+
+#   Mistral / Mixtral    mistral            (none)             0.14+
+#
+# ─────────────────────────────────────────────────────────────────────────────
 ---
 apiVersion: infrastructure.opendatahub.io/v1
 kind: HardwareProfile

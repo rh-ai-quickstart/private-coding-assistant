@@ -144,9 +144,42 @@ done
 # 11. Model endpoint connectivity
 echo ""
 echo "--- Checking Model Endpoint ---"
-ENDPOINT="https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1/models"
-echo "  Endpoint: ${ENDPOINT}"
-echo "  (Run from within the cluster to test connectivity)"
+GATEWAY_URL="https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local"
+MODEL_ID=$(oc get inferenceservice -n ai-serving -o jsonpath='{.items[?(@.status.conditions[?(@.type=="Ready")].status=="True")].spec.predictor.model.args[0]}' 2>/dev/null | sed 's/--model=//' || echo "Qwen/Qwen3.6-35B-A3B-FP8")
+echo "  Gateway: ${GATEWAY_URL}"
+echo "  Model: ${MODEL_ID}"
+
+MODELS_RESULT=$(oc run validate-models --rm -i --restart=Never --image=curlimages/curl -- -sk "${GATEWAY_URL}/v1/models" 2>/dev/null || echo "CONN_FAILED")
+if echo "$MODELS_RESULT" | grep -q "${MODEL_ID}"; then
+  pass "Model endpoint reachable — ${MODEL_ID} listed"
+else
+  fail "Model endpoint unreachable or model not listed"
+fi
+
+# 12. Tool calling verification
+echo ""
+echo "--- Checking Tool Calling (reasoning parser + tool parser) ---"
+TOOL_RESULT=$(oc run validate-toolcall --rm -i --restart=Never --image=curlimages/curl -- \
+  -sk "${GATEWAY_URL}/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d "{\"model\":\"${MODEL_ID}\",\"messages\":[{\"role\":\"user\",\"content\":\"List files in /tmp\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"list_files\",\"description\":\"List directory contents\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Directory path\"}},\"required\":[\"path\"]}}}],\"tool_choice\":\"auto\",\"max_tokens\":200}" 2>/dev/null || echo "TOOL_FAILED")
+
+if echo "$TOOL_RESULT" | grep -q '"finish_reason":"tool_calls"'; then
+  pass "Tool calling works — finish_reason=tool_calls"
+elif echo "$TOOL_RESULT" | grep -q '"tool_calls":\[{'; then
+  pass "Tool calling works — tool_calls array populated"
+else
+  if echo "$TOOL_RESULT" | grep -q '</think>'; then
+    fail "Tool calling broken — </think> tokens leaking into content (missing --reasoning-parser)"
+  elif echo "$TOOL_RESULT" | grep -q '<tool_call>'; then
+    fail "Tool calling broken — XML tool_call in content (wrong --tool-call-parser, need qwen3_xml)"
+  elif echo "$TOOL_RESULT" | grep -q 'TOOL_FAILED'; then
+    fail "Tool calling test failed — could not reach gateway"
+  else
+    warn "Tool calling inconclusive — model may have responded without tool use"
+    warn "  Response snippet: $(echo "$TOOL_RESULT" | head -c 200)"
+  fi
+fi
 
 # Summary
 echo ""

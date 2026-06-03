@@ -121,6 +121,50 @@ variable "gpu_node_replicas" {
 }
 
 # ──────────────────────────────────────────────
+# Model Serving Configuration
+# ──────────────────────────────────────────────
+variable "model_id" {
+  description = "HuggingFace model ID for the LLM (e.g. Qwen/Qwen3.6-35B-A3B-FP8)"
+  type        = string
+  default     = "Qwen/Qwen3.6-35B-A3B-FP8"
+}
+
+variable "vllm_image" {
+  description = "vLLM container image (must support the model architecture)"
+  type        = string
+  default     = "vllm/vllm-openai:v0.19.0"
+}
+
+variable "vllm_tool_call_parser" {
+  description = "Tool call parser for vLLM. Must match model family: qwen3_xml (Qwen3.x), hermes (Qwen2.5/DeepSeek), llama3_json (Llama 3.x), mistral (Mistral)"
+  type        = string
+  default     = "qwen3_xml"
+
+  validation {
+    condition     = contains(["qwen3_xml", "hermes", "llama3_json", "mistral", "qwen3_coder"], var.vllm_tool_call_parser)
+    error_message = "Must be one of: qwen3_xml, hermes, llama3_json, mistral, qwen3_coder"
+  }
+}
+
+variable "vllm_reasoning_parser" {
+  description = "Reasoning parser for vLLM thinking models. Use 'qwen3' for Qwen3.x, 'deepseek_r1' for DeepSeek, or empty string to disable."
+  type        = string
+  default     = "qwen3"
+}
+
+variable "vllm_max_model_len" {
+  description = "Maximum context length for vLLM (tokens). Set based on model capability and available GPU memory."
+  type        = number
+  default     = 262144
+}
+
+variable "vllm_tensor_parallel_size" {
+  description = "Number of GPUs for tensor parallelism (1 for single-GPU, 2/4/8 for multi-GPU)"
+  type        = number
+  default     = 1
+}
+
+# ──────────────────────────────────────────────
 # Master Nodes
 # ──────────────────────────────────────────────
 variable "master_vm_size" {

@@ -27,7 +27,8 @@ Endpoint Picker Plugin (EPP)
   ▼
 vLLM Replica N (KServe RawDeployment, port 8000)
   │  Custom ServingRuntime (vLLM v0.19.0)
-  │  Tool calling: --enable-auto-tool-choice --tool-call-parser=hermes
+  │  Tool calling: --enable-auto-tool-choice --tool-call-parser=qwen3_xml
+  │  Reasoning:    --reasoning-parser=qwen3
   ▼
 Qwen/Qwen3.6-35B-A3B-FP8
   │  FP8 quantized, 35B total / 3B active MoE
@@ -140,6 +141,76 @@ model visible and manageable through the OpenShift AI dashboard.
 
 > **Note:** This custom runtime is unsupported by Red Hat. When RHOAI ships with
 > vLLM >= 0.19 and transformers >= 5.1, switch back to the bundled runtime.
+
+---
+
+## Model Tool Calling & Reasoning Configuration
+
+Agentic coding tools (OpenCode, Claude Code, Cline) require vLLM to correctly
+parse tool calls and reasoning tokens. Misconfiguration causes `</think>` token
+leaks in output and silently dropped tool calls.
+
+### Parser Configuration per Model Family
+
+| Model Family | `--tool-call-parser` | `--reasoning-parser` | Min vLLM | Notes |
+|---|---|---|---|---|
+| **Qwen3.6 / Qwen3.5 (MoE)** | `qwen3_xml` | `qwen3` | 0.19.0 | XML tool calls + `<think>` blocks |
+| Qwen2.5 | `hermes` | _(none)_ | 0.13+ | Hermes JSON format, no thinking mode |
+| DeepSeek R1 / V3 | `hermes` | `deepseek_r1` | 0.18+ | JSON tool calls + `<think>` blocks |
+| Llama 3.x (Instruct) | `llama3_json` | _(none)_ | 0.15+ | Native JSON tool calling |
+| Mistral / Mixtral | `mistral` | _(none)_ | 0.14+ | Mistral tool call format |
+
+### Critical Rules
+
+1. **Never use `--tool-call-parser=hermes` with Qwen3.x** — Hermes expects JSON
+   tool calls; Qwen3.x emits XML `<tool_call>` tags. The parser silently fails
+   and `</think>` tokens leak into the `content` field.
+
+2. **Always set `--reasoning-parser` for thinking models** — Without it, vLLM
+   has no way to separate `<think>...</think>` from content. The raw tokens
+   appear in the response and break downstream tool-call parsing in clients.
+
+3. **Use `tool_choice: "auto"` in client requests** — The `"required"` path in
+   vLLM uses `TypeAdapter(list[FunctionDefinition]).validate_json()` which only
+   handles JSON. Qwen3.x XML tool calls silently fail with `tool_calls: []`.
+
+4. **Avoid `--tool-call-parser=qwen3_coder` with streaming** — Known bug in
+   vLLM 0.19.x where the streaming extractor fails across the `</think>` →
+   `<tool_call>` boundary. Fixed in 0.20+. Use `qwen3_xml` instead.
+
+### Terraform Variables
+
+The parser configuration is exposed as Terraform variables for easy model swaps:
+
+```hcl
+variable "vllm_tool_call_parser" { default = "qwen3_xml" }
+variable "vllm_reasoning_parser" { default = "qwen3" }
+variable "model_id"              { default = "Qwen/Qwen3.6-35B-A3B-FP8" }
+```
+
+### Verifying Tool Calling Works
+
+After deployment, run the smoke test from inside the cluster:
+
+```bash
+curl -sk $GATEWAY_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+    "messages": [{"role":"user","content":"List files in /tmp"}],
+    "tools": [{"type":"function","function":{"name":"list_files","description":"List directory","parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}}],
+    "tool_choice": "auto",
+    "max_tokens": 200
+  }'
+```
+
+**Expected:** Response has `"finish_reason": "tool_calls"` with a populated
+`tool_calls` array and reasoning in the `reasoning` field (not in `content`).
+
+**Failure indicators:**
+- `</think>` appearing in `content` → missing `--reasoning-parser`
+- `tool_calls: []` with XML in `content` → wrong `--tool-call-parser`
+- `tool_calls: []` silently → using `tool_choice: "required"` (switch to `"auto"`)
 
 ---
 
