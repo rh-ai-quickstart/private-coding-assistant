@@ -1,43 +1,43 @@
-# HardwareProfile for AWS Trainium (trn1.32xlarge) — optional, for future multi-accelerator deployments
+# HardwareProfile for NVIDIA L40S (g6e.2xlarge) — matches Terraform GPU machine pool
 apiVersion: dashboard.opendatahub.io/v1alpha1
 kind: HardwareProfile
 metadata:
-  name: trainium-trn1
+  name: gpu-l40s
   namespace: redhat-ods-applications
   labels:
     app.opendatahub.io/hardwareprofile: "true"
   annotations:
     argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    opendatahub.io/display-name: AWS Trainium (trn1.32xlarge)
+    opendatahub.io/display-name: NVIDIA L40S (g6e.2xlarge)
     opendatahub.io/description: >-
-      Trainium trn1.32xlarge with up to 32 NeuronCores and 512 GiB system RAM.
+      AWS g6e.2xlarge with 1x NVIDIA L40S GPU (48 GB VRAM), 8 vCPUs, 32 GiB RAM.
     opendatahub.io/disabled: "false"
     opendatahub.io/dashboard-feature-visibility: '["servingRuntimes","notebookController"]'
 spec:
-  displayName: AWS Trainium (trn1.32xlarge)
+  displayName: NVIDIA L40S (g6e.2xlarge)
   enabled: true
   identifiers:
     - displayName: CPU
       identifier: cpu
       resourceType: CPU
-      defaultCount: 16
-      minCount: 4
-      maxCount: 128
+      defaultCount: 4
+      minCount: 1
+      maxCount: 8
     - displayName: Memory
       identifier: memory
       resourceType: Memory
-      defaultCount: 200Gi
-      minCount: 32Gi
-      maxCount: 512Gi
-    - displayName: NeuronCore
-      identifier: aws.amazon.com/neuroncore
-      defaultCount: 16
-      minCount: 2
-      maxCount: 32
+      defaultCount: 16Gi
+      minCount: 4Gi
+      maxCount: 32Gi
+    - displayName: GPU
+      identifier: nvidia.com/gpu
+      defaultCount: 1
+      minCount: 1
+      maxCount: 1
   nodeSelector:
-    node.kubernetes.io/instance-type: trn1.32xlarge
+    node.kubernetes.io/instance-type: g6e.2xlarge
   tolerations:
-    - key: aws.amazon.com/neuroncore
+    - key: nvidia.com/gpu
       operator: Exists
       effect: NoSchedule
