@@ -1,0 +1,21 @@
+name: Pre-commit CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go install github.com/google/yamlfmt/cmd/yamlfmt@v0.9.0
+      - uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: --all-files

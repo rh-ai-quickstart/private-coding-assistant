@@ -1,0 +1,27 @@
+repos:
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: ["-d", "{extends: relaxed, rules: {line-length: {max: 250}, key-duplicates: enable}}"]
+        exclude: ^PCA_Deployment_.*/terraform/
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.9.0
+    hooks:
+      - id: yamlfmt
+        exclude: ^PCA_Deployment_.*/terraform/
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+      - id: detect-private-key
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.9.0-1
+    hooks:
+      - id: shfmt
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
