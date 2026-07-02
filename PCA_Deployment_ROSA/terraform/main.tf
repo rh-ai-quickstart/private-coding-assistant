@@ -153,7 +153,7 @@ resource "rhcs_cluster_rosa_hcp" "cluster" {
   wait_for_std_compute_nodes_complete = true
 
   lifecycle {
-    ignore_changes = [availability_zones]
+    ignore_changes = [availability_zones, compute_machine_type]
   }
 }
 

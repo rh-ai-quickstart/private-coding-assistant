@@ -1,3 +1,4 @@
+{{- if .Values.clusterConfig.enabled }}
 # DSCInitialization for RHOAI 3.4 — no Service Mesh required
 apiVersion: dscinitialization.opendatahub.io/v1
 kind: DSCInitialization
@@ -16,3 +17,4 @@ spec:
   trustedCABundle:
     customCABundle: ""
     managementState: Managed
+{{- end }}

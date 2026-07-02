@@ -41,7 +41,7 @@ data:
       - name: Qwen3-Coder (llm-d)
         provider: openai
         model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-        apiBase: https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+        apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
         apiKey: EMPTY
         # Prevents the model from spontaneously generating XML tool-call syntax
         # (<function=...>) in Continue responses when --enable-auto-tool-choice is active in
@@ -53,7 +53,7 @@ data:
       name: Qwen3-Coder Autocomplete (llm-d)
       provider: openai
       model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-      apiBase: https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+      apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
       apiKey: EMPTY
       requestOptions:
         verifySsl: false
@@ -90,7 +90,7 @@ data:
         "llm-d-qwen3-coder": {
           "id": "llm-d-qwen3-coder",
           "apiProvider": "openai",
-          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1",
+          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1",
           "openAiApiKey": "EMPTY",
           "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiStreamingEnabled": false
@@ -127,7 +127,7 @@ data:
         "llm-d-qwen3-coder": {
           "id": "llm-d-qwen3-coder",
           "apiProvider": "openai",
-          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1",
+          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1",
           "openAiApiKey": "EMPTY",
           "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiStreamingEnabled": false
@@ -164,7 +164,7 @@ data:
         "llm-d-qwen3-coder": {
           "id": "llm-d-qwen3-coder",
           "apiProvider": "openai",
-          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1",
+          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1",
           "openAiApiKey": "EMPTY",
           "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiStreamingEnabled": false

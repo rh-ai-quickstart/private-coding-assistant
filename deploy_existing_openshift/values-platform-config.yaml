@@ -1,0 +1,8 @@
+# Values override for deploying pca-platform-config on an existing OpenShift cluster.
+# Disables cluster-scoped resources (DSC, DSCI, ClusterPolicy, etc.) that are already present.
+
+clusterConfig:
+  enabled: false
+
+devspaces:
+  enabled: false

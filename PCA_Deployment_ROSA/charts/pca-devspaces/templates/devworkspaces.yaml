@@ -15,12 +15,12 @@
 #   Cline     — installed but requires manual UI configuration (settings stored in VS Code
 #               globalState, not files). Enter once in Cline UI:
 #                 Provider: OpenAI Compatible
-#                 Base URL: https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+#                 Base URL: https://llm-d-gateway-data-science-gateway-class.<namespace>.svc.cluster.local/v1
 #                 Model:    Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
 #                 API Key:  EMPTY
 #
 # Model endpoint (cluster-internal HTTPS, all traffic stays inside OpenShift):
-#   https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+#   https://llm-d-gateway-data-science-gateway-class.<namespace>.svc.cluster.local/v1
 #
 # vLLM is configured with:
 #   --enable-auto-tool-choice   required: Roo Code sends tool_choice:"auto"; vLLM rejects without this
@@ -58,14 +58,14 @@ spec:
           env:
             # llm-d EPP endpoint — for direct model access from workspace terminals/scripts
             - name: VLLM_ENDPOINT
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1"
             - name: VLLM_MODEL_ID
               value: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
             # Standard OpenAI env vars — picked up automatically by many AI tools/SDKs
             - name: OPENAI_API_KEY
               value: "EMPTY"
             - name: OPENAI_BASE_URL
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1"
             # Disable TLS verification for cluster-internal self-signed certs
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
@@ -147,13 +147,13 @@ spec:
           mountSources: true
           env:
             - name: VLLM_ENDPOINT
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1"
             - name: VLLM_MODEL_ID
               value: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
             - name: OPENAI_API_KEY
               value: "EMPTY"
             - name: OPENAI_BASE_URL
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1"
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
             - name: CONTINUE_GLOBAL_DIR
@@ -218,13 +218,13 @@ spec:
           mountSources: true
           env:
             - name: VLLM_ENDPOINT
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1"
             - name: VLLM_MODEL_ID
               value: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
             - name: OPENAI_API_KEY
               value: "EMPTY"
             - name: OPENAI_BASE_URL
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1"
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
             - name: CONTINUE_GLOBAL_DIR

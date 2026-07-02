@@ -1,0 +1,52 @@
+# LLMInferenceService — Qwen3-Coder-30B via llm-d (EPP + vLLM + Gateway API)
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: qwen3-coder
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    security.opendatahub.io/enable-auth: "false"
+spec:
+  replicas: 1
+  model:
+    uri: hf://Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+    name: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+  router:
+    route: {}
+    gateway:
+      refs:
+        - name: {{ .Values.gatewayName | default "data-science-gateway" }}
+          namespace: {{ .Values.gatewayNamespace | default "openshift-ingress" }}
+    scheduler: {}
+  template:
+    containers:
+      - name: main
+        args:
+          - --disable-uvicorn-access-log
+          - --max-model-len=32768
+          - --gpu-memory-utilization=0.90
+          - --enable-prefix-caching
+          - --enable-auto-tool-choice
+          - --tool-call-parser=qwen3_coder
+          - --reasoning-parser=qwen3
+          - --kv-cache-dtype=fp8
+        resources:
+          limits:
+            cpu: "4"
+            memory: 48Gi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "2"
+            memory: 16Gi
+            nvidia.com/gpu: "1"
+    nodeSelector:
+      node.kubernetes.io/instance-type: g6e.2xlarge
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      - key: g6e-gpu
+        operator: Exists
+        effect: NoSchedule

@@ -1,3 +1,4 @@
+{{- if .Values.clusterConfig.enabled }}
 # LeaderWorkerSet Operator instance — enables the LWS controller.
 # Applied after the LWS CRD is installed (wave 1).
 apiVersion: operator.openshift.io/v1
@@ -9,3 +10,4 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   managementState: Managed
+{{- end }}

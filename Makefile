@@ -1,7 +1,13 @@
+-include .env
+
 IMAGE_NAME ?= pca-provisioner
 CONTAINER_NAME ?= pca
 CONTAINERFILE ?= Containerfile.provisioner
 PROJECT_DIR := $(shell pwd)
+
+NAMESPACE ?= private-assistant
+CHARTS_DIR := PCA_Deployment_ROSA/charts
+DEPLOY_VALUES_DIR := deploy_existing_openshift
 
 ENV_FILE_FLAG := $(if $(wildcard .env),--env-file .env,)
 AWS_MOUNT := $(if $(wildcard $(HOME)/.aws),-v $(HOME)/.aws:/home/pca/.aws:ro,)
@@ -17,11 +23,11 @@ RUN_FLAGS := --rm \
 	$(KUBE_MOUNT) \
 	$(ENV_FILE_FLAG)
 
-.PHONY: build shell run help
+.PHONY: build shell run help deploy undeploy deploy-devspaces undeploy-devspaces
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 build: ## Build the provisioner container image
 	podman build -t $(IMAGE_NAME) -f $(CONTAINERFILE) .
@@ -31,3 +37,29 @@ shell: ## Start an interactive shell inside the container
 
 run: ## Run a one-shot command (usage: make run CMD="terraform plan")
 	podman run $(RUN_FLAGS) $(IMAGE_NAME) $(CMD)
+
+deploy: ## Deploy AI serving stack on existing OpenShift (NAMESPACE=, HF_TOKEN=)
+	@if [ -z "$(HF_TOKEN)" ]; then echo "ERROR: HF_TOKEN is required. Set in .env or pass HF_TOKEN=hf_xxx"; exit 1; fi
+	helm upgrade --install $(NAMESPACE)-platform-config $(CHARTS_DIR)/pca-platform-config \
+		--namespace $(NAMESPACE) --create-namespace \
+		-f $(DEPLOY_VALUES_DIR)/values-platform-config.yaml \
+		--set namespace=$(NAMESPACE) \
+		--set hfToken.data=$$(echo -n '$(HF_TOKEN)' | base64)
+	helm upgrade --install $(NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
+		--namespace $(NAMESPACE) \
+		-f $(DEPLOY_VALUES_DIR)/values-ai-serving.yaml \
+		--set namespace=$(NAMESPACE)
+
+undeploy: ## Remove AI serving stack from OpenShift (NAMESPACE=)
+	helm uninstall $(NAMESPACE)-ai-serving --namespace $(NAMESPACE) --ignore-not-found || true
+	helm uninstall $(NAMESPACE)-platform-config --namespace $(NAMESPACE) --ignore-not-found || true
+	oc delete namespace $(NAMESPACE) --ignore-not-found
+
+deploy-devspaces: ## Deploy DevSpaces workspaces (NAMESPACE=)
+	helm upgrade --install $(NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
+		--namespace $(NAMESPACE) \
+		-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml \
+		--set aiServingNamespace=$(NAMESPACE)
+
+undeploy-devspaces: ## Remove DevSpaces workspaces (NAMESPACE=)
+	helm uninstall $(NAMESPACE)-devspaces --namespace $(NAMESPACE) --ignore-not-found || true

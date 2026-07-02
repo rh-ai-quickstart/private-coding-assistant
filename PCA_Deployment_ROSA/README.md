@@ -85,10 +85,7 @@ PCA_deployment/
 │   │   ├── rbac.yaml                      #   User → namespace RoleBindings
 │   │   └── hf-token-placeholder.yaml      #   HuggingFace secret (placeholder)
 │   ├── 03-ai-serving/                     # Wave 3: Model Serving
-│   │   ├── pvcs.yaml                      #   100Gi model cache (gp3-csi)
-│   │   ├── tls-secret-job.yaml            #   Self-signed cert for Gateway
-│   │   ├── llminferenceservice.yaml       #   Qwen3-Coder-30B model deployment
-│   │   ├── llm-d-gateway.yaml             #   Gateway + HTTPRoute (EPP routing)
+│   │   ├── llminferenceservice.yaml       #   Qwen3-Coder-30B via LLMInferenceService (llm-d)
 │   │   ├── hardware-profiles.yaml         #   Trainium HardwareProfile
 │   │   └── vllm-neuron-runtime-template.yaml
 │   └── 04-devspaces/                      # Wave 4: Developer Experience

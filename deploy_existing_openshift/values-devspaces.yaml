@@ -1,0 +1,2 @@
+# Values override for deploying pca-devspaces on an existing OpenShift cluster.
+# aiServingNamespace is set via --set from the Makefile.

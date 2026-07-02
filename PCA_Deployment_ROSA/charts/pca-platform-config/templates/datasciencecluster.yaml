@@ -1,3 +1,4 @@
+{{- if .Values.clusterConfig.enabled }}
 # DataScienceCluster for RHOAI 3.4 — enables KServe, LLMInferenceService, and WVA controllers
 apiVersion: datasciencecluster.opendatahub.io/v2
 kind: DataScienceCluster
@@ -27,3 +28,4 @@ spec:
       managementState: Managed
     workbenches:
       managementState: Managed
+{{- end }}
