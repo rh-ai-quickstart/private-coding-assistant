@@ -15,6 +15,8 @@ metadata:
     opendatahub.io/disabled: "false"
     opendatahub.io/dashboard-feature-visibility: '["servingRuntimes","notebookController"]'
 spec:
+  displayName: AWS Trainium (trn1.32xlarge)
+  enabled: true
   identifiers:
     - displayName: CPU
       identifier: cpu
