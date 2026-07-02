@@ -1,10 +1,7 @@
 namespace: ai-serving
-
 clusterConfig:
   enabled: true
-
 devspaces:
   enabled: true
-
 hfToken:
   data: "CHANGE_ME"
