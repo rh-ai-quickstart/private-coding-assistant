@@ -1,0 +1,53 @@
+FROM registry.fedoraproject.org/fedora:43
+
+ARG TERRAFORM_VERSION=1.15.7
+ARG AWSCLI_VERSION=2.35.12
+ARG AZURE_CLI_VERSION=2.81.0
+ARG ROSA_VERSION=1.2.53
+ARG OC_VERSION=4.21.21
+
+RUN dnf install -y \
+        git \
+        jq \
+        curl \
+        unzip \
+        findutils \
+        python3-pip \
+        which \
+    && dnf clean all
+
+RUN curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" \
+        -o /tmp/terraform.zip && \
+    unzip /tmp/terraform.zip -d /usr/local/bin && \
+    rm /tmp/terraform.zip && \
+    chmod +x /usr/local/bin/terraform
+
+RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" \
+        -o /tmp/awscli.zip && \
+    unzip -q /tmp/awscli.zip -d /tmp && \
+    /tmp/aws/install && \
+    rm -rf /tmp/awscli.zip /tmp/aws
+
+RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc && \
+    dnf install -y https://packages.microsoft.com/config/fedora/43/packages-microsoft-prod.rpm && \
+    dnf install -y azure-cli-0:${AZURE_CLI_VERSION}-*.fc43 && \
+    dnf clean all
+
+RUN curl -fsSL "https://mirror.openshift.com/pub/openshift-v4/clients/rosa/${ROSA_VERSION}/rosa-linux.tar.gz" \
+        -o /tmp/rosa.tar.gz && \
+    tar --no-same-owner -xzf /tmp/rosa.tar.gz -C /usr/local/bin rosa && \
+    rm /tmp/rosa.tar.gz && \
+    chmod +x /usr/local/bin/rosa
+
+RUN curl -fsSL "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${OC_VERSION}/openshift-client-linux-${OC_VERSION}.tar.gz" \
+        -o /tmp/oc.tar.gz && \
+    tar --no-same-owner -xzf /tmp/oc.tar.gz -C /usr/local/bin oc kubectl && \
+    rm /tmp/oc.tar.gz && \
+    chmod +x /usr/local/bin/oc /usr/local/bin/kubectl
+
+RUN useradd -m -u 1000 pca
+
+USER pca
+WORKDIR /workspace
+
+CMD ["/bin/bash"]

@@ -1,2 +1,10 @@
 assets/V1/
 handoff.md
+.env
+terraform.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+tfplan
