@@ -45,8 +45,8 @@ oc start-build "$BC_NAME" -n "$NAMESPACE" --follow
 
 echo "==> Granting image-puller to all DevSpaces namespaces"
 for ns in dev1-devspaces dev2-devspaces dev3-devspaces; do
-  oc policy add-role-to-group system:image-puller "system:serviceaccounts:$ns" \
-    --namespace="$NAMESPACE" 2>/dev/null || true
+	oc policy add-role-to-group system:image-puller "system:serviceaccounts:$ns" \
+		--namespace="$NAMESPACE" 2>/dev/null || true
 done
 
 echo "==> Image built and available at:"

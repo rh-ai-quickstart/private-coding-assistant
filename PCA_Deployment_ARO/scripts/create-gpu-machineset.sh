@@ -22,13 +22,16 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-error() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+info() { echo -e "${GREEN}[INFO]${NC}  $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+error() {
+	echo -e "${RED}[ERROR]${NC} $*" >&2
+	exit 1
+}
 
 # ── Prerequisites ─────────────────────────────────────────────────────────────
-command -v oc  &>/dev/null || error "'oc' CLI not found. Install from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/"
-command -v jq  &>/dev/null || error "'jq' not found. Install with: brew install jq  or  dnf install jq"
+command -v oc &>/dev/null || error "'oc' CLI not found. Install from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/"
+command -v jq &>/dev/null || error "'jq' not found. Install with: brew install jq  or  dnf install jq"
 
 # Verify cluster access
 oc whoami &>/dev/null || error "Not logged in to OpenShift. Run 'oc login' first."
@@ -43,31 +46,31 @@ CLUSTER_REGION=$(oc get infrastructure cluster -o jsonpath='{.status.platformSta
 info "Cluster region: ${LOCATION}"
 
 # Get the resource group from the cluster if not provided
-if [[ -z "${RESOURCE_GROUP}" ]]; then
-  RESOURCE_GROUP=$(oc get infrastructure cluster -o jsonpath='{.status.platformStatus.azure.resourceGroupName}')
-  info "Detected resource group: ${RESOURCE_GROUP}"
+if [[ -z ${RESOURCE_GROUP} ]]; then
+	RESOURCE_GROUP=$(oc get infrastructure cluster -o jsonpath='{.status.platformStatus.azure.resourceGroupName}')
+	info "Detected resource group: ${RESOURCE_GROUP}"
 fi
 
 # ── Clone an existing worker MachineSet as template ───────────────────────────
 TEMPLATE_MS=$(oc get machineset -n openshift-machine-api -o name | grep "worker" | head -1)
-[[ -z "${TEMPLATE_MS}" ]] && error "No worker MachineSet found to clone. Ensure the cluster has at least one worker MachineSet."
+[[ -z ${TEMPLATE_MS} ]] && error "No worker MachineSet found to clone. Ensure the cluster has at least one worker MachineSet."
 
 info "Using template MachineSet: ${TEMPLATE_MS}"
 
 # Derive MachineSet name from VM SKU (a100 or h100)
 case "${GPU_VM_SIZE}" in
-  *H100*|*h100*) GPU_TAG="h100" ;;
-  *A100*|*a100*) GPU_TAG="a100" ;;
-  *) GPU_TAG="gpu" ;;
+*H100* | *h100*) GPU_TAG="h100" ;;
+*A100* | *a100*) GPU_TAG="a100" ;;
+*) GPU_TAG="gpu" ;;
 esac
 GPU_MS_NAME="${INFRA_ID}-gpu-${GPU_TAG}"
 TEMPLATE_JSON=$(oc get "${TEMPLATE_MS}" -n openshift-machine-api -o json)
 
 # ── Build GPU MachineSet manifest ─────────────────────────────────────────────
 GPU_MS_JSON=$(echo "${TEMPLATE_JSON}" | jq --arg name "${GPU_MS_NAME}" \
-  --arg vm_size "${GPU_VM_SIZE}" \
-  --argjson replicas "${REPLICAS}" \
-  '
+	--arg vm_size "${GPU_VM_SIZE}" \
+	--argjson replicas "${REPLICAS}" \
+	'
   # Strip runtime-managed fields
   del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp,
       .status, .metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"])
@@ -100,34 +103,34 @@ GPU_MS_JSON=$(echo "${TEMPLATE_JSON}" | jq --arg name "${GPU_MS_NAME}" \
 
 # ── Apply the GPU MachineSet ──────────────────────────────────────────────────
 if oc get machineset "${GPU_MS_NAME}" -n openshift-machine-api &>/dev/null; then
-  warn "MachineSet ${GPU_MS_NAME} already exists. Applying update..."
-  echo "${GPU_MS_JSON}" | oc apply -f -
+	warn "MachineSet ${GPU_MS_NAME} already exists. Applying update..."
+	echo "${GPU_MS_JSON}" | oc apply -f -
 else
-  info "Creating GPU MachineSet ${GPU_MS_NAME}..."
-  echo "${GPU_MS_JSON}" | oc apply -f -
+	info "Creating GPU MachineSet ${GPU_MS_NAME}..."
+	echo "${GPU_MS_JSON}" | oc apply -f -
 fi
 
 # ── Wait for machines to be provisioned ───────────────────────────────────────
 info "Waiting for GPU MachineSet to scale up (this takes 5-15 minutes for A100 VMs)..."
 for i in $(seq 1 90); do
-  READY=$(oc get machineset "${GPU_MS_NAME}" -n openshift-machine-api \
-    -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-  DESIRED=$(oc get machineset "${GPU_MS_NAME}" -n openshift-machine-api \
-    -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "${REPLICAS}")
-  if [[ "${READY}" == "${DESIRED}" && "${READY}" != "0" ]]; then
-    info "GPU MachineSet is ready: ${READY}/${DESIRED} nodes."
-    break
-  fi
-  echo "  Waiting for GPU nodes... ready=${READY}/${DESIRED} (attempt ${i}/90)"
-  sleep 20
+	READY=$(oc get machineset "${GPU_MS_NAME}" -n openshift-machine-api \
+		-o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+	DESIRED=$(oc get machineset "${GPU_MS_NAME}" -n openshift-machine-api \
+		-o jsonpath='{.spec.replicas}' 2>/dev/null || echo "${REPLICAS}")
+	if [[ ${READY} == "${DESIRED}" && ${READY} != "0" ]]; then
+		info "GPU MachineSet is ready: ${READY}/${DESIRED} nodes."
+		break
+	fi
+	echo "  Waiting for GPU nodes... ready=${READY}/${DESIRED} (attempt ${i}/90)"
+	sleep 20
 done
 
 FINAL_READY=$(oc get machineset "${GPU_MS_NAME}" -n openshift-machine-api \
-  -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-if [[ "${FINAL_READY}" != "${REPLICAS}" ]]; then
-  warn "GPU MachineSet may still be provisioning. Check with:"
-  warn "  oc get machineset ${GPU_MS_NAME} -n openshift-machine-api"
-  warn "  oc get machines -n openshift-machine-api -l machine.openshift.io/cluster-api-machineset=${GPU_MS_NAME}"
+	-o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+if [[ ${FINAL_READY} != "${REPLICAS}" ]]; then
+	warn "GPU MachineSet may still be provisioning. Check with:"
+	warn "  oc get machineset ${GPU_MS_NAME} -n openshift-machine-api"
+	warn "  oc get machines -n openshift-machine-api -l machine.openshift.io/cluster-api-machineset=${GPU_MS_NAME}"
 fi
 
 info "GPU MachineSet ${GPU_MS_NAME} created successfully."

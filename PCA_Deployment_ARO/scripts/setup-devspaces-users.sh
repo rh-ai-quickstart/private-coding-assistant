@@ -24,8 +24,8 @@ set -euo pipefail
 # ── User definitions ──────────────────────────────────────────────────
 # Format: "username:password"
 USERS=(
-  "Dev1:Dev1@PCA2026!"
-  "Dev2:Dev2@PCA2026!"
+	"Dev1:Dev1@PCA2026!"
+	"Dev2:Dev2@PCA2026!"
 )
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -39,17 +39,20 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-step()  { echo -e "${CYAN}[STEP]${NC}  $*"; }
-error() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+info() { echo -e "${GREEN}[INFO]${NC}  $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+step() { echo -e "${CYAN}[STEP]${NC}  $*"; }
+error() {
+	echo -e "${RED}[ERROR]${NC} $*" >&2
+	exit 1
+}
 
 API_URL=$(oc whoami --show-server 2>/dev/null) || error "Not logged in. Run 'oc login' first."
 info "Connected to: ${API_URL}"
 
 # Verify running as cluster-admin
-oc auth can-i create oauth --all-namespaces &>/dev/null || \
-  error "Must be logged in as cluster-admin (kubeadmin)."
+oc auth can-i create oauth --all-namespaces &>/dev/null ||
+	error "Must be logged in as cluster-admin (kubeadmin)."
 
 # ── Step 1: Create HTPasswd IDP ───────────────────────────────────────
 step "Step 1: Creating HTPasswd identity provider..."
@@ -59,20 +62,20 @@ trap "rm -f ${HTPASSWD_FILE}" EXIT
 
 FIRST=true
 for entry in "${USERS[@]}"; do
-  USERNAME="${entry%%:*}"
-  PASSWORD="${entry#*:}"
-  if $FIRST; then
-    htpasswd -cbB "${HTPASSWD_FILE}" "${USERNAME}" "${PASSWORD}"
-    FIRST=false
-  else
-    htpasswd -bB "${HTPASSWD_FILE}" "${USERNAME}" "${PASSWORD}"
-  fi
+	USERNAME="${entry%%:*}"
+	PASSWORD="${entry#*:}"
+	if $FIRST; then
+		htpasswd -cbB "${HTPASSWD_FILE}" "${USERNAME}" "${PASSWORD}"
+		FIRST=false
+	else
+		htpasswd -bB "${HTPASSWD_FILE}" "${USERNAME}" "${PASSWORD}"
+	fi
 done
 
 oc create secret generic htpass-secret \
-  --from-file=htpasswd="${HTPASSWD_FILE}" \
-  -n openshift-config \
-  --dry-run=client -o yaml | oc apply -f -
+	--from-file=htpasswd="${HTPASSWD_FILE}" \
+	-n openshift-config \
+	--dry-run=client -o yaml | oc apply -f -
 
 oc patch oauth cluster --type=merge -p '{
   "spec": {
@@ -94,70 +97,70 @@ oc patch oauth cluster --type=merge -p '{
 info "Waiting for OAuth pods to restart..."
 sleep 10
 for i in $(seq 1 30); do
-  READY=$(oc get pods -n openshift-authentication -l app=oauth-openshift \
-    --no-headers 2>/dev/null | grep -c "1/1.*Running" || echo 0)
-  if [[ "${READY}" -ge 3 ]]; then
-    info "OAuth pods ready (${READY}/3)."
-    break
-  fi
-  echo "  OAuth pods ready: ${READY}/3 (${i}/30)"
-  sleep 10
+	READY=$(oc get pods -n openshift-authentication -l app=oauth-openshift \
+		--no-headers 2>/dev/null | grep -c "1/1.*Running" || echo 0)
+	if [[ ${READY} -ge 3 ]]; then
+		info "OAuth pods ready (${READY}/3)."
+		break
+	fi
+	echo "  OAuth pods ready: ${READY}/3 (${i}/30)"
+	sleep 10
 done
 
 # ── Step 2: Verify user logins ────────────────────────────────────────
 step "Step 2: Verifying user logins..."
 
 for entry in "${USERS[@]}"; do
-  USERNAME="${entry%%:*}"
-  PASSWORD="${entry#*:}"
-  if oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
-    --insecure-skip-tls-verify=true &>/dev/null; then
-    info "User ${USERNAME} login OK."
-  else
-    error "User ${USERNAME} login FAILED."
-  fi
+	USERNAME="${entry%%:*}"
+	PASSWORD="${entry#*:}"
+	if oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
+		--insecure-skip-tls-verify=true &>/dev/null; then
+		info "User ${USERNAME} login OK."
+	else
+		error "User ${USERNAME} login FAILED."
+	fi
 done
 
 # Switch back to kubeadmin
-if [[ -n "${KUBEADMIN_PASS:-}" ]]; then
-  oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
-    --insecure-skip-tls-verify=true &>/dev/null
+if [[ -n ${KUBEADMIN_PASS:-} ]]; then
+	oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
+		--insecure-skip-tls-verify=true &>/dev/null
 else
-  warn "KUBEADMIN_PASS not set. Attempting to continue..."
-  oc login "${API_URL}" --username=kubeadmin \
-    --insecure-skip-tls-verify=true &>/dev/null 2>&1 || true
+	warn "KUBEADMIN_PASS not set. Attempting to continue..."
+	oc login "${API_URL}" --username=kubeadmin \
+		--insecure-skip-tls-verify=true &>/dev/null 2>&1 || true
 fi
 
 # ── Step 3: Trigger DevSpaces namespace provisioning ──────────────────
 step "Step 3: Triggering DevSpaces namespace provisioning..."
 
 DEVSPACES_ROUTE=$(oc get route devspaces -n openshift-devspaces \
-  -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
-if [[ -z "${DEVSPACES_ROUTE}" ]]; then
-  DEVSPACES_ROUTE=$(oc get checluster devspaces -n openshift-devspaces \
-    -o jsonpath='{.status.cheURL}' 2>/dev/null | sed 's|https://||')
+	-o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+if [[ -z ${DEVSPACES_ROUTE} ]]; then
+	DEVSPACES_ROUTE=$(oc get checluster devspaces -n openshift-devspaces \
+		-o jsonpath='{.status.cheURL}' 2>/dev/null | sed 's|https://||')
 fi
 
 for entry in "${USERS[@]}"; do
-  USERNAME="${entry%%:*}"
-  PASSWORD="${entry#*:}"
+	USERNAME="${entry%%:*}"
+	PASSWORD="${entry#*:}"
 
-  # Login as user and hit DevSpaces API to trigger namespace provisioning
-  oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
-    --insecure-skip-tls-verify=true &>/dev/null
-  TOKEN=$(oc whoami -t)
+	# Login as user and hit DevSpaces API to trigger namespace provisioning
+	oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
+		--insecure-skip-tls-verify=true &>/dev/null
+	TOKEN=$(oc whoami -t)
 
-  curl -sk "https://${DEVSPACES_ROUTE}/api/kubernetes/namespace" \
-    -H "Authorization: Bearer ${TOKEN}" &>/dev/null || true
+	curl -sk "https://${DEVSPACES_ROUTE}/api/kubernetes/namespace" \
+		-H "Authorization: Bearer ${TOKEN}" &>/dev/null || true
 
-  info "Triggered namespace provisioning for ${USERNAME}."
-  sleep 3
+	info "Triggered namespace provisioning for ${USERNAME}."
+	sleep 3
 done
 
 # Switch back to kubeadmin
-if [[ -n "${KUBEADMIN_PASS:-}" ]]; then
-  oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
-    --insecure-skip-tls-verify=true &>/dev/null
+if [[ -n ${KUBEADMIN_PASS:-} ]]; then
+	oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
+		--insecure-skip-tls-verify=true &>/dev/null
 fi
 
 # Wait for namespaces to appear
@@ -168,20 +171,20 @@ sleep 10
 step "Step 4: Creating workspaces in DevSpaces-managed namespaces..."
 
 for entry in "${USERS[@]}"; do
-  USERNAME="${entry%%:*}"
-  PASSWORD="${entry#*:}"
-  USERNAME_LOWER=$(echo "${USERNAME}" | tr '[:upper:]' '[:lower:]')
+	USERNAME="${entry%%:*}"
+	PASSWORD="${entry#*:}"
+	USERNAME_LOWER=$(echo "${USERNAME}" | tr '[:upper:]' '[:lower:]')
 
-  # Find the DevSpaces-managed namespace for this user
-  USER_NS=$(oc get ns -l app.kubernetes.io/component=workspaces-namespace \
-    -o jsonpath="{range .items[*]}{.metadata.name}{'\t'}{.metadata.annotations.che\.eclipse\.org/username}{'\n'}{end}" \
-    2>/dev/null | grep -i "	${USERNAME}$" | awk '{print $1}' | head -1)
+	# Find the DevSpaces-managed namespace for this user
+	USER_NS=$(oc get ns -l app.kubernetes.io/component=workspaces-namespace \
+		-o jsonpath="{range .items[*]}{.metadata.name}{'\t'}{.metadata.annotations.che\.eclipse\.org/username}{'\n'}{end}" \
+		2>/dev/null | grep -i "	${USERNAME}$" | awk '{print $1}' | head -1)
 
-  if [[ -z "${USER_NS}" ]]; then
-    warn "No DevSpaces namespace found for ${USERNAME}. Creating one manually..."
-    RAND=$(head -c 3 /dev/urandom | xxd -p | head -c 6)
-    USER_NS="${USERNAME_LOWER}-devspaces-${RAND}"
-    cat <<NSEOF | oc apply -f -
+	if [[ -z ${USER_NS} ]]; then
+		warn "No DevSpaces namespace found for ${USERNAME}. Creating one manually..."
+		RAND=$(head -c 3 /dev/urandom | xxd -p | head -c 6)
+		USER_NS="${USERNAME_LOWER}-devspaces-${RAND}"
+		cat <<NSEOF | oc apply -f -
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -192,23 +195,23 @@ metadata:
     app.kubernetes.io/component: workspaces-namespace
     app.kubernetes.io/part-of: che.eclipse.org
 NSEOF
-    # Grant admin to the user
-    oc create rolebinding "${USERNAME_LOWER}-admin" \
-      --clusterrole=admin --user="${USERNAME}" -n "${USER_NS}" 2>/dev/null || true
-  fi
+		# Grant admin to the user
+		oc create rolebinding "${USERNAME_LOWER}-admin" \
+			--clusterrole=admin --user="${USERNAME}" -n "${USER_NS}" 2>/dev/null || true
+	fi
 
-  info "User ${USERNAME} → namespace ${USER_NS}"
+	info "User ${USERNAME} → namespace ${USER_NS}"
 
-  # Grant image-puller for the custom OpenCode image
-  oc policy add-role-to-group system:image-puller \
-    "system:serviceaccounts:${USER_NS}" \
-    --namespace=opencode-build 2>/dev/null || true
+	# Grant image-puller for the custom OpenCode image
+	oc policy add-role-to-group system:image-puller \
+		"system:serviceaccounts:${USER_NS}" \
+		--namespace=opencode-build 2>/dev/null || true
 
-  # Login as the user and create the workspace
-  oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
-    --insecure-skip-tls-verify=true &>/dev/null
+	# Login as the user and create the workspace
+	oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
+		--insecure-skip-tls-verify=true &>/dev/null
 
-  cat <<WSEOF | oc apply -f -
+	cat <<WSEOF | oc apply -f -
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:
@@ -286,37 +289,37 @@ spec:
         - start-opencode-web
 WSEOF
 
-  info "Workspace opencode-${USERNAME_LOWER} created in ${USER_NS}."
+	info "Workspace opencode-${USERNAME_LOWER} created in ${USER_NS}."
 done
 
 # Switch back to kubeadmin
-if [[ -n "${KUBEADMIN_PASS:-}" ]]; then
-  oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
-    --insecure-skip-tls-verify=true &>/dev/null
+if [[ -n ${KUBEADMIN_PASS:-} ]]; then
+	oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
+		--insecure-skip-tls-verify=true &>/dev/null
 fi
 
 # ── Step 5: Wait for workspaces ───────────────────────────────────────
 step "Step 5: Waiting for workspaces to start..."
 
 for entry in "${USERS[@]}"; do
-  USERNAME="${entry%%:*}"
-  USERNAME_LOWER=$(echo "${USERNAME}" | tr '[:upper:]' '[:lower:]')
-  USER_NS=$(oc get ns -l app.kubernetes.io/component=workspaces-namespace \
-    -o jsonpath="{range .items[*]}{.metadata.name}{'\t'}{.metadata.annotations.che\.eclipse\.org/username}{'\n'}{end}" \
-    2>/dev/null | grep -i "	${USERNAME}$" | awk '{print $1}' | head -1)
+	USERNAME="${entry%%:*}"
+	USERNAME_LOWER=$(echo "${USERNAME}" | tr '[:upper:]' '[:lower:]')
+	USER_NS=$(oc get ns -l app.kubernetes.io/component=workspaces-namespace \
+		-o jsonpath="{range .items[*]}{.metadata.name}{'\t'}{.metadata.annotations.che\.eclipse\.org/username}{'\n'}{end}" \
+		2>/dev/null | grep -i "	${USERNAME}$" | awk '{print $1}' | head -1)
 
-  for i in $(seq 1 30); do
-    STATUS=$(oc get devworkspace "opencode-${USERNAME_LOWER}" -n "${USER_NS}" \
-      -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-    if [[ "${STATUS}" == "Running" ]]; then
-      URL=$(oc get devworkspace "opencode-${USERNAME_LOWER}" -n "${USER_NS}" \
-        -o jsonpath='{.status.mainUrl}' 2>/dev/null)
-      info "${USERNAME}: Running → ${URL}"
-      break
-    fi
-    echo "  ${USERNAME}: ${STATUS} (${i}/30)"
-    sleep 10
-  done
+	for i in $(seq 1 30); do
+		STATUS=$(oc get devworkspace "opencode-${USERNAME_LOWER}" -n "${USER_NS}" \
+			-o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+		if [[ ${STATUS} == "Running" ]]; then
+			URL=$(oc get devworkspace "opencode-${USERNAME_LOWER}" -n "${USER_NS}" \
+				-o jsonpath='{.status.mainUrl}' 2>/dev/null)
+			info "${USERNAME}: Running → ${URL}"
+			break
+		fi
+		echo "  ${USERNAME}: ${STATUS} (${i}/30)"
+		sleep 10
+	done
 done
 
 echo ""
@@ -325,13 +328,13 @@ info " DevSpaces User Setup Complete"
 info "═══════════════════════════════════════════════════════"
 echo ""
 DASHBOARD=$(oc get checluster devspaces -n openshift-devspaces \
-  -o jsonpath='{.status.cheURL}' 2>/dev/null || echo "https://devspaces.<cluster-domain>")
+	-o jsonpath='{.status.cheURL}' 2>/dev/null || echo "https://devspaces.<cluster-domain>")
 info "Dashboard: ${DASHBOARD}"
 echo ""
 for entry in "${USERS[@]}"; do
-  USERNAME="${entry%%:*}"
-  PASSWORD="${entry#*:}"
-  info "  ${USERNAME} / ${PASSWORD}"
+	USERNAME="${entry%%:*}"
+	PASSWORD="${entry#*:}"
+	info "  ${USERNAME} / ${PASSWORD}"
 done
 echo ""
 info "Factory URL (users can also create workspaces by opening this in their browser):"

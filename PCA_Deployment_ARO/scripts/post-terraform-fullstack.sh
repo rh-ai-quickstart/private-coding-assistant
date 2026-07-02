@@ -17,10 +17,13 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-step()  { echo -e "${CYAN}[STEP]${NC}  $*"; }
-error() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+info() { echo -e "${GREEN}[INFO]${NC}  $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+step() { echo -e "${CYAN}[STEP]${NC}  $*"; }
+error() {
+	echo -e "${RED}[ERROR]${NC} $*" >&2
+	exit 1
+}
 
 oc whoami &>/dev/null || error "Not logged in to OpenShift. Run 'oc login' first."
 info "Connected to: $(oc whoami --show-server)"
@@ -33,60 +36,60 @@ chmod +x "${SCRIPT_DIR}/deploy-full-stack.sh"
 # ── Step 1b: Trigger OpenCode custom image build ──────────────────────
 step "Step 1b: Triggering OpenCode DevSpaces image build..."
 for i in $(seq 1 30); do
-  if oc get buildconfig devspaces-opencode -n opencode-build &>/dev/null; then
-    oc start-build devspaces-opencode -n opencode-build 2>/dev/null || true
-    info "OpenCode image build started (runs in background)."
-    break
-  fi
-  echo "  Waiting for BuildConfig to appear... (${i}/30)"
-  sleep 10
+	if oc get buildconfig devspaces-opencode -n opencode-build &>/dev/null; then
+		oc start-build devspaces-opencode -n opencode-build 2>/dev/null || true
+		info "OpenCode image build started (runs in background)."
+		break
+	fi
+	echo "  Waiting for BuildConfig to appear... (${i}/30)"
+	sleep 10
 done
 
 # ── Step 1c: Create DevSpaces users and workspaces ────────────────────
 step "Step 1c: Setting up DevSpaces users and workspaces..."
 if [[ -x "${SCRIPT_DIR}/setup-devspaces-users.sh" ]]; then
-  # Wait for image build to complete before creating workspaces
-  info "Waiting for OpenCode image build (up to 10 min)..."
-  for i in $(seq 1 60); do
-    BUILD_PHASE=$(oc get build -n opencode-build -l buildconfig=devspaces-opencode \
-      --sort-by='.metadata.creationTimestamp' \
-      -o jsonpath='{.items[-1].status.phase}' 2>/dev/null || echo "Unknown")
-    if [[ "${BUILD_PHASE}" == "Complete" ]]; then
-      info "OpenCode image build complete."
-      break
-    fi
-    echo "  Build phase: ${BUILD_PHASE} (${i}/60)"
-    sleep 10
-  done
-  "${SCRIPT_DIR}/setup-devspaces-users.sh"
+	# Wait for image build to complete before creating workspaces
+	info "Waiting for OpenCode image build (up to 10 min)..."
+	for i in $(seq 1 60); do
+		BUILD_PHASE=$(oc get build -n opencode-build -l buildconfig=devspaces-opencode \
+			--sort-by='.metadata.creationTimestamp' \
+			-o jsonpath='{.items[-1].status.phase}' 2>/dev/null || echo "Unknown")
+		if [[ ${BUILD_PHASE} == "Complete" ]]; then
+			info "OpenCode image build complete."
+			break
+		fi
+		echo "  Build phase: ${BUILD_PHASE} (${i}/60)"
+		sleep 10
+	done
+	"${SCRIPT_DIR}/setup-devspaces-users.sh"
 else
-  warn "setup-devspaces-users.sh not found. Run it manually after deployment."
+	warn "setup-devspaces-users.sh not found. Run it manually after deployment."
 fi
 
 # ── Step 2: Wait for GPU node to be ready ──────────────────────────────
 step "Step 2: Waiting for H100 GPU node..."
 for i in $(seq 1 90); do
-  GPU_NODES=$(oc get nodes -l nvidia.com/gpu.present=true --no-headers 2>/dev/null | wc -l | tr -d ' ')
-  if [[ "${GPU_NODES}" -ge 1 ]]; then
-    info "H100 GPU node is ready."
-    oc get nodes -l nvidia.com/gpu.present=true
-    break
-  fi
-  echo "  Waiting for GPU node... (${i}/90)"
-  sleep 20
+	GPU_NODES=$(oc get nodes -l nvidia.com/gpu.present=true --no-headers 2>/dev/null | wc -l | tr -d ' ')
+	if [[ ${GPU_NODES} -ge 1 ]]; then
+		info "H100 GPU node is ready."
+		oc get nodes -l nvidia.com/gpu.present=true
+		break
+	fi
+	echo "  Waiting for GPU node... (${i}/90)"
+	sleep 20
 done
 
 # ── Step 3: Ensure model is serving ───────────────────────────────────
 step "Step 3: Waiting for Qwen model to be fully serving..."
 for i in $(seq 1 120); do
-  MODEL_READY=$(oc get llminferenceservice qwen36-35b -n ai-serving \
-    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
-  if [[ "${MODEL_READY}" == "True" ]]; then
-    info "Model qwen36-35b is ready and serving."
-    break
-  fi
-  echo "  Model status: not ready (${i}/120)"
-  sleep 15
+	MODEL_READY=$(oc get llminferenceservice qwen36-35b -n ai-serving \
+		-o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+	if [[ ${MODEL_READY} == "True" ]]; then
+		info "Model qwen36-35b is ready and serving."
+		break
+	fi
+	echo "  Model status: not ready (${i}/120)"
+	sleep 15
 done
 
 # ── Step 4: Run GuideLLM sweep ────────────────────────────────────────
@@ -95,25 +98,25 @@ oc apply -f "${BASE_PATH}/05-benchmarks/guidellm-sweep.yaml"
 
 info "Waiting for GuideLLM job to complete (this takes 15-30 min)..."
 oc wait --for=condition=Complete job/guidellm-sweep-h100 -n ai-serving --timeout=3600s 2>/dev/null || {
-  warn "GuideLLM job timed out or failed. Checking status..."
-  oc get job guidellm-sweep-h100 -n ai-serving
-  oc get pods -n ai-serving -l app=guidellm
+	warn "GuideLLM job timed out or failed. Checking status..."
+	oc get job guidellm-sweep-h100 -n ai-serving
+	oc get pods -n ai-serving -l app=guidellm
 }
 
 # ── Step 5: Extract results ───────────────────────────────────────────
 step "Step 5: Extracting GuideLLM results..."
 GUIDELLM_POD=$(oc get pods -n ai-serving -l app=guidellm --sort-by='.metadata.creationTimestamp' \
-  -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+	-o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
 
-if [[ -z "${GUIDELLM_POD}" ]]; then
-  warn "No GuideLLM pod found. Results extraction skipped."
-  exit 0
+if [[ -z ${GUIDELLM_POD} ]]; then
+	warn "No GuideLLM pod found. Results extraction skipped."
+	exit 0
 fi
 
 info "Extracting logs from pod: ${GUIDELLM_POD}"
 LOGS=$(oc logs "${GUIDELLM_POD}" -n ai-serving 2>/dev/null || echo "Failed to get logs")
 
-cat > "${RESULTS_FILE}" << HEADER
+cat >"${RESULTS_FILE}" <<HEADER
 # GuideLLM Benchmark Results — NVIDIA H100 NVL 94 GB
 > Generated: $(date -u '+%Y-%m-%d %H:%M UTC')
 > Cluster: aro-pca-aue (Australia East)

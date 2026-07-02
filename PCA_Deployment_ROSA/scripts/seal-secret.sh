@@ -16,15 +16,15 @@ INPUT="${1:?Usage: seal-secret.sh <input.yaml> <output.yaml>}"
 OUTPUT="${2:?Usage: seal-secret.sh <input.yaml> <output.yaml>}"
 
 if ! command -v kubeseal &>/dev/null; then
-  echo "ERROR: kubeseal CLI not found. Install from: https://github.com/bitnami-labs/sealed-secrets/releases"
-  exit 1
+	echo "ERROR: kubeseal CLI not found. Install from: https://github.com/bitnami-labs/sealed-secrets/releases"
+	exit 1
 fi
 
 kubeseal --format yaml \
-  --controller-name sealed-secrets \
-  --controller-namespace kube-system \
-  < "${INPUT}" \
-  > "${OUTPUT}"
+	--controller-name sealed-secrets \
+	--controller-namespace kube-system \
+	<"${INPUT}" \
+	>"${OUTPUT}"
 
 echo "Sealed secret written to: ${OUTPUT}"
 echo "This file is safe to commit to Git."
