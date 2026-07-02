@@ -1,6 +1,5 @@
-# Patch DataScienceCluster for KServe "Headed" mode (required for llm-d + Gateway API)
-# The DSC is created by the RHOAI operator; this resource ensures the correct configuration.
-apiVersion: datasciencecluster.opendatahub.io/v1
+# DataScienceCluster for RHOAI 3.4 — enables KServe, LLMInferenceService, and WVA controllers
+apiVersion: datasciencecluster.opendatahub.io/v2
 kind: DataScienceCluster
 metadata:
   name: default-dsc
@@ -11,12 +10,11 @@ spec:
   components:
     kserve:
       managementState: Managed
-      serving:
-        ingressGateway:
-          certificate:
-            type: OpenshiftDefaultIngress
+      nim:
         managementState: Managed
       rawDeploymentServiceConfig: Headed
+      wva:
+        managementState: Managed
     modelregistry:
       managementState: Managed
     dashboard:

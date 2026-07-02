@@ -25,24 +25,9 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  channel: stable-2.19
+  channel: stable-3.4
   installPlanApproval: Automatic
   name: rhods-operator
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
----
-# OpenShift Service Mesh 2.x (required by RHOAI KServe)
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: servicemeshoperator
-  namespace: openshift-operators
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  channel: stable
-  installPlanApproval: Automatic
-  name: servicemeshoperator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
 ---
