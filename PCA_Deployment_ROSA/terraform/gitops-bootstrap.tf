@@ -9,6 +9,12 @@ resource "null_resource" "install_gitops_operator" {
     command = <<-EOT
       set -e
 
+      echo "Logging into cluster..."
+      oc login ${rhcs_cluster_rosa_hcp.cluster.api_url} \
+        --username=cluster-admin \
+        --password='${var.cluster_admin_password}' \
+        --insecure-skip-tls-verify=true
+
       echo "Installing OpenShift GitOps operator..."
       cat <<'YAML' | oc apply -f -
       apiVersion: v1
