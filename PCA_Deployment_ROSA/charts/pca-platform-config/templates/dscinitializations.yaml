@@ -1,0 +1,19 @@
+# DSCInitialization — override service mesh to Unmanaged since we use SM 3.x + Gateway API
+# The default DSCI is created by the RHOAI operator; this ensures correct config.
+apiVersion: dscinitialization.opendatahub.io/v1
+kind: DSCInitialization
+metadata:
+  name: default-dsci
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  applicationsNamespace: redhat-ods-applications
+  monitoring:
+    managementState: Managed
+    namespace: redhat-ods-monitoring
+  serviceMesh:
+    managementState: Unmanaged
+  trustedCABundle:
+    customCABundle: ""
+    managementState: Managed

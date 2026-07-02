@@ -1,5 +1,5 @@
 # HardwareProfile for AWS Trainium (trn1.32xlarge) — optional, for future multi-accelerator deployments
-apiVersion: infrastructure.opendatahub.io/v1
+apiVersion: dashboard.opendatahub.io/v1alpha1
 kind: HardwareProfile
 metadata:
   name: trainium-trn1
