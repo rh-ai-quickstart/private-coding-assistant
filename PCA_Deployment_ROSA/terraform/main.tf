@@ -146,7 +146,8 @@ resource "rhcs_cluster_rosa_hcp" "cluster" {
     oidc_config_id       = module.oidc_config.oidc_config_id
   }
 
-  replicas = var.default_worker_replicas
+  compute_machine_type = var.default_worker_instance_type
+  replicas             = var.default_worker_replicas
 
   wait_for_create_complete            = true
   wait_for_std_compute_nodes_complete = true
@@ -246,16 +247,10 @@ resource "rhcs_identity_provider" "htpasswd" {
   name    = "devspaces-users"
 
   htpasswd = {
-    users = concat(
-      var.cluster_admin_password != "" ? [{
-        username = "cluster-admin"
-        password = var.cluster_admin_password
-      }] : [],
-      [for u in var.devspaces_users : {
-        username = u.username
-        password = u.password
-      } if u.password != ""]
-    )
+    users = [for u in var.devspaces_users : {
+      username = u.username
+      password = u.password
+    } if u.password != ""]
   }
 
   depends_on = [rhcs_cluster_wait.wait]
@@ -273,18 +268,8 @@ resource "null_resource" "grant_cluster_admin" {
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      for i in $(seq 1 20); do
-        if oc login ${rhcs_cluster_rosa_hcp.cluster.api_url} \
-          --username=cluster-admin \
-          --password='${var.cluster_admin_password}' \
-          --insecure-skip-tls-verify=true 2>/dev/null; then
-          echo "Login successful."
-          break
-        fi
-        echo "IDP not ready yet, retrying ($i/20)..."
-        sleep 15
-      done
-      oc adm policy add-cluster-role-to-user cluster-admin cluster-admin
+      rosa login --token='${var.rhcs_token}'
+      rosa create admin --cluster=${rhcs_cluster_rosa_hcp.cluster.id} --password='${var.cluster_admin_password}' || echo "Admin already exists, skipping."
     EOT
   }
 
