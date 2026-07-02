@@ -1,0 +1,8 @@
+---
+description: Prefer Makefile targets for project commands
+alwaysApply: true
+---
+
+# Use Makefile Commands
+
+Run all project operations through `make` targets (`make build`, `make shell`, `make run CMD="..."`) instead of invoking `podman`, `terraform`, or other CLIs directly.
