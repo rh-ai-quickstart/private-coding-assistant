@@ -3,7 +3,7 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: qwen3-coder
-  namespace: ai-serving
+  namespace: {{ .Values.namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -42,10 +42,3 @@ spec:
       - key: nvidia.com/gpu
         operator: Exists
         effect: NoSchedule
-    volumes:
-      - name: model-storage
-        persistentVolumeClaim:
-          claimName: model-cache
-    volumeMounts:
-      - name: model-storage
-        mountPath: /mnt/models
