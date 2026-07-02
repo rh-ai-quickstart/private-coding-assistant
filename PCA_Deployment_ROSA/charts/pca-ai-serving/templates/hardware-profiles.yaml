@@ -33,12 +33,9 @@ spec:
       defaultCount: 16
       minCount: 2
       maxCount: 32
-  scheduling:
-    type: Node
-    node:
-      nodeSelector:
-        node.kubernetes.io/instance-type: trn1.32xlarge
-      tolerations:
-        - key: aws.amazon.com/neuroncore
-          operator: Exists
-          effect: NoSchedule
+  nodeSelector:
+    node.kubernetes.io/instance-type: trn1.32xlarge
+  tolerations:
+    - key: aws.amazon.com/neuroncore
+      operator: Exists
+      effect: NoSchedule

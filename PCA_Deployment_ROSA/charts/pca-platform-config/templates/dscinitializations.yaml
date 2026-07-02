@@ -1,4 +1,4 @@
-# DSCInitialization — override service mesh to Unmanaged since we use SM 3.x + Gateway API
+# DSCInitialization — configure service mesh integration for RHOAI KServe.
 # The default DSCI is created by the RHOAI operator; this ensures correct config.
 apiVersion: dscinitialization.opendatahub.io/v1
 kind: DSCInitialization
@@ -13,7 +13,14 @@ spec:
     managementState: Managed
     namespace: redhat-ods-monitoring
   serviceMesh:
-    managementState: Unmanaged
+    managementState: Managed
+    controlPlane:
+      name: data-science-smcp
+      namespace: istio-system
+      metricsCollection: Istio
+    auth:
+      audiences:
+        - https://kubernetes.default.svc
   trustedCABundle:
     customCABundle: ""
     managementState: Managed
