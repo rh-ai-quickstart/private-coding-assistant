@@ -8,3 +8,4 @@ terraform.tfvars
 .terraform.lock.hcl
 *.tfplan
 tfplan
+scripts/
