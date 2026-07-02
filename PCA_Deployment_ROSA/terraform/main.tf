@@ -2,6 +2,8 @@ locals {
   operator_role_prefix   = var.operator_role_prefix != "" ? var.operator_role_prefix : var.cluster_name
   billing_account_id     = var.aws_billing_account_id != "" ? var.aws_billing_account_id : var.aws_account_id
   private_subnet_ids     = var.use_existing_vpc ? var.existing_private_subnet_ids : aws_subnet.private[*].id
+  public_subnet_ids      = var.use_existing_vpc ? [] : aws_subnet.public[*].id
+  all_subnet_ids         = concat(local.private_subnet_ids, local.public_subnet_ids)
   rosa_creator_arn       = data.aws_caller_identity.current.arn
 }
 
@@ -103,7 +105,6 @@ module "account_iam_resources" {
   source = "terraform-redhat/rosa-hcp/rhcs//modules/account-iam-resources"
 
   account_role_prefix = var.account_role_prefix
-  openshift_version   = var.openshift_version
 }
 
 module "oidc_config" {
@@ -115,10 +116,8 @@ module "oidc_config" {
 module "operator_roles" {
   source = "terraform-redhat/rosa-hcp/rhcs//modules/operator-roles"
 
-  account_role_prefix  = var.account_role_prefix
   operator_role_prefix = local.operator_role_prefix
   oidc_endpoint_url    = module.oidc_config.oidc_endpoint_url
-  path                 = "/service-role/"
 }
 
 # ════════════════════════════════════════════════
@@ -129,25 +128,25 @@ resource "rhcs_cluster_rosa_hcp" "cluster" {
   cloud_region           = var.aws_region
   aws_account_id         = var.aws_account_id
   aws_billing_account_id = local.billing_account_id
-  aws_subnet_ids         = local.private_subnet_ids
+  aws_subnet_ids         = local.all_subnet_ids
   availability_zones     = var.availability_zones
   version                = var.openshift_version
-  replicas               = var.default_worker_replicas
-  compute_machine_type   = var.default_worker_instance_type
 
   properties = {
     rosa_creator_arn = local.rosa_creator_arn
   }
 
   sts = {
-    role_arn         = module.account_iam_resources.account_roles_arn["Installer"]
-    support_role_arn = module.account_iam_resources.account_roles_arn["Support"]
+    role_arn         = module.account_iam_resources.account_roles_arn["HCP-ROSA-Installer"]
+    support_role_arn = module.account_iam_resources.account_roles_arn["HCP-ROSA-Support"]
     instance_iam_roles = {
-      worker_role_arn = module.account_iam_resources.account_roles_arn["Worker"]
+      worker_role_arn = module.account_iam_resources.account_roles_arn["HCP-ROSA-Worker"]
     }
     operator_role_prefix = local.operator_role_prefix
     oidc_config_id       = module.oidc_config.oidc_config_id
   }
+
+  replicas = var.default_worker_replicas
 
   wait_for_create_complete            = true
   wait_for_std_compute_nodes_complete = true
@@ -184,7 +183,9 @@ resource "rhcs_hcp_machine_pool" "gpu" {
     min_replicas = var.gpu_pool_replicas
     max_replicas = var.gpu_pool_max_replicas
   } : {
-    enabled = false
+    enabled      = false
+    min_replicas = null
+    max_replicas = null
   }
 
   replicas = var.gpu_pool_autoscaling ? null : var.gpu_pool_replicas
@@ -196,9 +197,9 @@ resource "rhcs_hcp_machine_pool" "gpu" {
   }
 
   taints = [{
-    key    = "nvidia.com/gpu"
-    value  = "present"
-    effect = "NoSchedule"
+    key           = "nvidia.com/gpu"
+    value         = "present"
+    schedule_type = "NoSchedule"
   }]
 
   depends_on = [rhcs_cluster_wait.wait]
@@ -229,9 +230,9 @@ resource "rhcs_hcp_machine_pool" "inferentia" {
   }
 
   taints = [{
-    key    = "aws.amazon.com/neuroncore"
-    value  = "present"
-    effect = "NoSchedule"
+    key           = "aws.amazon.com/neuroncore"
+    value         = "present"
+    schedule_type = "NoSchedule"
   }]
 
   depends_on = [rhcs_cluster_wait.wait]
@@ -261,18 +262,31 @@ resource "rhcs_identity_provider" "htpasswd" {
 }
 
 # Grant cluster-admin role to the admin user
+resource "time_sleep" "wait_for_idp" {
+  create_duration = "120s"
+  depends_on      = [rhcs_identity_provider.htpasswd]
+}
+
 resource "null_resource" "grant_cluster_admin" {
   count = var.cluster_admin_password != "" ? 1 : 0
 
   provisioner "local-exec" {
     command = <<-EOT
-      oc login ${rhcs_cluster_rosa_hcp.cluster.api_url} \
-        --username=cluster-admin \
-        --password='${var.cluster_admin_password}' \
-        --insecure-skip-tls-verify=true
+      set -e
+      for i in $(seq 1 20); do
+        if oc login ${rhcs_cluster_rosa_hcp.cluster.api_url} \
+          --username=cluster-admin \
+          --password='${var.cluster_admin_password}' \
+          --insecure-skip-tls-verify=true 2>/dev/null; then
+          echo "Login successful."
+          break
+        fi
+        echo "IDP not ready yet, retrying ($i/20)..."
+        sleep 15
+      done
       oc adm policy add-cluster-role-to-user cluster-admin cluster-admin
     EOT
   }
 
-  depends_on = [rhcs_identity_provider.htpasswd]
+  depends_on = [time_sleep.wait_for_idp]
 }
