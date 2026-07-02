@@ -1,2 +1,0 @@
-# Values override for deploying pca-ai-serving on an existing OpenShift cluster.
-# Namespace is set via --set namespace=<value> from the Makefile.

@@ -3,6 +3,5 @@
 
 clusterConfig:
   enabled: false
-
 devspaces:
   enabled: false
