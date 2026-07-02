@@ -1,3 +1,4 @@
+{{- if .Values.clusterConfig.enabled }}
 # NVIDIA GPU Operator ClusterPolicy — activates the GPU stack.
 # Applied after the GPU Operator Subscription installs the CRD.
 apiVersion: nvidia.com/v1
@@ -31,3 +32,4 @@ spec:
     enabled: true
   migManager:
     enabled: false
+{{- end }}
