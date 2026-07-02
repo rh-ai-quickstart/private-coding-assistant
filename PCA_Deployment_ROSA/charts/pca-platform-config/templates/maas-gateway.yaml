@@ -1,0 +1,23 @@
+# MaaS default gateway — required by RHOAI 3.4 ModelsAsService controller
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: maas-default-gateway
+  namespace: openshift-ingress
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  gatewayClassName: data-science-gateway-class
+  listeners:
+    - name: https
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: maas-default-gateway-tls
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All

@@ -1,5 +1,5 @@
 # HardwareProfile for NVIDIA L40S (g6e.2xlarge) — matches Terraform GPU machine pool
-apiVersion: dashboard.opendatahub.io/v1alpha1
+apiVersion: infrastructure.opendatahub.io/v1
 kind: HardwareProfile
 metadata:
   name: gpu-l40s
@@ -12,11 +12,7 @@ metadata:
     opendatahub.io/display-name: NVIDIA L40S (g6e.2xlarge)
     opendatahub.io/description: >-
       AWS g6e.2xlarge with 1x NVIDIA L40S GPU (48 GB VRAM), 8 vCPUs, 32 GiB RAM.
-    opendatahub.io/disabled: "false"
-    opendatahub.io/dashboard-feature-visibility: '["servingRuntimes","notebookController"]'
 spec:
-  displayName: NVIDIA L40S (g6e.2xlarge)
-  enabled: true
   identifiers:
     - displayName: CPU
       identifier: cpu
@@ -35,9 +31,12 @@ spec:
       defaultCount: 1
       minCount: 1
       maxCount: 1
-  nodeSelector:
-    node.kubernetes.io/instance-type: g6e.2xlarge
-  tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
+  scheduling:
+    type: node
+    node:
+      nodeSelector:
+        node.kubernetes.io/instance-type: g6e.2xlarge
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule

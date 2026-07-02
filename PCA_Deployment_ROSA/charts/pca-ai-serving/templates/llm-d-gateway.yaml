@@ -1,8 +1,4 @@
-# Dedicated llm-d Gateway for internal cluster routing through EPP.
-# Extensions use this Gateway's ClusterIP (never the external ELB).
-#
-# The resulting internal DNS endpoint is:
-#   https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local
+# Gateway and HTTPRoute for inference traffic
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -26,8 +22,7 @@ spec:
         namespaces:
           from: Same
 ---
-# HTTPRoute: routes inference traffic through InferencePool (EPP)
-# The InferencePool name is derived from LLMInferenceService: <name>-inference-pool
+# HTTPRoute: routes inference traffic to the KServe predictor service
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -46,51 +41,12 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /v1/chat/completions
-      backendRefs:
-        - group: inference.networking.k8s.io
-          kind: InferencePool
-          name: qwen3-coder-inference-pool
-          port: 8000
-          weight: 1
-      timeouts:
-        backendRequest: "0s"
-        request: "0s"
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /v1/completions
-      backendRefs:
-        - group: inference.networking.k8s.io
-          kind: InferencePool
-          name: qwen3-coder-inference-pool
-          port: 8000
-          weight: 1
-      timeouts:
-        backendRequest: "0s"
-        request: "0s"
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /v1/models
+            value: /v1
       backendRefs:
         - group: ""
           kind: Service
-          name: qwen3-coder-kserve-workload-svc
-          port: 8000
-          weight: 1
-      timeouts:
-        backendRequest: "0s"
-        request: "0s"
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /v1
-      backendRefs:
-        - group: inference.networking.k8s.io
-          kind: InferencePool
-          name: qwen3-coder-inference-pool
-          port: 8000
+          name: qwen3-coder-predictor
+          port: 80
           weight: 1
       timeouts:
         backendRequest: "0s"

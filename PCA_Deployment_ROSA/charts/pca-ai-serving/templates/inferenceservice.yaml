@@ -1,0 +1,51 @@
+# InferenceService — Qwen3-Coder-30B on NVIDIA L40S via KServe raw deployment
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: qwen3-coder
+  namespace: ai-serving
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    serving.kserve.io/deploymentMode: RawDeployment
+    opendatahub.io/model-type: generative
+    openshift.io/display-name: Qwen3 Coder 30B
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: vllm-nvidia-runtime
+      storageUri: hf://Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+      args:
+        - --model=/mnt/models
+        - --disable-uvicorn-access-log
+        - --max-model-len=32768
+        - --gpu-memory-utilization=0.90
+        - --enable-prefix-caching
+        - --enable-auto-tool-choice
+        - --tool-call-parser=qwen3_coder
+        - --reasoning-parser=qwen3
+        - --kv-cache-dtype=fp8
+      resources:
+        requests:
+          cpu: "4"
+          memory: 48Gi
+          nvidia.com/gpu: "1"
+        limits:
+          cpu: "4"
+          memory: 48Gi
+          nvidia.com/gpu: "1"
+    nodeSelector:
+      node.kubernetes.io/instance-type: g6e.2xlarge
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+    volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: model-cache
+    volumeMounts:
+      - name: model-storage
+        mountPath: /mnt/models
