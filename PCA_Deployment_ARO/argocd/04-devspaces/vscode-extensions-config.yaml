@@ -5,7 +5,6 @@
 # See: https://eclipse.dev/che/docs/stable/administration-guide/default-extensions-for-microsoft-visual-studio-code/
 # This auto-install mechanism is configured in devworkspaces.yaml and
 # setup-devspaces-users.sh via DEFAULT_EXTENSIONS + postStart download.
----
 apiVersion: v1
 kind: ConfigMap
 metadata:

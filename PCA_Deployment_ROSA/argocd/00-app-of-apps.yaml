@@ -1,7 +1,6 @@
 # Root App-of-Apps: ArgoCD discovers child Applications in this directory.
 # Each child Application below points to a subdirectory of manifests.
 # Sync waves ensure correct ordering: operators first, then platform, then workloads.
----
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:

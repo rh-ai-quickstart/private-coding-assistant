@@ -1,6 +1,5 @@
 # Patch DataScienceCluster for KServe "Headed" mode (required for llm-d + Gateway API)
 # The DSC is created by the RHOAI operator; this resource ensures the correct configuration.
----
 apiVersion: datasciencecluster.opendatahub.io/v1
 kind: DataScienceCluster
 metadata:

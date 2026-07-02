@@ -33,7 +33,6 @@
 #
 # Model endpoint (routed through llm-d EPP → vLLM):
 #   https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
----
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:

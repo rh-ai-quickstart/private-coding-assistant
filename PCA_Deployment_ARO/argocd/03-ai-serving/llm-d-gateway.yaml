@@ -11,7 +11,6 @@
 #
 # Internal DNS endpoint:
 #   https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local
----
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:

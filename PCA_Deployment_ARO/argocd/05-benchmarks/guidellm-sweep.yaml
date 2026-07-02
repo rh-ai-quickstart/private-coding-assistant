@@ -1,7 +1,6 @@
 # GuideLLM benchmark sweep for Qwen3.6-35B-A3B-FP8 on NVIDIA H100 NVL.
 # Runs multiple concurrency levels across code-assistant-relevant workloads.
 # Results are stored in a PVC and printed to Job logs for extraction.
----
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

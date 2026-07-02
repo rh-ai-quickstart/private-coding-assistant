@@ -4,7 +4,6 @@
 # The BuildConfig creates the image from assets/Dockerfile.opencode
 # and stores it in the internal registry. DevWorkspaces reference
 # this image for OpenCode-enabled workspaces.
----
 apiVersion: v1
 kind: Namespace
 metadata:

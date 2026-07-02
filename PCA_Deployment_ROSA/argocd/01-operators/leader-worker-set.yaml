@@ -1,5 +1,4 @@
 # LeaderWorkerSet Operator — required by KServe for multi-node inference
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

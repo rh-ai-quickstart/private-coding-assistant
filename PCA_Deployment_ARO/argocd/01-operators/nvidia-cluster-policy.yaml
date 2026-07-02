@@ -2,7 +2,6 @@
 # useOpenShiftDriverToolkit: true is required for ARO to use the Red Hat
 # Driver Toolkit (DTK) for in-cluster kernel module compilation, avoiding
 # the need for pre-compiled drivers or privileged node access.
----
 apiVersion: nvidia.com/v1
 kind: ClusterPolicy
 metadata:

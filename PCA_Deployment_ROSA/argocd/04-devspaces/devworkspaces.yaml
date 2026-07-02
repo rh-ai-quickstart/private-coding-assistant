@@ -26,7 +26,6 @@
 #   --enable-auto-tool-choice   required: Roo Code sends tool_choice:"auto"; vLLM rejects without this
 #   --tool-call-parser qwen3_coder  parses Qwen3-Coder XML tool calls into OpenAI tool_calls array
 #   --reasoning-parser qwen3    isolates <think> tokens from content
----
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:

@@ -3,7 +3,6 @@
 # NOTE: DevSpaces user namespaces are NOT defined here. DevSpaces
 # auto-provisions unique namespaces per user (e.g., dev1-devspaces-wk1ug6)
 # when they first log into the dashboard. See setup-devspaces-users.sh.
----
 apiVersion: v1
 kind: Namespace
 metadata:

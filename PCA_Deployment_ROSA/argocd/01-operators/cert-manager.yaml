@@ -1,6 +1,5 @@
 # cert-manager — required by KServe for webhook certificates
 # Installed via kustomize overlay from llm-d-playbook
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

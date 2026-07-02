@@ -1,7 +1,6 @@
 # Persistent Volume Claims for model weight caching.
 # Using PVCs avoids re-downloading models on pod restarts (~30GB for Qwen3.6-35B-A3B-FP8).
 # Azure managed-csi (default ARO storage class) replaces AWS gp3-csi.
----
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

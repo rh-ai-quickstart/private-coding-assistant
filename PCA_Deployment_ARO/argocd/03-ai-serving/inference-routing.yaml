@@ -9,7 +9,6 @@
 #
 # To scale: simply increase InferenceService replicas (or add HPA).
 # The InferencePool automatically discovers new pods via label selector.
----
 apiVersion: inference.networking.k8s.io/v1
 kind: InferencePool
 metadata:

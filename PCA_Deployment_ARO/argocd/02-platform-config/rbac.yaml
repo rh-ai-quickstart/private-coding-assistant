@@ -9,7 +9,6 @@
 #
 # Users Dev1 and Dev2 are created via HTPasswd identity provider by the
 # setup-devspaces-users.sh script.
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:

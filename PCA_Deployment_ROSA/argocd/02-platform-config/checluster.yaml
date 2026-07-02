@@ -1,5 +1,4 @@
 # OpenShift Dev Spaces instance — creates the dashboard, workspace controller, registries
----
 apiVersion: org.eclipse.che/v2
 kind: CheCluster
 metadata:

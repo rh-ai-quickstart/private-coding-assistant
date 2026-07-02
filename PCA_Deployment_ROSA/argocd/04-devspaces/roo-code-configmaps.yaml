@@ -14,7 +14,6 @@
 #
 # NOTE: The llm-d gateway URL uses HTTPS with a cluster-internal cert; extensions must set
 #       NODE_TLS_REJECT_UNAUTHORIZED=0 or requestOptions.verifySsl=false.
----
 # ── Continue config (source namespace — synced to all user namespaces) ──────────────────────
 apiVersion: v1
 kind: ConfigMap

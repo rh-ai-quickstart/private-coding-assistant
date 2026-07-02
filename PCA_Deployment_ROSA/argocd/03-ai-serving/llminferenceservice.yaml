@@ -1,6 +1,5 @@
 # LLMInferenceService — Qwen3-Coder-30B on NVIDIA GPU via KServe + llm-d
 # This single CR creates: Deployment, Service, InferencePool, EPP, HTTPRoute
----
 apiVersion: serving.kserve.io/v1alpha1
 kind: LLMInferenceService
 metadata:
@@ -90,14 +89,7 @@ spec:
             env:
               - name: VLLM_ADDITIONAL_ARGS
                 value: >-
-                  --disable-uvicorn-access-log
-                  --max-model-len 32768
-                  --gpu-memory-utilization 0.90
-                  --enable-prefix-caching
-                  --enable-auto-tool-choice
-                  --tool-call-parser qwen3_coder
-                  --reasoning-parser qwen3
-                  --kv-cache-dtype fp8
+                  --disable-uvicorn-access-log --max-model-len 32768 --gpu-memory-utilization 0.90 --enable-prefix-caching --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3 --kv-cache-dtype fp8
             volumeMounts:
               - name: kserve-provision-location
                 mountPath: /mnt/models

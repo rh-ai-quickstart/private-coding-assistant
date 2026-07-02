@@ -14,7 +14,6 @@
 # In single-replica mode, the EPP passes through to the only available pod.
 # When scaled to multiple replicas, EPP provides prefix-aware scheduling
 # that significantly improves throughput.
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:

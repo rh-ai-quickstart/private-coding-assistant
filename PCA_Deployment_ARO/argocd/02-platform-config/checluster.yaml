@@ -1,7 +1,6 @@
 # OpenShift Dev Spaces instance — creates the dashboard, workspace controller, registries.
 # Configured with always-active workspaces (idle timeout disabled) to support
 # long-running OpenCode sessions without interruption.
----
 apiVersion: org.eclipse.che/v2
 kind: CheCluster
 metadata:

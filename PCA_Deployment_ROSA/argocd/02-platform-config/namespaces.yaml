@@ -1,5 +1,4 @@
 # Namespaces for the AI platform and developer workspaces
----
 apiVersion: v1
 kind: Namespace
 metadata:

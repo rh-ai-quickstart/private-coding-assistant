@@ -1,6 +1,5 @@
 # All operator Subscriptions managed by ArgoCD.
 # Sync wave 1: these must install before platform config (wave 2) uses their CRDs.
----
 # Red Hat OpenShift AI (RHOAI) 3.3+
 apiVersion: v1
 kind: Namespace

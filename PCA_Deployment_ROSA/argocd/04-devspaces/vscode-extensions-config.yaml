@@ -1,5 +1,4 @@
 # Cluster-wide VS Code extension recommendations for all DevSpaces workspaces
----
 apiVersion: v1
 kind: ConfigMap
 metadata:

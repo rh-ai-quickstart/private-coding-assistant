@@ -4,7 +4,6 @@
 # global config pointing to the cluster-internal llm-d AI gateway.
 # OpenCode also reads OPENCODE_CONFIG_CONTENT env var (set in DevWorkspace)
 # as a runtime override, so this ConfigMap serves as a belt-and-suspenders backup.
----
 apiVersion: v1
 kind: ConfigMap
 metadata:

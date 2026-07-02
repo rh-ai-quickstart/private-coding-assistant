@@ -1,6 +1,5 @@
 # DevSpaces dashboard configuration — custom samples and default image.
 # Makes the OpenCode workspace visible on the DevSpaces landing page.
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
