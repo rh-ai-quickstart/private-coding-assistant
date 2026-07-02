@@ -32,7 +32,7 @@ spec:
       minCount: 1
       maxCount: 1
   scheduling:
-    type: node
+    type: Node
     node:
       nodeSelector:
         node.kubernetes.io/instance-type: g6e.2xlarge
