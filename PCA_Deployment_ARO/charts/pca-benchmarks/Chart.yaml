@@ -1,0 +1,4 @@
+apiVersion: v2
+name: pca-benchmarks
+version: 0.1.0
+description: PCA Benchmarks — GuideLLM sweep

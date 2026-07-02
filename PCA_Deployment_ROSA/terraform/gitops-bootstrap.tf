@@ -104,8 +104,16 @@ resource "null_resource" "argocd_app_of_apps" {
           repoURL: ${var.gitops_repo_url}
           targetRevision: ${var.gitops_repo_revision}
           path: ${var.gitops_repo_path}
-          directory:
-            recurse: false
+          helm:
+            parameters:
+              - name: gitops.repoURL
+                value: ${var.gitops_repo_url}
+              - name: gitops.targetRevision
+                value: ${var.gitops_repo_revision}
+              - name: gitops.basePath
+                value: ${var.gitops_charts_path}
+              - name: hfToken.data
+                value: ${base64encode(var.huggingface_token)}
         destination:
           server: https://kubernetes.default.svc
           namespace: openshift-gitops

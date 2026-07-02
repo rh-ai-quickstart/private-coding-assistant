@@ -241,7 +241,13 @@ variable "gitops_repo_revision" {
 }
 
 variable "gitops_repo_path" {
-  description = "Path within the Git repo for ArgoCD app-of-apps"
+  description = "Path within the Git repo to the pca-app-of-apps Helm chart"
   type        = string
-  default     = "PCA_deployment/argocd"
+  default     = "PCA_Deployment_ROSA/charts/pca-app-of-apps"
+}
+
+variable "gitops_charts_path" {
+  description = "Base path within the Git repo for sibling Helm charts"
+  type        = string
+  default     = "PCA_Deployment_ROSA/charts"
 }

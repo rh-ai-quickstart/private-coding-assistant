@@ -1,0 +1,4 @@
+apiVersion: v2
+name: pca-ai-serving
+version: 0.1.0
+description: PCA AI Serving — models, gateway, PVCs, inference

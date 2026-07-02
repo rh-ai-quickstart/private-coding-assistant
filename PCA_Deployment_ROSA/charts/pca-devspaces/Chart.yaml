@@ -1,0 +1,4 @@
+apiVersion: v2
+name: pca-devspaces
+version: 0.1.0
+description: PCA DevSpaces — workspaces, extensions, configmaps

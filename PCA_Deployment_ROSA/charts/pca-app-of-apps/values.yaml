@@ -1,0 +1,6 @@
+gitops:
+  repoURL: "CHANGE_ME"
+  targetRevision: main
+  basePath: "CHANGE_ME"
+hfToken:
+  data: "CHANGE_ME"

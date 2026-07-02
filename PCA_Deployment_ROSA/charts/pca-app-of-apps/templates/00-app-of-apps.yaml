@@ -33,9 +33,9 @@ metadata:
 spec:
   project: private-code-assistant
   source:
-    repoURL: REPLACE_WITH_GITOPS_REPO_URL
-    targetRevision: main
-    path: PCA_deployment/argocd/01-operators
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-operators
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:
@@ -66,9 +66,13 @@ metadata:
 spec:
   project: private-code-assistant
   source:
-    repoURL: REPLACE_WITH_GITOPS_REPO_URL
-    targetRevision: main
-    path: PCA_deployment/argocd/02-platform-config
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-platform-config
+    helm:
+      parameters:
+        - name: hfToken.data
+          value: {{ .Values.hfToken.data | quote }}
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:
@@ -98,9 +102,9 @@ metadata:
 spec:
   project: private-code-assistant
   source:
-    repoURL: REPLACE_WITH_GITOPS_REPO_URL
-    targetRevision: main
-    path: PCA_deployment/argocd/03-ai-serving
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-ai-serving
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:
@@ -130,9 +134,9 @@ metadata:
 spec:
   project: private-code-assistant
   source:
-    repoURL: REPLACE_WITH_GITOPS_REPO_URL
-    targetRevision: main
-    path: PCA_deployment/argocd/04-devspaces
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-devspaces
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:

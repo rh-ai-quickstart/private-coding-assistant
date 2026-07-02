@@ -10,4 +10,4 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 type: Opaque
 data:
-  token: bm90LXJlcXVpcmVk
+  token: {{ .Values.hfToken.data }}
