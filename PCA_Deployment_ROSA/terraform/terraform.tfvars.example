@@ -39,8 +39,8 @@ inferentia_pool_replicas = 1
 # Users
 cluster_admin_password = ""
 devspaces_users = [
-  { username = "dev-user1", password = "ChangeMe123!" },
-  { username = "dev-user2", password = "ChangeMe456!" },
+  { username = "dev-user1", password = "ChangeMe1234!!" },
+  { username = "dev-user2", password = "ChangeMe4567!!" },
 ]
 
 # Secrets
