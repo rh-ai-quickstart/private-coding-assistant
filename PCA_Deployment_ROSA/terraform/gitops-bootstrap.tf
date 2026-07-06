@@ -112,8 +112,8 @@ resource "null_resource" "argocd_app_of_apps" {
                 value: ${var.gitops_repo_revision}
               - name: gitops.basePath
                 value: ${var.gitops_charts_path}
-              - name: hfToken.data
-                value: ${base64encode(var.huggingface_token)}
+              - name: hfToken.raw
+                value: ${var.huggingface_token}
         destination:
           server: https://kubernetes.default.svc
           namespace: openshift-gitops

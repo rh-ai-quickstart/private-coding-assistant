@@ -6,6 +6,7 @@ CONTAINERFILE ?= Containerfile.provisioner
 PROJECT_DIR := $(shell pwd)
 
 NAMESPACE ?= private-assistant
+HF_TOKEN ?= $(HUGGINGFACE_TOKEN)
 CHARTS_DIR := PCA_Deployment_ROSA/charts
 DEPLOY_VALUES_DIR := deploy_existing_openshift
 
@@ -44,7 +45,7 @@ deploy: ## Deploy AI serving stack on existing OpenShift (NAMESPACE=, HF_TOKEN=)
 		--namespace $(NAMESPACE) --create-namespace \
 		-f $(DEPLOY_VALUES_DIR)/values-platform-config.yaml \
 		--set namespace=$(NAMESPACE) \
-		--set hfToken.data=$$(echo -n '$(HF_TOKEN)' | base64)
+		--set hfToken.raw=$(HF_TOKEN)
 	helm upgrade --install $(NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
 		--namespace $(NAMESPACE) \
 		-f $(DEPLOY_VALUES_DIR)/values-ai-serving.yaml \

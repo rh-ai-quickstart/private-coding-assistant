@@ -71,8 +71,8 @@ spec:
     path: {{ .Values.gitops.basePath }}/pca-platform-config
     helm:
       parameters:
-        - name: hfToken.data
-          value: {{ .Values.hfToken.data | quote }}
+        - name: hfToken.raw
+          value: {{ .Values.hfToken.raw | quote }}
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:
