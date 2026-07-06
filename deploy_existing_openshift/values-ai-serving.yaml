@@ -1,0 +1,2 @@
+# Values override for pca-ai-serving when deploying on an existing OpenShift cluster.
+clusterResources: false

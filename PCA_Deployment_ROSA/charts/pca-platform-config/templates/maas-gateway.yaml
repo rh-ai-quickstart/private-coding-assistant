@@ -1,3 +1,4 @@
+{{- if .Values.clusterConfig.enabled }}
 # MaaS default gateway — required by RHOAI 3.4 ModelsAsService controller
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -21,3 +22,4 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+{{- end }}

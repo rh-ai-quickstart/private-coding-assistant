@@ -1,3 +1,4 @@
+{{- if .Values.clusterResources }}
 # HardwareProfile for NVIDIA L40S (g6e.2xlarge) — matches Terraform GPU machine pool
 apiVersion: infrastructure.opendatahub.io/v1
 kind: HardwareProfile
@@ -40,3 +41,4 @@ spec:
         - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
+{{- end }}

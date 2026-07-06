@@ -21,6 +21,10 @@ spec:
           namespace: {{ .Values.gatewayNamespace | default "openshift-ingress" }}
     scheduler: {}
   template:
+    volumes:
+      - name: kserve-provision-location
+        persistentVolumeClaim:
+          claimName: model-cache
     containers:
       - name: main
         args:

@@ -1,3 +1,4 @@
+{{- if .Values.clusterResources }}
 # vLLM Neuron ServingRuntime Template — for Inferentia2/Trainium deployments
 apiVersion: template.openshift.io/v1
 kind: Template
@@ -117,3 +118,4 @@ objects:
           emptyDir:
             medium: Memory
             sizeLimit: 16Gi
+{{- end }}
