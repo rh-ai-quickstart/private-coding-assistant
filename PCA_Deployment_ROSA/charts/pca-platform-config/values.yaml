@@ -4,4 +4,4 @@ clusterConfig:
 devspaces:
   enabled: true
 hfToken:
-  data: "CHANGE_ME"
+  raw: "__overridden_at_deploy_time__"

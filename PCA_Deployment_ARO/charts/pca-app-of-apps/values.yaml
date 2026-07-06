@@ -1,6 +1,6 @@
 gitops:
-  repoURL: "CHANGE_ME"
+  repoURL: "__overridden_at_deploy_time__"
   targetRevision: main
-  basePath: "CHANGE_ME"
+  basePath: "__overridden_at_deploy_time__"
 hfToken:
-  data: "CHANGE_ME"
+  raw: "__overridden_at_deploy_time__"
