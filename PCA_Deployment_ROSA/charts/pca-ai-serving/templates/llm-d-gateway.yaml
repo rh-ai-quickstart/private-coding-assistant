@@ -1,0 +1,21 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: llm-d-gateway
+  namespace: {{ .Values.namespace }}
+  labels:
+    istio.io/rev: openshift-gateway
+spec:
+  gatewayClassName: data-science-gateway-class
+  listeners:
+  - name: https
+    port: 443
+    protocol: HTTPS
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: qwen3-coder-kserve-self-signed-certs
+        kind: Secret
+    allowedRoutes:
+      namespaces:
+        from: Same

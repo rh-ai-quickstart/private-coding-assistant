@@ -17,8 +17,8 @@ spec:
     route: {}
     gateway:
       refs:
-        - name: {{ .Values.gatewayName | default "data-science-gateway" }}
-          namespace: {{ .Values.gatewayNamespace | default "openshift-ingress" }}
+        - name: {{ .Values.gatewayName | default "llm-d-gateway" }}
+          namespace: {{ .Values.gatewayNamespace | default .Values.namespace }}
     scheduler: {}
   template:
     volumes:
