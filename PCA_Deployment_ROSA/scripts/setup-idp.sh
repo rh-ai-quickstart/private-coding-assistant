@@ -34,7 +34,7 @@ if ! oc whoami &>/dev/null; then
 fi
 
 echo "==> Reading users from ${VALUES_FILE}"
-USER_COUNT=$(yq '.users | length' "$VALUES_FILE")
+USER_COUNT=$(yq '.devspaces.instances | length' "$VALUES_FILE")
 if [ "$USER_COUNT" -eq 0 ]; then
 	echo "ERROR: No users found in ${VALUES_FILE}" >&2
 	exit 1
@@ -45,8 +45,8 @@ HTPASSWD_FILE=$(mktemp)
 trap 'rm -f "$HTPASSWD_FILE"' EXIT
 
 for i in $(seq 0 $((USER_COUNT - 1))); do
-	USERNAME=$(yq ".users[$i].username" "$VALUES_FILE")
-	PASSWORD=$(yq ".users[$i].password" "$VALUES_FILE")
+	USERNAME=$(yq ".devspaces.instances[$i].user" "$VALUES_FILE")
+	PASSWORD=$(yq ".devspaces.instances[$i].password" "$VALUES_FILE")
 	if [ -z "$PASSWORD" ] || [ "$PASSWORD" = "null" ]; then
 		echo "ERROR: User '${USERNAME}' has no password set in ${VALUES_FILE}" >&2
 		exit 1
@@ -94,8 +94,8 @@ echo "==> Verifying user logins"
 FAILED=0
 API_SERVER=$(oc whoami --show-server)
 for i in $(seq 0 $((USER_COUNT - 1))); do
-	USERNAME=$(yq ".users[$i].username" "$VALUES_FILE")
-	PASSWORD=$(yq ".users[$i].password" "$VALUES_FILE")
+	USERNAME=$(yq ".devspaces.instances[$i].user" "$VALUES_FILE")
+	PASSWORD=$(yq ".devspaces.instances[$i].password" "$VALUES_FILE")
 	if oc login "$API_SERVER" -u "$USERNAME" -p "$PASSWORD" --insecure-skip-tls-verify=true &>/dev/null; then
 		echo "    ${USERNAME}: login OK"
 	else

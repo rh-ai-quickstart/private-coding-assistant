@@ -1,64 +1,22 @@
-# DevSpaces AI extension ConfigMaps.
+# Roo Code provider config — one per devspace namespace.
 #
-# DESIGN:
-#   continue-config  — sourced in openshift-devspaces, synced to each user namespace by the
-#                      DevSpaces operator. Mounted read-only at /home/user/.continue (subpath).
-#                      The DevWorkspace postStart script creates a writable
-#                      /home/user/.continue-data/ directory and symlinks config.yaml into it so
-#                      Continue can write session data alongside a read-only config.
+# IMPORTANT: Use `openai` provider (NOT `openai-native`).
+#   - `openai` respects openAiStreamingEnabled: false → non-streaming → vLLM returns complete
+#     structured tool_calls in one response (the qwen3_coder parser works correctly).
+#   - `openai-native` always streams → the qwen3_coder streaming parser emits raw XML fragments
+#     as content instead of tool_calls → Roo Code sees no tool calls → every turn fails.
 #
-#   roo-code-provider-config — per-namespace; mounted via subpath directly into Roo Code's
-#                      active settings path. Uses the `openai` provider (NOT `openai-native`)
-#                      with streaming disabled so the qwen3_coder tool-call parser returns
-#                      complete structured tool_calls instead of fragmented streaming XML.
-#
-# NOTE: The llm-d gateway URL uses HTTPS with a cluster-internal cert; extensions must set
-#       NODE_TLS_REJECT_UNAUTHORIZED=0 or requestOptions.verifySsl=false.
-# ── Continue config (source namespace — synced to all user namespaces) ──────────────────────
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: continue-config
-  namespace: openshift-devspaces
-  labels:
-    app.kubernetes.io/component: workspaces-config
-    app.kubernetes.io/part-of: che.eclipse.org
-    controller.devfile.io/mount-to-devworkspace: "true"
-    controller.devfile.io/watch-configmap: "true"
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-    controller.devfile.io/mount-as: subpath
-    controller.devfile.io/mount-path: /home/user/.continue
-data:
-  config.yaml: |
-    name: Private Code Assistant
-    version: 1.0.0
-    schema: v1
-    models:
-      - name: Qwen3-Coder (llm-d)
-        provider: openai
-        model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-        apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
-        apiKey: EMPTY
-        systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
-        requestOptions:
-          verifySsl: false
-    tabAutocompleteModel:
-      name: Qwen3-Coder Autocomplete (llm-d)
-      provider: openai
-      model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-      apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
-      apiKey: EMPTY
-      requestOptions:
-        verifySsl: false
-{{- range .Values.users }}
+# IMPORTANT: mount-path targets Roo Code 3.x active settings path (/checode/remote/data/...).
+#   The old path (/checode/checode-linux-libc/...) is NOT read by Roo Code at runtime.
+#   The postStart script also copies from the old mount path as a fallback in case the
+#   subpath mount is applied before /checode/remote/data/ is initialised by che-code.
+{{- range $i, $devspace := .Values.devspaces }}
 ---
-# ── Roo Code provider config — {{ .username }}{{ $.Values.namespaceSuffix }} ──
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: roo-code-provider-config
-  namespace: {{ .username }}{{ $.Values.namespaceSuffix }}
+  namespace: {{ $devspace.namespace | default $.Release.Namespace }}
   labels:
     controller.devfile.io/mount-to-devworkspace: "true"
     controller.devfile.io/watch-configmap: "true"

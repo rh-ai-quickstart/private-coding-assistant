@@ -1,5 +1,4 @@
-namespaceSuffix: "-devspaces"
-users:
-  - username: dev-user1
-  - username: dev-user2
-  - username: dev-user3
+# Values override for pca-devspaces when deploying on an existing OpenShift cluster.
+# Single devspace — namespace defaults to Release.Namespace (passed via --namespace).
+devspaces:
+  - name: code-workspace-1

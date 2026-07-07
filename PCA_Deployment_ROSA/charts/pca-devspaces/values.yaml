@@ -1,6 +1,8 @@
 aiServingNamespace: ai-serving
-namespaceSuffix: "-devspaces"
-users:
-  - username: dev-user1
-  - username: dev-user2
-  - username: dev-user3
+devspaces:
+  - namespace: dev-user1-devspaces
+    name: code-workspace-1
+  - namespace: dev-user2-devspaces
+    name: code-workspace-2
+  - namespace: dev-user3-devspaces
+    name: code-workspace-3

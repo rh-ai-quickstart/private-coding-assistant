@@ -8,17 +8,17 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 {{- if .Values.devspaces.enabled }}
-{{- range .Values.users }}
+{{- range .Values.devspaces.instances }}
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ .username }}{{ $.Values.devspaces.namespaceSuffix }}
+  name: {{ .namespace }}
   labels:
     app.kubernetes.io/part-of: che.eclipse.org
     app.kubernetes.io/component: workspaces-namespace
   annotations:
     argocd.argoproj.io/sync-wave: "0"
-    che.eclipse.org/username: {{ .username }}
+    che.eclipse.org/username: {{ .user }}
 {{- end }}
 {{- end }}
