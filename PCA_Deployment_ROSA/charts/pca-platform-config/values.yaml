@@ -6,7 +6,6 @@ devspaces:
   namespaceSuffix: "-devspaces"
 hfToken:
   raw: "__overridden_at_deploy_time__"
-
 users:
   - username: dev-user1
     password: ""
@@ -14,7 +13,6 @@ users:
     password: ""
   - username: dev-user3
     password: ""
-
 auth:
   htpasswd:
     enabled: false
