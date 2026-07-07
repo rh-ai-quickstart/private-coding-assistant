@@ -3,16 +3,23 @@ clusterConfig:
   enabled: true
 devspaces:
   enabled: true
-  namespaceSuffix: "-devspaces"
+  instances:
+    - namespace: dev-user1-devspaces
+      name: code-workspace-1
+      user: dev-user1
+      password: ""
+    - namespace: dev-user2-devspaces
+      name: code-workspace-2
+      user: dev-user2
+      password: ""
+    - namespace: dev-user3-devspaces
+      name: code-workspace-3
+      user: dev-user3
+      password: ""
+devspacesGlobalConfig:
+  enabled: true
 hfToken:
   raw: "__overridden_at_deploy_time__"
-users:
-  - username: dev-user1
-    password: ""
-  - username: dev-user2
-    password: ""
-  - username: dev-user3
-    password: ""
 auth:
   htpasswd:
     enabled: false

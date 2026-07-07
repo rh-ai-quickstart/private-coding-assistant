@@ -13,13 +13,20 @@ For demo and test environments, the quickstart provides an HTPasswd identity pro
 **Step 1 — Configure users** in `values-platform-config.yaml`:
 
 ```yaml
-users:
-  - username: dev-user1
-    password: "Dev1@PCA2026!"
-  - username: dev-user2
-    password: "Dev2@PCA2026!"
-  - username: dev-user3
-    password: "Dev3@PCA2026!"
+devspaces:
+  instances:
+    - namespace: dev-user1-devspaces
+      name: code-workspace-1
+      user: dev-user1
+      password: "Dev1@PCA2026!"
+    - namespace: dev-user2-devspaces
+      name: code-workspace-2
+      user: dev-user2
+      password: "Dev2@PCA2026!"
+    - namespace: dev-user3-devspaces
+      name: code-workspace-3
+      user: dev-user3
+      password: "Dev3@PCA2026!"
 ```
 
 **Step 2 — Run the IDP setup script:**
@@ -33,10 +40,14 @@ This additively patches the OAuth CR (existing identity providers are preserved)
 **Step 3 — Deploy the platform and AI serving stack:**
 
 ```bash
-make deploy NAMESPACE=private-assistant HF_TOKEN=hf_xxx
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
 ```
 
-This creates per-user namespaces (`{username}-devspaces`) and RBAC bindings (`edit` role).
+This deploys the AI serving backend. Then deploy devspaces per developer:
+
+```bash
+make devspace-deploy-existing-openshift NAMESPACE=dev-user1-devspaces AI_NAMESPACE=private-assistant-ai-serving
+```
 
 ### Replacing HTPasswd with Enterprise IDP
 
@@ -141,7 +152,7 @@ OpenShift does not support SAML identity providers natively. To integrate with a
 
 ### User List Alignment
 
-When switching from HTPasswd to enterprise IDP, the `users` list in `values-platform-config.yaml` still drives namespace and RBAC creation. Update the `username` fields to match the identity provider's username claim (e.g., `preferredUsername` for OIDC, `uid` for LDAP). Passwords can be removed since they are only used by the HTPasswd setup script.
+When switching from HTPasswd to enterprise IDP, the `devspaces.instances` list in `values-platform-config.yaml` still drives namespace and RBAC creation. Update the `user` fields to match the identity provider's username claim (e.g., `preferredUsername` for OIDC, `uid` for LDAP). Passwords can be removed since they are only used by the HTPasswd setup script.
 
 ### Dev Spaces Authentication
 

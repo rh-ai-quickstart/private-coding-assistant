@@ -9,40 +9,42 @@ description: Deploy the Private AI Coding Assistant (llm-d + vLLM) on an existin
 
 Before deploying, confirm these with the user:
 
-1. **Namespace** — ask the user for a suffix. Default prefix is `private-assistant-`. Example: `private-assistant-itay`.
-2. **HF_TOKEN** — check if `.env` has `HUGGINGFACE_TOKEN` or `HF_TOKEN`. If neither exists, ask the user to provide one.
-3. **Cluster access** — verify `oc whoami` succeeds.
+1. **HF_TOKEN** — check if `.env` has `HUGGINGFACE_TOKEN` or `HF_TOKEN`. If neither exists, ask the user to provide one.
+2. **Cluster access** — verify `oc whoami` succeeds.
+3. **AI serving namespace** — default is `private-assistant-ai-serving`. Inform the user which namespace will be used.
+4. **DevSpace namespace** — ask the user what namespace they want for their developer workspace (e.g. `private-assistant-<name>`).
 
 ## Deployment Steps
 
-1. Verify cluster connectivity with `oc whoami`.
-2. Check GPU nodes are available (`oc get nodes` with GPU capacity).
-3. If the namespace already exists, annotate it for Helm adoption:
+### AI Serving (once per cluster)
+
+1. If the namespace already exists, adopt it for Helm:
    ```
    oc annotate namespace <NS> meta.helm.sh/release-name=<NS>-platform-config meta.helm.sh/release-namespace=<NS> --overwrite
    oc label namespace <NS> app.kubernetes.io/managed-by=Helm --overwrite
    ```
-4. Run `make deploy NAMESPACE=<NS>`.
-5. Wait for the storage-initializer to download the model (~4 min).
-6. Wait for vLLM to load model weights into GPU (~3 min).
-7. Verify pods are `1/1 Running`: `oc get pods -n <NS>`.
-8. Create an OpenShift Route for external access:
+2. If the global ConfigMaps (`continue-config`, `vscode-extensions-config`) already exist in `openshift-devspaces`, adopt them:
    ```
-   oc create route passthrough qwen3-coder --service=qwen3-coder-kserve-workload-svc --port=8000 -n <NS>
+   oc annotate configmap continue-config -n openshift-devspaces meta.helm.sh/release-name=<NS>-platform-config meta.helm.sh/release-namespace=<NS> --overwrite
+   oc label configmap continue-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
+   oc annotate configmap vscode-extensions-config -n openshift-devspaces meta.helm.sh/release-name=<NS>-platform-config meta.helm.sh/release-namespace=<NS> --overwrite
+   oc label configmap vscode-extensions-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
    ```
-9. Test the endpoint: `curl -sk https://<route-host>/v1/models`.
+3. Run `make ai-serving-deploy-existing-openshift NAMESPACE=<NS>`.
+4. Wait for pods to become `Running`: `oc get pods -n <NS> -w`.
 
-## Summary
+### DevSpace (per developer)
 
-The deploy creates:
-- A PVC for model cache (100Gi)
-- An HF token secret
-- An LLMInferenceService (Qwen3-Coder-30B-A3B-Instruct-FP8, 1 GPU)
-- A passthrough Route for external HTTPS access
+5. Run `make devspace-deploy-existing-openshift NAMESPACE=<DEV_NS> AI_NAMESPACE=<NS>`.
+   - For single-developer (same namespace): just `make devspace-deploy-existing-openshift`.
+   - For multi-developer: each dev passes their own `NAMESPACE` and points `AI_NAMESPACE` to the serving namespace.
 
 ## Teardown
 
-```
-make undeploy NAMESPACE=<NS>
-oc delete route qwen3-coder -n <NS>
+```bash
+# Remove a developer's devspace
+make devspace-undeploy-existing-openshift NAMESPACE=<DEV_NS>
+
+# Remove the AI serving stack (removes namespace)
+make ai-serving-undeploy-existing-openshift NAMESPACE=<NS>
 ```

@@ -1,4 +1,4 @@
-# DevWorkspace definitions for each developer.
+# DevWorkspace definitions — one per entry in .Values.devspaces.
 #
 # NOTE: DevWorkspaces are created with started: false. Users start their workspace
 # from the DevSpaces dashboard so the controller stamps the correct creator identity
@@ -15,15 +15,13 @@
 #
 # Model endpoint (cluster-internal HTTPS):
 #   https://llm-d-gateway-data-science-gateway-class.<namespace>.svc.cluster.local/v1
-{{- range $i, $user := .Values.users }}
-{{- if $i }}
+{{- range $i, $devspace := .Values.devspaces }}
 ---
-{{- end }}
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:
-  name: code-workspace-{{ add $i 1 }}
-  namespace: {{ $user.username }}{{ $.Values.namespaceSuffix }}
+  name: {{ $devspace.name }}
+  namespace: {{ $devspace.namespace | default $.Release.Namespace }}
   labels:
     che.eclipse.org/devworkspace: "true"
   annotations:

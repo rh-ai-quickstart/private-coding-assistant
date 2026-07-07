@@ -1,0 +1,61 @@
+{{- if .Values.devspacesGlobalConfig.enabled }}
+# Continue config (source namespace — synced to all user namespaces by DevSpaces operator)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: continue-config
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/component: workspaces-config
+    app.kubernetes.io/part-of: che.eclipse.org
+    controller.devfile.io/mount-to-devworkspace: "true"
+    controller.devfile.io/watch-configmap: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    controller.devfile.io/mount-as: subpath
+    controller.devfile.io/mount-path: /home/user/.continue
+data:
+  config.yaml: |
+    name: Private Code Assistant
+    version: 1.0.0
+    schema: v1
+    models:
+      - name: Qwen3-Coder (llm-d)
+        provider: openai
+        model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+        apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.namespace }}.svc.cluster.local/v1
+        apiKey: EMPTY
+        systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
+        requestOptions:
+          verifySsl: false
+    tabAutocompleteModel:
+      name: Qwen3-Coder Autocomplete (llm-d)
+      provider: openai
+      model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+      apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.namespace }}.svc.cluster.local/v1
+      apiKey: EMPTY
+      requestOptions:
+        verifySsl: false
+---
+# Cluster-wide VS Code extension recommendations for all DevSpaces workspaces
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vscode-extensions-config
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/component: workspaces-config
+    app.kubernetes.io/part-of: che.eclipse.org
+    controller.devfile.io/watch-configmap: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  .vscode-extensions.json: |
+    {
+      "recommendations": [
+        "Continue.continue",
+        "saoudrizwan.claude-dev",
+        "RooVeterinaryInc.roo-cline"
+      ]
+    }
+{{- end }}
