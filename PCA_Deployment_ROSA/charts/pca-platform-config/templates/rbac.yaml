@@ -1,50 +1,49 @@
 {{- if .Values.devspaces.enabled }}
-# RBAC for DevSpaces users — grants namespace admin in their respective namespaces
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: dev-user1-admin
-  namespace: dev1-devspaces
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-subjects:
-  - kind: User
-    name: dev-user1
-    apiGroup: rbac.authorization.k8s.io
-roleRef:
-  kind: ClusterRole
-  name: admin
-  apiGroup: rbac.authorization.k8s.io
+{{- range .Values.users }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: dev-user2-admin
-  namespace: dev2-devspaces
+  name: {{ .username }}-edit
+  namespace: {{ .username }}{{ $.Values.devspaces.namespaceSuffix }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 subjects:
   - kind: User
-    name: dev-user2
+    name: {{ .username }}
     apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: ClusterRole
-  name: admin
+  name: edit
   apiGroup: rbac.authorization.k8s.io
+---
+# Allow workspace service accounts to exec into pods (required for che-code terminal)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workspace-pod-exec
+  namespace: {{ .username }}{{ $.Values.devspaces.namespaceSuffix }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+rules:
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: dev-user3-admin
-  namespace: dev3-devspaces
+  name: workspace-pod-exec
+  namespace: {{ .username }}{{ $.Values.devspaces.namespaceSuffix }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 subjects:
-  - kind: User
-    name: dev-user3
+  - kind: Group
+    name: system:serviceaccounts:{{ .username }}{{ $.Values.devspaces.namespaceSuffix }}
     apiGroup: rbac.authorization.k8s.io
 roleRef:
-  kind: ClusterRole
-  name: admin
+  kind: Role
+  name: workspace-pod-exec
   apiGroup: rbac.authorization.k8s.io
+{{- end }}
 {{- end }}

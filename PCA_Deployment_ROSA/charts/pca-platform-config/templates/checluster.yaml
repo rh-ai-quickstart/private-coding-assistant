@@ -16,5 +16,8 @@ spec:
     devWorkspace: {}
     devfileRegistry: {}
     pluginRegistry: {}
+  devEnvironments:
+    defaultNamespace:
+      template: "<username>{{ .Values.devspaces.namespaceSuffix }}"
   networking: {}
 {{- end }}

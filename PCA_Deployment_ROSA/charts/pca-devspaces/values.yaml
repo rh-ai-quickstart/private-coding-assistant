@@ -1,1 +1,7 @@
 aiServingNamespace: ai-serving
+namespaceSuffix: "-devspaces"
+
+users:
+  - username: dev-user1
+  - username: dev-user2
+  - username: dev-user3

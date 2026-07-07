@@ -28,9 +28,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
     controller.devfile.io/mount-as: subpath
-    # Mounted read-only at /home/user/.continue/config.yaml inside every workspace pod.
-    # The postStart script symlinks this into the writable CONTINUE_GLOBAL_DIR so Continue
-    # can write session data without needing write access to the ConfigMap mount.
     controller.devfile.io/mount-path: /home/user/.continue
 data:
   config.yaml: |
@@ -43,9 +40,6 @@ data:
         model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
         apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
         apiKey: EMPTY
-        # Prevents the model from spontaneously generating XML tool-call syntax
-        # (<function=...>) in Continue responses when --enable-auto-tool-choice is active in
-        # vLLM, which would cause "Invalid tool name" errors in Continue.
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
         requestOptions:
           verifySsl: false
@@ -57,23 +51,14 @@ data:
       apiKey: EMPTY
       requestOptions:
         verifySsl: false
+{{- range .Values.users }}
 ---
-# ── Roo Code provider config — dev1-devspaces ────────────────────────────────────────────────
-# IMPORTANT: Use `openai` provider (NOT `openai-native`).
-#   - `openai` respects openAiStreamingEnabled: false → non-streaming → vLLM returns complete
-#     structured tool_calls in one response (the qwen3_coder parser works correctly).
-#   - `openai-native` always streams → the qwen3_coder streaming parser emits raw XML fragments
-#     as content instead of tool_calls → Roo Code sees no tool calls → every turn fails.
-#
-# IMPORTANT: mount-path targets Roo Code 3.x active settings path (/checode/remote/data/...).
-#   The old path (/checode/checode-linux-libc/...) is NOT read by Roo Code at runtime.
-#   The postStart script also copies from the old mount path as a fallback in case the
-#   subpath mount is applied before /checode/remote/data/ is initialised by che-code.
+# ── Roo Code provider config — {{ .username }}{{ $.Values.namespaceSuffix }} ──
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: roo-code-provider-config
-  namespace: dev1-devspaces
+  namespace: {{ .username }}{{ $.Values.namespaceSuffix }}
   labels:
     controller.devfile.io/mount-to-devworkspace: "true"
     controller.devfile.io/watch-configmap: "true"
@@ -90,7 +75,7 @@ data:
         "llm-d-qwen3-coder": {
           "id": "llm-d-qwen3-coder",
           "apiProvider": "openai",
-          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1",
+          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1",
           "openAiApiKey": "EMPTY",
           "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiStreamingEnabled": false
@@ -104,77 +89,4 @@ data:
         "orchestrator": "llm-d-qwen3-coder"
       }
     }
----
-# ── Roo Code provider config — dev2-devspaces ────────────────────────────────────────────────
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: roo-code-provider-config
-  namespace: dev2-devspaces
-  labels:
-    controller.devfile.io/mount-to-devworkspace: "true"
-    controller.devfile.io/watch-configmap: "true"
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-    controller.devfile.io/mount-as: subpath
-    controller.devfile.io/mount-path: /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings
-data:
-  cline_custom_modes.json: '[]'
-  provider_profiles.json: |
-    {
-      "currentApiConfigName": "llm-d-qwen3-coder",
-      "apiConfigs": {
-        "llm-d-qwen3-coder": {
-          "id": "llm-d-qwen3-coder",
-          "apiProvider": "openai",
-          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1",
-          "openAiApiKey": "EMPTY",
-          "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
-          "openAiStreamingEnabled": false
-        }
-      },
-      "modeApiConfigs": {
-        "code": "llm-d-qwen3-coder",
-        "architect": "llm-d-qwen3-coder",
-        "ask": "llm-d-qwen3-coder",
-        "debug": "llm-d-qwen3-coder",
-        "orchestrator": "llm-d-qwen3-coder"
-      }
-    }
----
-# ── Roo Code provider config — dev3-devspaces ────────────────────────────────────────────────
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: roo-code-provider-config
-  namespace: dev3-devspaces
-  labels:
-    controller.devfile.io/mount-to-devworkspace: "true"
-    controller.devfile.io/watch-configmap: "true"
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-    controller.devfile.io/mount-as: subpath
-    controller.devfile.io/mount-path: /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings
-data:
-  cline_custom_modes.json: '[]'
-  provider_profiles.json: |
-    {
-      "currentApiConfigName": "llm-d-qwen3-coder",
-      "apiConfigs": {
-        "llm-d-qwen3-coder": {
-          "id": "llm-d-qwen3-coder",
-          "apiProvider": "openai",
-          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1",
-          "openAiApiKey": "EMPTY",
-          "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
-          "openAiStreamingEnabled": false
-        }
-      },
-      "modeApiConfigs": {
-        "code": "llm-d-qwen3-coder",
-        "architect": "llm-d-qwen3-coder",
-        "ask": "llm-d-qwen3-coder",
-        "debug": "llm-d-qwen3-coder",
-        "orchestrator": "llm-d-qwen3-coder"
-      }
-    }
+{{- end }}

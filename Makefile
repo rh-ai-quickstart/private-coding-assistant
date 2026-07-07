@@ -8,6 +8,7 @@ PROJECT_DIR := $(shell pwd)
 NAMESPACE ?= private-assistant
 HF_TOKEN ?= $(HUGGINGFACE_TOKEN)
 CHARTS_DIR := PCA_Deployment_ROSA/charts
+SCRIPTS_DIR := PCA_Deployment_ROSA/scripts
 DEPLOY_VALUES_DIR := deploy_existing_openshift
 
 ENV_FILE_FLAG := $(if $(wildcard .env),--env-file .env,)
@@ -24,7 +25,7 @@ RUN_FLAGS := --rm \
 	$(KUBE_MOUNT) \
 	$(ENV_FILE_FLAG)
 
-.PHONY: build shell run help deploy undeploy deploy-devspaces undeploy-devspaces
+.PHONY: build shell run help deploy undeploy deploy-devspaces undeploy-devspaces setup-idp
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -64,3 +65,6 @@ deploy-devspaces: ## Deploy DevSpaces workspaces (NAMESPACE=)
 
 undeploy-devspaces: ## Remove DevSpaces workspaces (NAMESPACE=)
 	helm uninstall $(NAMESPACE)-devspaces --namespace $(NAMESPACE) --ignore-not-found || true
+
+setup-idp: ## Configure HTPasswd IDP on existing cluster (reads users from values)
+	$(SCRIPTS_DIR)/setup-idp.sh $(DEPLOY_VALUES_DIR)/values-platform-config.yaml

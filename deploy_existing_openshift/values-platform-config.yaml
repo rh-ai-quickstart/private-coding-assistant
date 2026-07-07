@@ -4,4 +4,19 @@
 clusterConfig:
   enabled: false
 devspaces:
-  enabled: false
+  enabled: true
+  namespaceSuffix: "-devspaces"
+
+# HTPasswd IDP is not created via Helm on existing clusters (OAuth CR is managed externally).
+# Run `make setup-idp` to configure HTPasswd IDP via the additive patch script.
+auth:
+  htpasswd:
+    enabled: false
+
+users:
+  - username: dev-user1
+    password: "Dev1@PCA2026!"
+  - username: dev-user2
+    password: "Dev2@PCA2026!"
+  - username: dev-user3
+    password: "Dev3@PCA2026!"
