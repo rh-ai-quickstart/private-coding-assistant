@@ -18,6 +18,8 @@ devspaces:
       password: ""
 hfToken:
   raw: "__overridden_at_deploy_time__"
+guardrails:
+  enabled: false
 auth:
   htpasswd:
     enabled: false

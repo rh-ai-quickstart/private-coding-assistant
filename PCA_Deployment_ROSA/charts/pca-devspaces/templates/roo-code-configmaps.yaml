@@ -33,7 +33,11 @@ data:
         "llm-d-qwen3-coder": {
           "id": "llm-d-qwen3-coder",
           "apiProvider": "openai",
+          {{- if $.Values.guardrails.enabled }}
+          "openAiBaseUrl": "{{ $.Values.guardrails.endpoint }}/v1",
+          {{- else }}
           "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1",
+          {{- end }}
           "openAiApiKey": "EMPTY",
           "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiStreamingEnabled": false
