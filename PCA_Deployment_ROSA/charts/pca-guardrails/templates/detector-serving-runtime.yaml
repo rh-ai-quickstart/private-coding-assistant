@@ -1,0 +1,45 @@
+{{- if .Values.guardrails.detectors.promptInjection.enabled }}
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: guardrails-detector-huggingface-runtime
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    openshift.io/display-name: Hugging Face Detector ServingRuntime for KServe
+  labels:
+    app.kubernetes.io/name: pca-guardrails
+    app.kubernetes.io/component: guardrails-detector
+spec:
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8000"
+  containers:
+    - name: kserve-container
+      image: registry.redhat.io/rhoai/odh-guardrails-detector-huggingface-runtime-rhel9@sha256:6447a9b1257e7e86831061adc55e8fc94493687e4525184fb9d0e50cf2bb668a
+      command:
+        - uvicorn
+        - app:app
+      args:
+        - --workers=1
+        - --host=0.0.0.0
+        - --port=8000
+        - --log-config=/common/log_conf.yaml
+      env:
+        - name: MODEL_DIR
+          value: /mnt/models
+        - name: HF_HOME
+          value: /tmp/hf_home
+        - name: DETECTOR_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      ports:
+        - containerPort: 8000
+          protocol: TCP
+  multiModel: false
+  supportedModelFormats:
+    - autoSelect: true
+      name: guardrails-detector-hf-runtime
+{{- end }}

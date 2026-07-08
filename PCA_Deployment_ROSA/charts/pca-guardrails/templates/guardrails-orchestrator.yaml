@@ -1,0 +1,25 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: GuardrailsOrchestrator
+metadata:
+  name: pca-guardrails
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  labels:
+    app.kubernetes.io/name: pca-guardrails
+    app.kubernetes.io/component: guardrails
+spec:
+  orchestratorConfig: "pca-guardrails-config"
+  enableBuiltInDetectors: true
+  enableGuardrailsGateway: {{ .Values.guardrails.gateway.enabled | default false }}
+  {{- if .Values.guardrails.gateway.enabled }}
+  guardrailsGatewayConfig: "pca-guardrails-gateway-config"
+  {{- end }}
+  replicas: {{ .Values.guardrails.replicas | default 1 }}
+  {{- if .Values.guardrails.otel.enabled }}
+  otelExporter:
+    protocol: {{ .Values.guardrails.otel.protocol | quote }}
+    otlpEndpoint: {{ .Values.guardrails.otel.endpoint | quote }}
+    otlpExport: {{ .Values.guardrails.otel.export | quote }}
+  {{- end }}

@@ -1,0 +1,45 @@
+{{- $enforcement := .Values.guardrails.enforcement | default "block" -}}
+{{- $threshold := "0.5" -}}
+{{- if or (eq $enforcement "warn") (eq $enforcement "log-only") -}}
+  {{- $threshold = "1.0" -}}
+{{- end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-guardrails-config
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  config.yaml: |
+    openai:
+      service:
+        hostname: {{ .Values.guardrails.llmService.host }}.{{ .Values.namespace }}.svc.cluster.local
+        port: {{ .Values.guardrails.llmService.port }}
+        tls:
+          cert_path: /etc/tls/private/tls.crt
+          key_path: /etc/tls/private/tls.key
+          client_ca_cert_path: /etc/tls/ca/service-ca.crt
+    detectors:
+      {{- if .Values.guardrails.detectors.promptInjection.enabled }}
+      prompt_injection:
+        type: text_contents
+        service:
+          hostname: prompt-injection-detector-predictor.{{ .Values.namespace }}.svc.cluster.local
+          port: 80
+        chunker_id: whole_doc_chunker
+        {{- if or (eq $enforcement "warn") (eq $enforcement "log-only") }}
+        default_threshold: 1.0
+        {{- else }}
+        default_threshold: {{ .Values.guardrails.detectors.promptInjection.threshold | default "0.5" }}
+        {{- end }}
+      {{- end }}
+      {{- if or .Values.guardrails.detectors.piiRegex.enabled .Values.guardrails.detectors.secretsRegex.enabled }}
+      regex:
+        type: text_contents
+        service:
+          hostname: "127.0.0.1"
+          port: 8080
+        chunker_id: whole_doc_chunker
+        default_threshold: {{ $threshold }}
+      {{- end }}

@@ -23,7 +23,11 @@ data:
       - name: Qwen3-Coder (llm-d)
         provider: openai
         model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+        {{- if .Values.guardrails.enabled }}
+        apiBase: {{ .Values.guardrails.endpoint }}/v1
+        {{- else }}
         apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
+        {{- end }}
         apiKey: EMPTY
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
         requestOptions:

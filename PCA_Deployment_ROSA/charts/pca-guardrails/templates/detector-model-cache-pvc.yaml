@@ -1,0 +1,18 @@
+{{- if .Values.guardrails.detectors.promptInjection.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: detector-model-cache
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/name: pca-guardrails
+    app.kubernetes.io/component: guardrails-detector
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.guardrails.detectors.promptInjection.cacheSize | default "2Gi" }}
+{{- end }}

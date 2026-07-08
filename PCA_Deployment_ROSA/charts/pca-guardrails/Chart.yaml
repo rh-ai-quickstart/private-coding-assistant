@@ -1,0 +1,4 @@
+apiVersion: v2
+name: pca-guardrails
+version: 0.1.0
+description: PCA AI Guardrails — TrustyAI orchestrator, detectors, and gateway

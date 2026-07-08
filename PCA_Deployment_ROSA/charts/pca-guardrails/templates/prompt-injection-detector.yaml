@@ -1,0 +1,53 @@
+{{- if .Values.guardrails.detectors.promptInjection.enabled }}
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: prompt-injection-detector
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    security.opendatahub.io/enable-auth: "false"
+    serving.kserve.io/deploymentMode: RawDeployment
+  labels:
+    app.kubernetes.io/name: prompt-injection-detector
+    app.kubernetes.io/component: guardrails-detector
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: guardrails-detector-hf-runtime
+      runtime: guardrails-detector-huggingface-runtime
+      storageUri: "hf://{{ .Values.guardrails.detectors.promptInjection.model }}"
+      resources:
+        requests:
+          {{- if .Values.guardrails.detectors.promptInjection.useGpu }}
+          cpu: "1"
+          memory: 2Gi
+          nvidia.com/gpu: "1"
+          {{- else }}
+          cpu: "2"
+          memory: 2Gi
+          {{- end }}
+        limits:
+          {{- if .Values.guardrails.detectors.promptInjection.useGpu }}
+          cpu: "2"
+          memory: 4Gi
+          nvidia.com/gpu: "1"
+          {{- else }}
+          cpu: "4"
+          memory: 4Gi
+          {{- end }}
+    volumes:
+      - name: kserve-provision-location
+        persistentVolumeClaim:
+          claimName: detector-model-cache
+    {{- if .Values.guardrails.detectors.promptInjection.useGpu }}
+    nodeSelector:
+      nvidia.com/gpu.present: "true"
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+    {{- end }}
+{{- end }}

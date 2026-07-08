@@ -1,0 +1,44 @@
+namespace: ai-serving
+guardrails:
+  enforcement: block # block | warn | log-only
+  llmService:
+    host: qwen3-coder-kserve-workload-svc
+    port: 8000
+    tlsSecret: qwen3-coder-kserve-self-signed-certs
+  replicas: 1
+  # The gateway sidecar provides an OpenAI-compatible /v1/chat/completions
+  # endpoint with automatic guardrail application. Disabled by default because
+  # the current gateway version cannot parse vLLM responses from models using
+  # the qwen3_coder tool-call parser (missing "content" field in response).
+  # Enable when using models that don't use tool-call parsers, or when a
+  # fixed gateway image becomes available.
+  gateway:
+    enabled: false
+  detectors:
+    promptInjection:
+      enabled: true
+      model: protectai/deberta-v3-base-prompt-injection-v2
+      threshold: 0.5
+      useGpu: false
+    # Built-in PII detectors: email, US SSN, credit card (with Luhn check).
+    # These use the TrustyAI sidecar's regex registry — no custom code needed.
+    piiRegex:
+      enabled: true
+    # Secret/credential detectors using inline regex patterns.
+    # Add or remove patterns below — each is a regex applied to input and output.
+    # The sidecar's regex engine handles matching; no custom code needed.
+    secretsRegex:
+      enabled: true
+      patterns:
+        - '\bAKIA[0-9A-Z]{16}\b' # AWS Access Key ID
+        - '\bgh[ps]_[A-Za-z0-9_]{36,}\b' # GitHub token (ghp_, ghs_)
+        - '\bglpat-[A-Za-z0-9\-_]{20,}\b' # GitLab token
+        - '\bsk-[A-Za-z0-9]{20,}\b' # OpenAI API key
+        - '\bsk-ant-[A-Za-z0-9\-_]{20,}\b' # Anthropic API key
+        - '\bxox[baprs]-[A-Za-z0-9\-]{10,}\b' # Slack token
+        - '-----BEGIN\s+(RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----' # Private key block
+  otel:
+    enabled: false
+    protocol: http
+    endpoint: "localhost:4318"
+    export: "traces,metrics"

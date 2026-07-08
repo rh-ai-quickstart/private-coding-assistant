@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-guardrails-gateway-config
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  config.yaml: |
+    orchestrator:
+      host: "localhost"
+      port: 8032
+    detectors:
+      {{- if .Values.guardrails.detectors.promptInjection.enabled }}
+      - name: prompt_injection
+        input: true
+        output: false
+      {{- end }}
+      {{- if or .Values.guardrails.detectors.piiRegex.enabled .Values.guardrails.detectors.secretsRegex.enabled }}
+      - name: regex
+        input: true
+        output: {{ .Values.guardrails.detectors.secretsRegex.enabled }}
+        regex:
+          {{- if .Values.guardrails.detectors.piiRegex.enabled }}
+          # Built-in PII detectors (with validation logic like Luhn check for credit cards)
+          - email
+          - us-social-security-number
+          - credit-card
+          {{- end }}
+          {{- if .Values.guardrails.detectors.secretsRegex.enabled }}
+          # Secret/credential patterns (inline regex — add your own patterns here)
+          {{- range .Values.guardrails.detectors.secretsRegex.patterns }}
+          - {{ . | quote }}
+          {{- end }}
+          {{- end }}
+      {{- end }}
+    routes:
+      - name: guardrailed
+        detectors:
+          {{- if .Values.guardrails.detectors.promptInjection.enabled }}
+          - prompt_injection
+          {{- end }}
+          {{- if or .Values.guardrails.detectors.piiRegex.enabled .Values.guardrails.detectors.secretsRegex.enabled }}
+          - regex
+          {{- end }}
+      - name: passthrough
+        detectors:
