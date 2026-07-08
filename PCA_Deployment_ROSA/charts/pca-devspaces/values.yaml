@@ -1,6 +1,9 @@
 aiServingNamespace: ai-serving
 devspacesGlobalConfig:
   enabled: true
+guardrails:
+  enabled: false
+  endpoint: "http://pca-guardrails:8034/guardrailed"
 devspaces:
   - namespace: dev-user1-devspaces
     name: code-workspace-1

@@ -4,3 +4,5 @@ gitops:
   basePath: "__overridden_at_deploy_time__"
 hfToken:
   raw: "__overridden_at_deploy_time__"
+guardrails:
+  enabled: false
