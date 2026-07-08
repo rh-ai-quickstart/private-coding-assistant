@@ -1,7 +1,6 @@
 # Values override for deploying pca-platform-config on an existing OpenShift cluster.
 # Disables cluster-scoped resources (DSC, DSCI, ClusterPolicy, etc.) that are already present.
 # Disables devspace namespace/RBAC creation (handled by --create-namespace in devspace target).
-# Enables global DevSpaces ConfigMaps (Continue, VS Code extensions) shared by all developers.
 
 clusterConfig:
   enabled: false
@@ -20,8 +19,6 @@ devspaces:
       name: code-workspace-3
       user: dev-user3
       password: "Dev3@PCA2026!"
-devspacesGlobalConfig:
-  enabled: true
 # HTPasswd IDP is not created via Helm on existing clusters (OAuth CR is managed externally).
 # Run `make setup-idp` to configure HTPasswd IDP via the additive patch script.
 auth:

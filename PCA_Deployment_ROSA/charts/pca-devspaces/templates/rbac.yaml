@@ -1,28 +1,29 @@
-{{- if .Values.devspaces.enabled }}
-{{- range .Values.devspaces.instances }}
+{{- range $i, $devspace := .Values.devspaces }}
+{{- $ns := $devspace.namespace | default $.Release.Namespace }}
+{{- if $devspace.user }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .user }}-edit
-  namespace: {{ .namespace }}
+  name: {{ $devspace.user }}-edit
+  namespace: {{ $ns }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 subjects:
   - kind: User
-    name: {{ .user }}
+    name: {{ $devspace.user }}
     apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: ClusterRole
   name: edit
   apiGroup: rbac.authorization.k8s.io
+{{- end }}
 ---
-# Allow workspace service accounts to exec into pods (required for che-code terminal)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: workspace-pod-exec
-  namespace: {{ .namespace }}
+  namespace: {{ $ns }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 rules:
@@ -34,16 +35,15 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: workspace-pod-exec
-  namespace: {{ .namespace }}
+  namespace: {{ $ns }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 subjects:
   - kind: Group
-    name: system:serviceaccounts:{{ .namespace }}
+    name: system:serviceaccounts:{{ $ns }}
     apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
   name: workspace-pod-exec
   apiGroup: rbac.authorization.k8s.io
-{{- end }}
 {{- end }}

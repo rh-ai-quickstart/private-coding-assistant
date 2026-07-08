@@ -1,4 +1,7 @@
 # Values override for pca-devspaces when deploying on an existing OpenShift cluster.
 # Single devspace — namespace defaults to Release.Namespace (passed via --namespace).
+devspacesGlobalConfig:
+  enabled: true
 devspaces:
   - name: code-workspace-1
+    user: dev-user1
