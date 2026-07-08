@@ -23,28 +23,27 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
    oc annotate namespace <NS> meta.helm.sh/release-name=<NS>-platform-config meta.helm.sh/release-namespace=<NS> --overwrite
    oc label namespace <NS> app.kubernetes.io/managed-by=Helm --overwrite
    ```
-2. If the global ConfigMaps (`continue-config`, `vscode-extensions-config`) already exist in `openshift-devspaces`, adopt them:
-   ```
-   oc annotate configmap continue-config -n openshift-devspaces meta.helm.sh/release-name=<NS>-platform-config meta.helm.sh/release-namespace=<NS> --overwrite
-   oc label configmap continue-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
-   oc annotate configmap vscode-extensions-config -n openshift-devspaces meta.helm.sh/release-name=<NS>-platform-config meta.helm.sh/release-namespace=<NS> --overwrite
-   oc label configmap vscode-extensions-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
-   ```
-3. Run `make ai-serving-deploy-existing-openshift NAMESPACE=<NS>`.
-4. Wait for pods to become `Running`: `oc get pods -n <NS> -w`.
+2. Run `make ai-serving-deploy-existing-openshift` (uses default `AI_NAMESPACE=private-assistant-ai-serving`).
+3. Wait for pods to become `Running`: `oc get pods -n <NS> -w`.
 
 ### DevSpace (per developer)
 
-5. Run `make devspace-deploy-existing-openshift NAMESPACE=<DEV_NS> AI_NAMESPACE=<NS>`.
-   - For single-developer (same namespace): just `make devspace-deploy-existing-openshift`.
-   - For multi-developer: each dev passes their own `NAMESPACE` and points `AI_NAMESPACE` to the serving namespace.
+4. If the global ConfigMaps (`continue-config`, `vscode-extensions-config`) already exist in `openshift-devspaces`, adopt them for the first devspace release:
+   ```
+   oc annotate configmap continue-config -n openshift-devspaces meta.helm.sh/release-name=<DEV_NS>-devspaces meta.helm.sh/release-namespace=<DEV_NS> --overwrite
+   oc label configmap continue-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
+   oc annotate configmap vscode-extensions-config -n openshift-devspaces meta.helm.sh/release-name=<DEV_NS>-devspaces meta.helm.sh/release-namespace=<DEV_NS> --overwrite
+   oc label configmap vscode-extensions-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
+   ```
+5. Run `make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS>`.
+   - For multi-developer: each dev passes their own `DEV_NAMESPACE`. The first deploy creates global ConfigMaps; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false`.
 
 ## Teardown
 
 ```bash
 # Remove a developer's devspace
-make devspace-undeploy-existing-openshift NAMESPACE=<DEV_NS>
+make devspace-undeploy-existing-openshift DEV_NAMESPACE=<DEV_NS>
 
 # Remove the AI serving stack (removes namespace)
-make ai-serving-undeploy-existing-openshift NAMESPACE=<NS>
+make ai-serving-undeploy-existing-openshift
 ```

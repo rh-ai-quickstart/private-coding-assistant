@@ -5,8 +5,7 @@ CONTAINER_NAME ?= pca
 CONTAINERFILE ?= Containerfile.provisioner
 PROJECT_DIR := $(shell pwd)
 
-NAMESPACE ?= private-assistant-ai-serving
-AI_NAMESPACE ?= $(NAMESPACE)
+AI_NAMESPACE ?= private-assistant-ai-serving
 HF_TOKEN ?= $(HUGGINGFACE_TOKEN)
 CHARTS_DIR := PCA_Deployment_ROSA/charts
 SCRIPTS_DIR := PCA_Deployment_ROSA/scripts
@@ -41,31 +40,33 @@ shell: ## Start an interactive shell inside the container
 run: ## Run a one-shot command (usage: make run CMD="terraform plan")
 	podman run $(RUN_FLAGS) $(IMAGE_NAME) $(CMD)
 
-ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift (NAMESPACE=, HF_TOKEN=)
+ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift (AI_NAMESPACE=, HF_TOKEN=)
 	@if [ -z "$(HF_TOKEN)" ]; then echo "ERROR: HF_TOKEN is required. Set in .env or pass HF_TOKEN=hf_xxx"; exit 1; fi
-	helm upgrade --install $(NAMESPACE)-platform-config $(CHARTS_DIR)/pca-platform-config \
-		--namespace $(NAMESPACE) --create-namespace \
+	helm upgrade --install $(AI_NAMESPACE)-platform-config $(CHARTS_DIR)/pca-platform-config \
+		--namespace $(AI_NAMESPACE) --create-namespace \
 		-f $(DEPLOY_VALUES_DIR)/values-platform-config.yaml \
-		--set namespace=$(NAMESPACE) \
+		--set namespace=$(AI_NAMESPACE) \
 		--set hfToken.raw=$(HF_TOKEN)
-	helm upgrade --install $(NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
-		--namespace $(NAMESPACE) \
+	helm upgrade --install $(AI_NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
+		--namespace $(AI_NAMESPACE) \
 		-f $(DEPLOY_VALUES_DIR)/values-ai-serving.yaml \
-		--set namespace=$(NAMESPACE)
+		--set namespace=$(AI_NAMESPACE)
 
-ai-serving-undeploy-existing-openshift: ## Remove AI serving from OpenShift (NAMESPACE=)
-	helm uninstall $(NAMESPACE)-ai-serving --namespace $(NAMESPACE) --ignore-not-found || true
-	helm uninstall $(NAMESPACE)-platform-config --namespace $(NAMESPACE) --ignore-not-found || true
-	oc delete namespace $(NAMESPACE) --ignore-not-found
+ai-serving-undeploy-existing-openshift: ## Remove AI serving from OpenShift (AI_NAMESPACE=)
+	helm uninstall $(AI_NAMESPACE)-ai-serving --namespace $(AI_NAMESPACE) --ignore-not-found || true
+	helm uninstall $(AI_NAMESPACE)-platform-config --namespace $(AI_NAMESPACE) --ignore-not-found || true
+	oc delete namespace $(AI_NAMESPACE) --ignore-not-found
 
-devspace-deploy-existing-openshift: ## Deploy a devspace (NAMESPACE=, AI_NAMESPACE=)
-	helm upgrade --install $(NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
-		--namespace $(NAMESPACE) --create-namespace \
+devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAMESPACE=)
+	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi
+	helm upgrade --install $(DEV_NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
+		--namespace $(DEV_NAMESPACE) --create-namespace \
 		-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml \
 		--set aiServingNamespace=$(AI_NAMESPACE)
 
-devspace-undeploy-existing-openshift: ## Remove a devspace (NAMESPACE=)
-	helm uninstall $(NAMESPACE)-devspaces --namespace $(NAMESPACE) --ignore-not-found || true
+devspace-undeploy-existing-openshift: ## Remove a devspace (DEV_NAMESPACE=)
+	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi
+	helm uninstall $(DEV_NAMESPACE)-devspaces --namespace $(DEV_NAMESPACE) --ignore-not-found || true
 
 setup-idp: ## Configure HTPasswd IDP on existing cluster (reads users from values)
 	$(SCRIPTS_DIR)/setup-idp.sh $(DEPLOY_VALUES_DIR)/values-platform-config.yaml
