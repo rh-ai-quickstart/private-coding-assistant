@@ -1,8 +1,13 @@
 aiServingNamespace: ai-serving
+devspacesGlobalConfig:
+  enabled: true
 devspaces:
   - namespace: dev-user1-devspaces
     name: code-workspace-1
+    user: dev-user1
   - namespace: dev-user2-devspaces
     name: code-workspace-2
+    user: dev-user2
   - namespace: dev-user3-devspaces
     name: code-workspace-3
+    user: dev-user3

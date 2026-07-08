@@ -16,8 +16,6 @@ devspaces:
       name: code-workspace-3
       user: dev-user3
       password: ""
-devspacesGlobalConfig:
-  enabled: true
 hfToken:
   raw: "__overridden_at_deploy_time__"
 auth:
