@@ -7,18 +7,18 @@ description: Deploy the Private AI Coding Assistant (llm-d + vLLM) on an existin
 
 ## Prerequisites
 
-Before deploying, confirm these with the user:
+Before deploying, verify these automatically (do NOT ask the user unless something is missing):
 
-1. **HF_TOKEN** — check if `.env` has `HUGGINGFACE_TOKEN` or `HF_TOKEN`. If neither exists, ask the user to provide one.
-2. **Cluster access** — verify `oc whoami` succeeds.
-3. **AI serving namespace** — default is `private-assistant-ai-serving`. Inform the user which namespace will be used.
-4. **DevSpace namespace** — ask the user what namespace they want for their developer workspace (e.g. `private-assistant-<name>`).
+1. **HF_TOKEN** — the Makefile reads `HUGGINGFACE_TOKEN` from `.env` automatically. Do NOT read or display `.env` contents (it contains secrets). Just run the make target; if the token is missing, the Makefile will error with a clear message — only then ask the user to provide one.
+2. **Cluster access** — run `oc whoami` directly on the host (not inside the container). If it fails, ask the user to log in.
+3. **AI serving namespace** — always use `private-assistant-ai-serving` (the default). Do not ask.
+4. **DevSpace namespace** — ask the user for a suffix. The namespace will be `private-assistant-<suffix>` (e.g. if the user says "itay", the namespace is `private-assistant-itay`).
 
 ## Deployment Steps
 
 ### AI Serving (once per cluster)
 
-1. If the namespace already exists, adopt it for Helm:
+1. If the namespace already exists and everything is deployed, adopt it for Helm:
    ```
    oc annotate namespace <NS> meta.helm.sh/release-name=<NS>-platform-config meta.helm.sh/release-namespace=<NS> --overwrite
    oc label namespace <NS> app.kubernetes.io/managed-by=Helm --overwrite
