@@ -7,7 +7,7 @@ AI security guardrails that intercept traffic between IDE extensions and the LLM
 ```
 IDE Extension (Continue / Roo Code)
   → POST /v1/chat/completions (standard OpenAI request)
-    → Guardrails Proxy (injects detectors, passes response unchanged)
+    → Guardrails Proxy (injects detectors, disables streaming+thinking, converts to SSE)
       → TrustyAI Orchestrator (runs detectors)
         → [Input detectors: prompt injection, PII, secrets]
           → vLLM Workload Service (HTTPS, inference)
@@ -16,7 +16,19 @@ IDE Extension (Continue / Roo Code)
     ← response to IDE
 ```
 
-The proxy accepts standard OpenAI-compatible requests, injects the configured detectors, and forwards to the orchestrator's detection API. Clean requests pass through to the LLM; flagged requests are blocked with a warning. The proxy does not parse the LLM response — it passes it back unchanged.
+The proxy accepts standard OpenAI-compatible requests from IDE extensions and:
+
+1. Injects the configured detectors into every request
+2. Disables streaming and thinking mode (required for Qwen3 with `qwen3_coder` tool-call parser — otherwise responses come back empty)
+3. Forwards to the orchestrator's detection API (non-streaming)
+4. Converts the response back to SSE chunks for streaming clients
+5. For blocked requests, returns a human-readable message with violation details:
+
+```
+Guardrails blocked your message.
+
+- Prompt injection detected (confidence: 100.0%)
+```
 
 ## Detectors
 
