@@ -15,24 +15,24 @@ data:
       - name: prompt_injection
         input: true
         output: false
+        detector_params: {}
       {{- end }}
       {{- if or .Values.guardrails.detectors.piiRegex.enabled .Values.guardrails.detectors.secretsRegex.enabled }}
       - name: regex
         input: true
         output: {{ .Values.guardrails.detectors.secretsRegex.enabled }}
-        regex:
-          {{- if .Values.guardrails.detectors.piiRegex.enabled }}
-          # Built-in PII detectors (with validation logic like Luhn check for credit cards)
-          - email
-          - us-social-security-number
-          - credit-card
-          {{- end }}
-          {{- if .Values.guardrails.detectors.secretsRegex.enabled }}
-          # Secret/credential patterns (inline regex — add your own patterns here)
-          {{- range .Values.guardrails.detectors.secretsRegex.patterns }}
-          - {{ . | quote }}
-          {{- end }}
-          {{- end }}
+        detector_params:
+          regex:
+            {{- if .Values.guardrails.detectors.piiRegex.enabled }}
+            - email
+            - us-social-security-number
+            - credit-card
+            {{- end }}
+            {{- if .Values.guardrails.detectors.secretsRegex.enabled }}
+            {{- range .Values.guardrails.detectors.secretsRegex.patterns }}
+            - {{ . | quote }}
+            {{- end }}
+            {{- end }}
       {{- end }}
     routes:
       - name: guardrailed

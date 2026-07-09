@@ -38,9 +38,24 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
 5. Run `make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS>`.
    - For multi-developer: each dev passes their own `DEV_NAMESPACE`. The first deploy creates global ConfigMaps; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false`.
 
+### Guardrails (optional, after AI Serving)
+
+6. Run `make guardrails-deploy-existing-openshift`.
+   - With warn mode (log but don't block): `make guardrails-deploy-existing-openshift ENFORCEMENT=warn`
+7. Wait for pods: `oc get pods -n <AI_NS> -l app.kubernetes.io/component=guardrails`.
+   - `pca-guardrails-*` (3/3), `prompt-injection-detector-*` (1/1), `guardrails-proxy-*` (1/1)
+8. After deploying guardrails, update the Continue ConfigMap to route chat through the proxy:
+   ```
+   oc patch configmap continue-config -n openshift-devspaces --type merge -p '{"data":{"config.yaml":"...(apiBase pointing to http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080/v1)..."}}'
+   ```
+   Tab autocomplete should stay on the direct llm-d gateway (no guardrails needed, lower latency).
+
 ## Teardown
 
 ```bash
+# Remove guardrails (if deployed)
+make guardrails-undeploy-existing-openshift
+
 # Remove a developer's devspace
 make devspace-undeploy-existing-openshift DEV_NAMESPACE=<DEV_NS>
 

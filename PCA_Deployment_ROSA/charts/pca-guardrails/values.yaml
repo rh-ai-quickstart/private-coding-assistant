@@ -14,6 +14,12 @@ guardrails:
   # fixed gateway image becomes available.
   gateway:
     enabled: false
+  # Lightweight proxy that provides a standard OpenAI-compatible /v1/chat/completions
+  # endpoint with automatic guardrail injection. Unlike the gateway sidecar, the proxy
+  # does not parse LLM responses — it passes them through unchanged.
+  # IDE extensions (Continue, Roo Code) should point to this service.
+  proxy:
+    enabled: true
   detectors:
     promptInjection:
       enabled: true

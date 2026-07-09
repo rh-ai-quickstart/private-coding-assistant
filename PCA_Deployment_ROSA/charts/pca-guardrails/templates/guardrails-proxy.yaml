@@ -1,0 +1,100 @@
+{{- if .Values.guardrails.proxy.enabled }}
+{{- $detectorsJson := dict "input" (dict "prompt_injection" (dict)) }}
+{{- if .Values.guardrails.detectors.piiRegex.enabled }}
+  {{- $regexInner := dict "email" (dict) "us-social-security-number" (dict) "credit-card" (dict) }}
+  {{- $_ := set $detectorsJson.input "regex" (dict "regex" $regexInner) }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guardrails-proxy-script
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  guardrails_proxy.py: |
+{{ .Files.Get "files/guardrails_proxy.py" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guardrails-proxy
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: guardrails-proxy
+    app.kubernetes.io/component: guardrails
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: guardrails-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: guardrails-proxy
+        app.kubernetes.io/component: guardrails
+    spec:
+      containers:
+        - name: proxy
+          image: registry.access.redhat.com/ubi9/python-311:latest
+          command: ["python3", "/app/guardrails_proxy.py"]
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: ORCHESTRATOR_URL
+              value: "https://pca-guardrails-service.{{ .Values.namespace }}.svc.cluster.local:8032"
+            - name: DETECTORS_JSON
+              value: {{ include "guardrails.detectorsJson" . | quote }}
+            - name: LISTEN_PORT
+              value: "8080"
+          volumeMounts:
+            - name: proxy-script
+              mountPath: /app
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: proxy-script
+          configMap:
+            name: guardrails-proxy-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guardrails-proxy
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: guardrails-proxy
+    app.kubernetes.io/component: guardrails
+spec:
+  selector:
+    app.kubernetes.io/name: guardrails-proxy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+{{- end }}
