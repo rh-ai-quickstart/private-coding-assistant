@@ -20,6 +20,41 @@ hfToken:
   raw: "__overridden_at_deploy_time__"
 guardrails:
   enabled: false
+# Sub-chart: pca-guardrails (TrustyAI guardrails orchestrator + detectors + proxy)
+# Values here are passed to PCA_Deployment_ROSA/charts/pca-platform-config/charts/pca-guardrails/
+pca-guardrails:
+  namespace: ai-serving
+  guardrails:
+    enforcement: block
+    llmService:
+      host: qwen3-coder-kserve-workload-svc
+      port: 8000
+      tlsSecret: qwen3-coder-kserve-self-signed-certs
+    replicas: 1
+    gateway:
+      enabled: false
+    proxy:
+      enabled: true
+    detectors:
+      promptInjection:
+        enabled: true
+        model: protectai/deberta-v3-base-prompt-injection-v2
+        threshold: 0.5
+        useGpu: false
+      piiRegex:
+        enabled: true
+      secretsRegex:
+        enabled: true
+        patterns:
+          - '\bAKIA[0-9A-Z]{16}\b'
+          - '\bgh[ps]_[A-Za-z0-9_]{36,}\b'
+          - '\bglpat-[A-Za-z0-9\-_]{20,}\b'
+          - '\bsk-[A-Za-z0-9]{20,}\b'
+          - '\bsk-ant-[A-Za-z0-9\-_]{20,}\b'
+          - '\bxox[baprs]-[A-Za-z0-9\-]{10,}\b'
+          - '-----BEGIN\s+(RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----'
+    otel:
+      enabled: false
 auth:
   htpasswd:
     enabled: false

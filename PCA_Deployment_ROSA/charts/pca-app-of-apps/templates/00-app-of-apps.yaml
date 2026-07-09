@@ -121,41 +121,6 @@ spec:
         duration: 60s
         factor: 2
         maxDuration: 10m
-{{- if .Values.guardrails.enabled }}
----
-# Wave 3.5: AI Guardrails (TrustyAI orchestrator + detectors)
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: pca-guardrails
-  namespace: openshift-gitops
-  annotations:
-    argocd.argoproj.io/sync-wave: "3"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: private-code-assistant
-  source:
-    repoURL: {{ .Values.gitops.repoURL }}
-    targetRevision: {{ .Values.gitops.targetRevision }}
-    path: {{ .Values.gitops.basePath }}/pca-guardrails
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: ai-serving
-  syncPolicy:
-    automated:
-      prune: false
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-    retry:
-      limit: 3
-      backoff:
-        duration: 60s
-        factor: 2
-        maxDuration: 10m
-{{- end }}
 ---
 # Wave 4: DevSpaces Workspaces and Extension Configuration
 apiVersion: argoproj.io/v1alpha1

@@ -25,7 +25,7 @@ RUN_FLAGS := --rm \
 	$(KUBE_MOUNT) \
 	$(ENV_FILE_FLAG)
 
-.PHONY: build shell run help ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift guardrails-deploy-existing-openshift guardrails-undeploy-existing-openshift setup-idp
+.PHONY: build shell run help ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -67,16 +67,6 @@ devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAM
 devspace-undeploy-existing-openshift: ## Remove a devspace (DEV_NAMESPACE=)
 	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi
 	helm uninstall $(DEV_NAMESPACE)-devspaces --namespace $(DEV_NAMESPACE) --ignore-not-found || true
-
-guardrails-deploy-existing-openshift: ## Deploy TrustyAI guardrails (AI_NAMESPACE=, ENFORCEMENT=block)
-	helm upgrade --install $(AI_NAMESPACE)-guardrails $(CHARTS_DIR)/pca-guardrails \
-		--namespace $(AI_NAMESPACE) \
-		-f $(DEPLOY_VALUES_DIR)/values-guardrails.yaml \
-		--set namespace=$(AI_NAMESPACE) \
-		$(if $(ENFORCEMENT),--set guardrails.enforcement=$(ENFORCEMENT),)
-
-guardrails-undeploy-existing-openshift: ## Remove TrustyAI guardrails (AI_NAMESPACE=)
-	helm uninstall $(AI_NAMESPACE)-guardrails --namespace $(AI_NAMESPACE) --ignore-not-found || true
 
 setup-idp: ## Configure HTPasswd IDP on existing cluster (reads users from values)
 	$(SCRIPTS_DIR)/setup-idp.sh $(DEPLOY_VALUES_DIR)/values-platform-config.yaml

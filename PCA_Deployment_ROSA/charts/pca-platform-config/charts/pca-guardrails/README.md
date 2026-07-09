@@ -50,27 +50,24 @@ Set via `guardrails.enforcement` in `values.yaml`:
 
 ## Quick Start
 
+Guardrails are a sub-chart of `pca-platform-config` and deploy automatically when enabled.
+
+1. Set `guardrails.enabled: true` in `deploy_existing_openshift/values-platform-config.yaml`
+2. Configure detectors and enforcement mode under the `pca-guardrails:` section
+3. Deploy: `make ai-serving-deploy-existing-openshift`
+
+To route IDE chat through guardrails, deploy devspaces with:
 ```bash
-# Deploy on an existing cluster (requires RHOAI 3.3+ with TrustyAI enabled)
-make guardrails-deploy-existing-openshift
-
-# Deploy with warn mode (log but don't block)
-make guardrails-deploy-existing-openshift ENFORCEMENT=warn
-
-# Remove
-make guardrails-undeploy-existing-openshift
+make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> \
+  --set guardrails.enabled=true \
+  --set guardrails.endpoint="http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080"
 ```
 
-After deploying, point IDE extensions at the proxy endpoint:
-```
-http://guardrails-proxy.<AI_NAMESPACE>.svc.cluster.local:8080/v1
-```
-
-Tab autocomplete can remain on the direct llm-d gateway (lower latency, no guardrails needed for completions).
+Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails needed for completions).
 
 ## Adding Secret Patterns
 
-Add regex patterns to `values.yaml` under `guardrails.detectors.secretsRegex.patterns`:
+Add regex patterns to `values-platform-config.yaml` under `pca-guardrails.guardrails.detectors.secretsRegex.patterns`:
 
 ```yaml
 secretsRegex:
@@ -81,7 +78,7 @@ secretsRegex:
     - '\bmy-custom-prefix-[a-f0-9]+\b'  # Your custom pattern
 ```
 
-Each pattern is a Python-compatible regex applied by the TrustyAI built-in regex detector sidecar. Redeploy with `helm upgrade` after editing.
+Each pattern is a Python-compatible regex applied by the TrustyAI built-in regex detector sidecar. Redeploy with `make ai-serving-deploy-existing-openshift` after editing.
 
 ### Built-in PII Detectors
 
