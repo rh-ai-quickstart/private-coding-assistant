@@ -9,3 +9,4 @@ terraform.tfvars
 *.tfplan
 tfplan
 graphify-out/
+local-docs/
