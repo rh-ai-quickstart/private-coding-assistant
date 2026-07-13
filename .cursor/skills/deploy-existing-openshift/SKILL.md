@@ -38,6 +38,35 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
 5. Run `make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS>`.
    - For multi-developer: each dev passes their own `DEV_NAMESPACE`. The first deploy creates global ConfigMaps; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false`.
 
+### MCP (optional)
+
+MCP deploys as part of the platform-config chart. Enable it by adding two `--set` flags to the ai-serving upgrade:
+
+```bash
+helm upgrade <release>-platform-config ./charts/pca-platform-config \
+  --reuse-values \
+  --set mcp.enabled=true \
+  --set pca-mcp.gateway.enabled=false \
+  --set pca-mcp.namespace=<AI_NAMESPACE>
+```
+
+> `pca-mcp.gateway.enabled=false` is required — the MCP Gateway CRDs (`mcp.kuadrant.io`) are not available on most clusters yet.
+
+Then enable MCP in the devspaces chart so extensions get the `mcpServers` config injected:
+
+```bash
+helm upgrade <release>-devspaces ./charts/pca-devspaces \
+  --reuse-values \
+  --set mcp.enabled=true
+```
+
+After upgrading, tell the developer to run **`Developer: Reload Window`** in VS Code to pick up the new MCP server config. The `openshift-ai-mcp` server will then appear in Continue's MCP panel and can answer cluster-state queries.
+
+Verify the MCP server is healthy:
+```bash
+oc get pods -n <AI_NAMESPACE> | grep openshift-mcp   # should be 1/1 Running
+```
+
 ### Guardrails (optional)
 
 Guardrails deploy automatically with `ai-serving-deploy-existing-openshift` when `guardrails.enabled: true` is set in `deploy_existing_openshift/values-platform-config.yaml` before deploying.

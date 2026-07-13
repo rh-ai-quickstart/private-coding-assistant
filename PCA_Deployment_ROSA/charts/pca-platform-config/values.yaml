@@ -59,3 +59,20 @@ auth:
   htpasswd:
     enabled: false
     providerName: "pca-htpasswd"
+mcp:
+  enabled: false
+# Sub-chart: pca-mcp (MCP Lifecycle Operator CRs + MCP Gateway — RHOAI 3.4, Developer/Tech Preview)
+# Values here are passed to PCA_Deployment_ROSA/charts/pca-platform-config/charts/pca-mcp/
+pca-mcp:
+  namespace: ai-serving
+  imageRegistry: quay.io
+  openshift:
+    enabled: true
+    # Image from the Red Hat MCP Catalog (UBI-based, vulnerability-scanned)
+    image: quay.io/redhat-user-workloads/ocp-mcp-server-tenant/openshift-mcp-server-release-03:latest
+  mariadb:
+    enabled: false
+    host: ""
+    secretName: ""
+  gateway:
+    enabled: true

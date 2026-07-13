@@ -26,6 +26,18 @@ metadata:
     controller.devfile.io/mount-path: /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings
 data:
   cline_custom_modes.json: '[]'
+  {{- if $.Values.mcp.enabled }}
+  mcp_settings.json: |
+    {
+      "mcpServers": {
+        "openshift-ai-mcp": {
+          "url": {{ if $.Values.mcp.serverUrl }}{{ $.Values.mcp.serverUrl | quote }}{{ else }}"http://openshift-mcp.{{ $.Values.aiServingNamespace }}.svc.cluster.local:8080/sse"{{ end }},
+          "type": "sse",
+          "disabled": false
+        }
+      }
+    }
+  {{- end }}
   provider_profiles.json: |
     {
       "currentApiConfigName": "llm-d-qwen3-coder",

@@ -4,6 +4,11 @@ devspacesGlobalConfig:
 guardrails:
   enabled: false
   endpoint: "http://pca-guardrails:8034/guardrailed"
+mcp:
+  enabled: false
+  # Direct MCP server SSE URL. Defaults to openshift-mcp service in aiServingNamespace.
+  # Override if deploying to a different namespace or using the MCP Gateway.
+  serverUrl: ""
 devspaces:
   - namespace: dev-user1-devspaces
     name: code-workspace-1

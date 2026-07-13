@@ -32,6 +32,16 @@ data:
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
         requestOptions:
           verifySsl: false
+    {{- if .Values.mcp.enabled }}
+    mcpServers:
+      - name: "openshift-ai-mcp"
+        type: sse
+        {{- if .Values.mcp.serverUrl }}
+        url: {{ .Values.mcp.serverUrl | quote }}
+        {{- else }}
+        url: "http://openshift-mcp.{{ .Values.aiServingNamespace }}.svc.cluster.local:8080/sse"
+        {{- end }}
+    {{- end }}
     tabAutocompleteModel:
       name: Qwen3-Coder Autocomplete (llm-d)
       provider: openai
