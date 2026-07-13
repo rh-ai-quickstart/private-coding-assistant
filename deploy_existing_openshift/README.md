@@ -46,8 +46,49 @@ make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
 This deploys the AI serving backend. Then deploy devspaces per developer:
 
 ```bash
-make devspace-deploy-existing-openshift NAMESPACE=dev-user1-devspaces AI_NAMESPACE=private-assistant-ai-serving
+make devspace-deploy-existing-openshift DEV_NAMESPACE=dev-user1-devspaces AI_NAMESPACE=private-assistant-ai-serving
 ```
+
+---
+
+## MCP (Model Context Protocol)
+
+MCP gives AI coding extensions (Continue, Roo Code) live read-only access to cluster state — pods, events, deployments, routes — via natural language tool calls. It is optional and disabled by default.
+
+### Deploy with MCP enabled from the start
+
+Pass `MCP_ENABLED=true` to both the AI serving and devspace make targets:
+
+```bash
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true
+make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> MCP_ENABLED=true
+```
+
+### Enable MCP on an already-running deployment
+
+```bash
+make mcp-enable AI_NAMESPACE=<ai-ns> DEV_NAMESPACE=<dev-ns>
+```
+
+Then ask the developer to reload Continue in the IDE (`Ctrl+Shift+P` → `Developer: Reload Window`). The `openshift-ai-mcp` server will appear in the MCP panel.
+
+### Verify
+
+```bash
+oc get pods -n <ai-ns> | grep openshift-mcp   # should show 1/1 Running
+```
+
+### Disable MCP
+
+```bash
+make mcp-disable AI_NAMESPACE=<ai-ns> DEV_NAMESPACE=<dev-ns>
+```
+
+### Adding more data sources
+
+See `PCA_Deployment_ROSA/charts/pca-platform-config/charts/pca-mcp/README.md` for how to add further MCP servers (MariaDB, Confluence, Jira, GitLab) by enabling the disabled-by-default templates.
+
+---
 
 ### Replacing HTPasswd with Enterprise IDP
 
