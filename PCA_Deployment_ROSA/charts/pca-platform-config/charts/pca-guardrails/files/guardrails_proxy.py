@@ -25,9 +25,22 @@ ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "https://pca-guardrails-se
 DETECTORS = json.loads(os.environ.get("DETECTORS_JSON", "{}"))
 LISTEN_PORT = int(os.environ.get("LISTEN_PORT", "8080"))
 
+# Identity headers forwarded to the orchestrator / LLM for Langfuse attribution.
+PCA_FORWARD_HEADERS = ("X-PCA-User", "X-PCA-Team", "X-PCA-DevSpace")
+
 SSL_CTX = ssl.create_default_context()
 SSL_CTX.check_hostname = False
 SSL_CTX.verify_mode = ssl.CERT_NONE
+
+
+def _forward_pca_headers(incoming):
+    """Copy X-PCA-* attribution headers from the client request."""
+    out = {"Content-Type": "application/json"}
+    for name in PCA_FORWARD_HEADERS:
+        value = incoming.get(name)
+        if value:
+            out[name] = value
+    return out
 
 
 def completion_to_sse_chunks(body):
@@ -112,7 +125,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
         req = Request(
             target,
             data=json.dumps(body).encode(),
-            headers={"Content-Type": "application/json"},
+            headers=_forward_pca_headers(self.headers),
             method="POST",
         )
 

@@ -13,6 +13,7 @@ devspaces:
   - namespace: dev-user1-devspaces
     name: code-workspace-1
     user: dev-user1
+    # team: optional — becomes Langfuse tag team=<value> via X-PCA-Team
   - namespace: dev-user2-devspaces
     name: code-workspace-2
     user: dev-user2

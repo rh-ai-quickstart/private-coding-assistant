@@ -9,9 +9,13 @@
 # root-owned directory and recreates it with correct ownership so extensions can install.
 #
 # Extension configuration:
-#   Continue  — config.yaml via continue-config ConfigMap (synced by DevSpaces operator)
+#   Continue  — config.yaml via continue-config ConfigMap (per-namespace + global)
 #   Roo Code  — provider_profiles.json via roo-code-provider-config ConfigMap (per-namespace)
-#   Cline     — manual UI configuration required (see README)
+#   Cline     — providers.json via cline-provider-config (+ ~/.cline home mount); X-PCA-* headers
+#
+# Attribution headers (Roo + Continue + Cline):
+#   X-PCA-User / X-PCA-DevSpace / optional X-PCA-Team → Langfuse when enabled
+#   Full prompt/completion bodies: vLLM middleware → Langfuse when langfuse.ioCapture=full
 #
 # Model endpoint (cluster-internal HTTPS):
 #   https://llm-d-gateway-data-science-gateway-class.<namespace>.svc.cluster.local/v1
@@ -67,7 +71,7 @@ spec:
           component: dev-tools
           commandLine: |
             # Non-disruptive setup first — must complete quickly for kubeconfig injection
-            mkdir -p /home/user/.continue-data
+            mkdir -p /home/user/.continue-data /home/user/.cline/data/settings
             rm -f /home/user/.continue-data/config.yaml
             ln -sf /home/user/.continue/config.yaml /home/user/.continue-data/config.yaml
             mkdir -p /home/user/Desktop
@@ -100,6 +104,23 @@ spec:
                 SRC=/checode/checode-linux-libc/User/globalStorage/rooveterinaryinc.roo-cline/provider_profiles.json
                 if [ -f "$SRC" ]; then
                   cp "$SRC" /checode/remote/data/User/globalStorage/rooveterinaryinc.roo-cline/settings/provider_profiles.json
+                  break
+                fi
+                sleep 3
+              done
+
+              # Cline: copy mounted provider config into active globalStorage if needed
+              mkdir -p /checode/remote/data/User/globalStorage/saoudrizwan.claude-dev/settings
+              for i in 1 2 3 4 5 6 7 8 9 10; do
+                SRC=/checode/checode-linux-libc/User/globalStorage/saoudrizwan.claude-dev/settings/providers.json
+                if [ -f "$SRC" ]; then
+                  cp "$SRC" /checode/remote/data/User/globalStorage/saoudrizwan.claude-dev/settings/providers.json
+                  break
+                fi
+                # Prefer home mount (always available once ConfigMap is attached)
+                if [ -f /home/user/.cline/data/settings/providers.json ]; then
+                  cp /home/user/.cline/data/settings/providers.json \
+                     /checode/remote/data/User/globalStorage/saoudrizwan.claude-dev/settings/providers.json
                   break
                 fi
                 sleep 3

@@ -10,13 +10,18 @@
 #   The old path (/checode/checode-linux-libc/...) is NOT read by Roo Code at runtime.
 #   The postStart script also copies from the old mount path as a fallback in case the
 #   subpath mount is applied before /checode/remote/data/ is initialised by che-code.
+#
+# Attribution: openAiHeaders X-PCA-* → Langfuse userId / team / devspace (when Langfuse enabled).
 {{- range $i, $devspace := .Values.devspaces }}
+{{- $ns := $devspace.namespace | default $.Release.Namespace }}
+{{- $user := $devspace.user | default "unknown" }}
+{{- $team := $devspace.team | default "" }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: roo-code-provider-config
-  namespace: {{ $devspace.namespace | default $.Release.Namespace }}
+  namespace: {{ $ns }}
   labels:
     controller.devfile.io/mount-to-devworkspace: "true"
     controller.devfile.io/watch-configmap: "true"
@@ -52,7 +57,12 @@ data:
           {{- end }}
           "openAiApiKey": "EMPTY",
           "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
-          "openAiStreamingEnabled": false
+          "openAiStreamingEnabled": false,
+          "openAiHeaders": {
+            "X-PCA-User": "{{ $user }}",
+            "X-PCA-DevSpace": "{{ $ns }}"{{ if $team }},
+            "X-PCA-Team": "{{ $team }}"{{ end }}
+          }
         }
       },
       "modeApiConfigs": {

@@ -1,0 +1,60 @@
+# Per-namespace Continue config with X-PCA-* attribution headers.
+# Mounts alongside (and overrides for identity) the global continue-config from openshift-devspaces.
+{{- range $i, $devspace := .Values.devspaces }}
+{{- $ns := $devspace.namespace | default $.Release.Namespace }}
+{{- $user := $devspace.user | default "unknown" }}
+{{- $team := $devspace.team | default "" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: continue-config
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/component: workspaces-config
+    app.kubernetes.io/part-of: che.eclipse.org
+    controller.devfile.io/mount-to-devworkspace: "true"
+    controller.devfile.io/watch-configmap: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    controller.devfile.io/mount-as: subpath
+    controller.devfile.io/mount-path: /home/user/.continue
+data:
+  config.yaml: |
+    name: Private Code Assistant
+    version: 1.0.0
+    schema: v1
+    models:
+      - name: Qwen3-Coder (llm-d)
+        provider: openai
+        model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+        {{- if $.Values.guardrails.enabled }}
+        apiBase: {{ $.Values.guardrails.endpoint }}/v1
+        {{- else }}
+        apiBase: https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1
+        {{- end }}
+        apiKey: EMPTY
+        systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
+        requestOptions:
+          verifySsl: false
+          headers:
+            X-PCA-User: "{{ $user }}"
+            X-PCA-DevSpace: "{{ $ns }}"
+            {{- if $team }}
+            X-PCA-Team: "{{ $team }}"
+            {{- end }}
+    tabAutocompleteModel:
+      name: Qwen3-Coder Autocomplete (llm-d)
+      provider: openai
+      model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+      apiBase: https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1
+      apiKey: EMPTY
+      requestOptions:
+        verifySsl: false
+        headers:
+          X-PCA-User: "{{ $user }}"
+          X-PCA-DevSpace: "{{ $ns }}"
+          {{- if $team }}
+          X-PCA-Team: "{{ $team }}"
+          {{- end }}
+{{- end }}

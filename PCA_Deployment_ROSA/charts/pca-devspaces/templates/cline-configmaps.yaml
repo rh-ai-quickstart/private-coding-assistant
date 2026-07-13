@@ -1,0 +1,86 @@
+# Per-namespace Cline (saoudrizwan.claude-dev) provider config with X-PCA-* attribution.
+# Mounts into extension globalStorage settings + ~/.cline/data/settings (newer Cline shared config).
+# postStart in devworkspaces.yaml copies into the active path if the subpath mount races che-code init.
+{{- range $i, $devspace := .Values.devspaces }}
+{{- $ns := $devspace.namespace | default $.Release.Namespace }}
+{{- $user := $devspace.user | default "unknown" }}
+{{- $team := $devspace.team | default "" }}
+{{- $baseUrl := printf "https://llm-d-gateway-data-science-gateway-class.%s.svc.cluster.local/v1" $.Values.aiServingNamespace }}
+{{- if $.Values.guardrails.enabled }}
+{{- $baseUrl = printf "%s/v1" $.Values.guardrails.endpoint }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cline-provider-config
+  namespace: {{ $ns }}
+  labels:
+    controller.devfile.io/mount-to-devworkspace: "true"
+    controller.devfile.io/watch-configmap: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    controller.devfile.io/mount-as: subpath
+    controller.devfile.io/mount-path: /checode/remote/data/User/globalStorage/saoudrizwan.claude-dev/settings
+data:
+  providers.json: |
+    {
+      "currentProvider": "openai-compatible",
+      "providers": {
+        "openai-compatible": {
+          "apiProvider": "openai-compatible",
+          "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
+          "openAiCompatibleApiKey": "EMPTY",
+          "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
+          "openAiHeaders": {
+            "X-PCA-User": {{ $user | quote }},
+            "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},
+            "X-PCA-Team": {{ $team | quote }}{{ end }}
+          }
+        }
+      }
+    }
+  cline_pca_provider.json: |
+    {
+      "apiProvider": "openai-compatible",
+      "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
+      "openAiCompatibleApiKey": "EMPTY",
+      "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
+      "openAiHeaders": {
+        "X-PCA-User": {{ $user | quote }},
+        "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},
+        "X-PCA-Team": {{ $team | quote }}{{ end }}
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cline-home-provider-config
+  namespace: {{ $ns }}
+  labels:
+    controller.devfile.io/mount-to-devworkspace: "true"
+    controller.devfile.io/watch-configmap: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    controller.devfile.io/mount-as: subpath
+    controller.devfile.io/mount-path: /home/user/.cline/data/settings
+data:
+  providers.json: |
+    {
+      "currentProvider": "openai-compatible",
+      "providers": {
+        "openai-compatible": {
+          "apiProvider": "openai-compatible",
+          "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
+          "openAiCompatibleApiKey": "EMPTY",
+          "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
+          "openAiHeaders": {
+            "X-PCA-User": {{ $user | quote }},
+            "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},
+            "X-PCA-Team": {{ $team | quote }}{{ end }}
+          }
+        }
+      }
+    }
+{{- end }}

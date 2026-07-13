@@ -5,3 +5,4 @@ devspacesGlobalConfig:
 devspaces:
   - name: code-workspace-1
     user: dev-user1
+    # team: optional — set per developer for Langfuse team attribution
