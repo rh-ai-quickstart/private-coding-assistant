@@ -1,0 +1,156 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pca-grafana
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: {{ .Values.grafana.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pca-grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pca-grafana
+        app.kubernetes.io/part-of: pca-observability
+    spec:
+      serviceAccountName: pca-grafana
+      containers:
+        - name: grafana
+          image: {{ .Values.grafana.image }}
+          command: ["/bin/sh", "/etc/grafana/provisioning-tpl/entrypoint.sh"]
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: pca-grafana-admin
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pca-grafana-admin
+                  key: admin-password
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+            - name: PCA_GPU_HOURLY_USD
+              value: {{ .Values.cost.gpuHourlyUsd | quote }}
+            - name: PCA_GPU_COST_PLACEHOLDER
+              value: {{ .Values.cost.gpuHourlyUsdIsPlaceholder | quote }}
+          volumeMounts:
+            - name: datasources-tpl
+              mountPath: /etc/grafana/provisioning-tpl
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboard-b
+              mountPath: /var/lib/grafana/dashboards/pca/board-b.json
+              subPath: board-b.json
+            - name: dashboard-c
+              mountPath: /var/lib/grafana/dashboards/pca/board-c.json
+              subPath: board-c.json
+            {{- if .Values.langfuse.enabled }}
+            - name: dashboard-a
+              mountPath: /var/lib/grafana/dashboards/pca/board-a.json
+              subPath: board-a.json
+            - name: dashboard-d
+              mountPath: /var/lib/grafana/dashboards/pca/board-d.json
+              subPath: board-d.json
+            {{- end }}
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: datasources-tpl
+          configMap:
+            name: pca-grafana-datasources
+            defaultMode: 0755
+        - name: provisioning
+          emptyDir: {}
+        - name: dashboards-provider
+          configMap:
+            name: pca-grafana-dashboards-provider
+        - name: dashboard-b
+          configMap:
+            name: pca-grafana-dashboard-b
+        - name: dashboard-c
+          configMap:
+            name: pca-grafana-dashboard-c
+        {{- if .Values.langfuse.enabled }}
+        - name: dashboard-a
+          configMap:
+            name: pca-grafana-dashboard-a
+        - name: dashboard-d
+          configMap:
+            name: pca-grafana-dashboard-d
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pca-grafana
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+spec:
+  selector:
+    app.kubernetes.io/name: pca-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+{{- if .Values.grafana.route.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pca-grafana
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+spec:
+  {{- if .Values.grafana.route.host }}
+  host: {{ .Values.grafana.route.host | quote }}
+  {{- end }}
+  to:
+    kind: Service
+    name: pca-grafana
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}
+{{- end }}

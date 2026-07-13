@@ -1,0 +1,114 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+{{- $gpu := .Values.cost.gpuHourlyUsd -}}
+{{- $ph := .Values.cost.gpuHourlyUsdIsPlaceholder -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-c
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-c.json: |
+    {
+      "uid": "pca-board-c",
+      "title": "PCA C — Capacity / KV / GPU",
+      "tags": ["pca", "capacity", "gpu", "kv"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-6h", "to": "now" },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "KV cache usage",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "avg(vllm:kv_cache_usage_perc) or avg(vllm_kv_cache_usage_perc) or avg(vllm_gpu_cache_usage_perc)",
+              "legendFormat": "kv usage"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "GPU utilization (DCGM / nvidia)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle)",
+              "legendFormat": "GPU util %"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "GPU memory used",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "avg(DCGM_FI_DEV_FB_USED) or avg(nvidia_gpu_memory_used_bytes)",
+              "legendFormat": "FB used"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Running / waiting concurrency",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(vllm:num_requests_running) or sum(vllm_num_requests_running)",
+              "legendFormat": "running"
+            },
+            {
+              "expr": "sum(vllm:num_requests_waiting) or sum(vllm_num_requests_waiting)",
+              "legendFormat": "waiting"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "PLACEHOLDER — GPU $/hr context (override per cluster)",
+          "description": "Illustrative L40S on-demand from sizing doc — NOT billing truth. Set cost.gpuHourlyUsd / cost.gpuHourlyUsdIsPlaceholder in values.",
+          "gridPos": { "h": 4, "w": 12, "x": 0, "y": 16 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [
+            {
+              "expr": "{{ $gpu }}",
+              "instant": true,
+              "legendFormat": "{{ if $ph }}PLACEHOLDER {{ end }}$/hr"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Prefix cache hit rate",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:gpu_prefix_cache_hits[5m])) / clamp_min(sum(rate(vllm:gpu_prefix_cache_queries[5m])), 1) or sum(rate(vllm_gpu_prefix_cache_hits_total[5m])) / clamp_min(sum(rate(vllm_gpu_prefix_cache_queries_total[5m])), 1)",
+              "legendFormat": "hit rate"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        }
+      ]
+    }
+{{- end }}

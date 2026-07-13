@@ -50,6 +50,8 @@ run: ## Run a one-shot command (usage: make run CMD="terraform plan")
 ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift (AI_NAMESPACE=, HF_TOKEN=, MCP_ENABLED=false)
 	@if [ -z "$(HF_TOKEN)" ]; then echo "ERROR: HF_TOKEN is required. Set in .env or pass HF_TOKEN=hf_xxx"; exit 1; fi
 	helm dependency update $(CHARTS_DIR)/pca-platform-config
+	helm dependency update $(CHARTS_DIR)/pca-ai-serving/charts/pca-observability
+	helm dependency update $(CHARTS_DIR)/pca-ai-serving
 	helm upgrade --install $(AI_NAMESPACE)-platform-config $(CHARTS_DIR)/pca-platform-config \
 		--namespace $(AI_NAMESPACE) --create-namespace \
 		-f $(DEPLOY_VALUES_DIR)/values-platform-config.yaml \
@@ -59,7 +61,9 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 	helm upgrade --install $(AI_NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
 		--namespace $(AI_NAMESPACE) \
 		-f $(DEPLOY_VALUES_DIR)/values-ai-serving.yaml \
-		--set namespace=$(AI_NAMESPACE)
+		--set namespace=$(AI_NAMESPACE) \
+		--set pca-observability.namespace=$(AI_NAMESPACE) \
+		$(HELM_ARGS)
 
 ai-serving-undeploy-existing-openshift: ## Remove AI serving from OpenShift (AI_NAMESPACE=)
 	helm uninstall $(AI_NAMESPACE)-ai-serving --namespace $(AI_NAMESPACE) --ignore-not-found || true
@@ -72,7 +76,8 @@ devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAM
 		--namespace $(DEV_NAMESPACE) --create-namespace \
 		-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml \
 		--set aiServingNamespace=$(AI_NAMESPACE) \
-		$(if $(filter true,$(MCP_ENABLED)),--set mcp.enabled=true,)
+		$(if $(filter true,$(MCP_ENABLED)),--set mcp.enabled=true,) \
+		$(HELM_ARGS)
 
 devspace-undeploy-existing-openshift: ## Remove a devspace (DEV_NAMESPACE=)
 	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi

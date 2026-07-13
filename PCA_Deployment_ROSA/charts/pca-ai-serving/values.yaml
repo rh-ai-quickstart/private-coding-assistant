@@ -1,3 +1,34 @@
 namespace: ai-serving
 clusterResources: true
 gatewayName: llm-d-gateway
+# Observability (pca-observability subchart)
+# Installs when observability.enabled (default true because grafana.enabled defaults true).
+# Set observability.enabled=false to skip the entire subchart.
+observability:
+  enabled: true
+# Top-level flags (mirrored into pca-observability — keep in sync)
+grafana:
+  enabled: true
+langfuse:
+  enabled: false
+  # metadata = tokens/latency via OTEL only; full = also store prompt/completion via vLLM middleware
+  ioCapture: full
+pca-observability:
+  # Inherit AI serving namespace (Makefile / --set also set this)
+  namespace: ai-serving
+  grafana:
+    enabled: true
+  langfuse:
+    enabled: false
+    ioCapture: full
+  prometheus:
+    # ROSA full provision: cluster. Existing OpenShift override: namespace.
+    accessMode: cluster
+  cost:
+    # PLACEHOLDER — illustrative L40S on-demand from sizing doc; not billing truth
+    gpuHourlyUsd: 1.86
+    gpuHourlyUsdIsPlaceholder: true
+  persistence:
+    storageClass: ""
+    postgresSize: 10Gi
+    clickhouseSize: 20Gi

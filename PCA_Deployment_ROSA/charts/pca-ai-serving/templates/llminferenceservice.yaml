@@ -1,4 +1,5 @@
 # LLMInferenceService — Qwen3-Coder-30B via llm-d (EPP + vLLM + Gateway API)
+{{- $ioFull := and .Values.langfuse.enabled (eq (.Values.langfuse.ioCapture | default "full") "full") }}
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
@@ -25,6 +26,11 @@ spec:
       - name: kserve-provision-location
         persistentVolumeClaim:
           claimName: model-cache
+      {{- if $ioFull }}
+      - name: pca-langfuse-io
+        configMap:
+          name: pca-langfuse-io-middleware
+      {{- end }}
     containers:
       - name: main
         args:
@@ -36,6 +42,49 @@ spec:
           - --tool-call-parser=qwen3_coder
           - --reasoning-parser=qwen3
           - --kv-cache-dtype=fp8
+          {{- if .Values.langfuse.enabled }}
+          - --otlp-traces-endpoint=http://pca-otel-collector.{{ .Values.namespace }}.svc.cluster.local:4317
+          - --collect-detailed-traces=all
+          {{- end }}
+          {{- if $ioFull }}
+          - --middleware
+          - pca_langfuse_io.langfuse_io_middleware
+          {{- end }}
+        {{- if or .Values.langfuse.enabled $ioFull }}
+        env:
+          {{- if .Values.langfuse.enabled }}
+          - name: OTEL_SERVICE_NAME
+            value: vllm-qwen3-coder
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://pca-otel-collector.{{ .Values.namespace }}.svc.cluster.local:4317
+          - name: OTEL_TRACES_SAMPLER
+            value: always_on
+          {{- end }}
+          {{- if $ioFull }}
+          - name: PYTHONPATH
+            value: /opt/pca
+          - name: PCA_LANGFUSE_IO_CAPTURE
+            value: {{ .Values.langfuse.ioCapture | default "full" | quote }}
+          - name: LANGFUSE_BASE_URL
+            value: http://pca-langfuse-web.{{ .Values.namespace }}.svc.cluster.local:3000
+          - name: LANGFUSE_PUBLIC_KEY
+            valueFrom:
+              secretKeyRef:
+                name: pca-langfuse-credentials
+                key: init-project-public-key
+          - name: LANGFUSE_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: pca-langfuse-credentials
+                key: init-project-secret-key
+          {{- end }}
+        {{- end }}
+        {{- if $ioFull }}
+        volumeMounts:
+          - name: pca-langfuse-io
+            mountPath: /opt/pca
+            readOnly: true
+        {{- end }}
         resources:
           limits:
             cpu: "4"

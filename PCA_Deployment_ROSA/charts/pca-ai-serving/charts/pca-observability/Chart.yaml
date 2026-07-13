@@ -1,0 +1,9 @@
+apiVersion: v2
+name: pca-observability
+version: 0.1.0
+description: PCA Observability — Grafana (ops metrics) + optional Langfuse/OTel Collector (LLM traces)
+dependencies:
+  - name: langfuse
+    version: "1.5.38"
+    repository: https://langfuse.github.io/langfuse-k8s
+    condition: langfuse.enabled

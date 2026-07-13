@@ -1,0 +1,155 @@
+namespace: ""
+grafana:
+  enabled: true
+  image: docker.io/grafana/grafana:11.5.2
+  replicas: 1
+  # Optional override; empty → Helm generates and stores in Secret pca-grafana-admin
+  adminPassword: ""
+  route:
+    enabled: true
+    host: "" # empty → OpenShift generates
+# Langfuse opt-in + our extras. Official chart keys live under this same map
+# (Helm dependency name = langfuse) — custom keys are ignored by the upstream chart.
+langfuse:
+  enabled: false
+  # metadata = OTEL tokens/latency only; full = vLLM middleware stores prompt/completion bodies
+  ioCapture: full
+  fullnameOverride: pca-langfuse
+  route:
+    enabled: true
+    host: ""
+  # Optional credential overrides; empty → Helm generates into Secret pca-langfuse-credentials
+  credentials:
+    salt: ""
+    encryptionKey: ""
+    nextauthSecret: ""
+    postgresPassword: ""
+    redisPassword: ""
+    clickhousePassword: ""
+    s3RootPassword: ""
+    initUserPassword: ""
+    initProjectPublicKey: ""
+    initProjectSecretKey: ""
+  initUserEmail: admin@pca.local
+  initUserName: admin
+  retentionDays: 14
+  modelPrices:
+    - model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+      inputUsdPer1M: 0.0
+      outputUsdPer1M: 0.0
+  # --- upstream langfuse chart ---
+  langfuse:
+    salt:
+      secretKeyRef:
+        name: pca-langfuse-credentials
+        key: salt
+    encryptionKey:
+      secretKeyRef:
+        name: pca-langfuse-credentials
+        key: encryption-key
+    nextauth:
+      url: http://pca-langfuse-web:3000
+      secret:
+        secretKeyRef:
+          name: pca-langfuse-credentials
+          key: nextauth-secret
+    features:
+      telemetryEnabled: false
+      signUpDisabled: true
+    deployment:
+      replicas: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    additionalEnv:
+      - name: LANGFUSE_INIT_ORG_ID
+        value: "pca"
+      - name: LANGFUSE_INIT_ORG_NAME
+        value: "PCA"
+      - name: LANGFUSE_INIT_PROJECT_ID
+        value: "pca-llm"
+      - name: LANGFUSE_INIT_PROJECT_NAME
+        value: "PCA LLM"
+      - name: LANGFUSE_INIT_PROJECT_PUBLIC_KEY
+        valueFrom:
+          secretKeyRef:
+            name: pca-langfuse-credentials
+            key: init-project-public-key
+      - name: LANGFUSE_INIT_PROJECT_SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: pca-langfuse-credentials
+            key: init-project-secret-key
+      - name: LANGFUSE_INIT_USER_EMAIL
+        value: "admin@pca.local"
+      - name: LANGFUSE_INIT_USER_NAME
+        value: "admin"
+      - name: LANGFUSE_INIT_USER_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: pca-langfuse-credentials
+            key: init-user-password
+  postgresql:
+    deploy: true
+    fullnameOverride: pca-langfuse-postgresql
+    auth:
+      username: postgres
+      existingSecret: pca-langfuse-credentials
+      secretKeys:
+        userPasswordKey: postgres-password
+        adminPasswordKey: postgres-password
+      database: postgres_langfuse
+    primary:
+      persistence:
+        size: 10Gi
+  redis:
+    deploy: true
+    fullnameOverride: pca-langfuse-redis
+    auth:
+      username: default
+      existingSecret: pca-langfuse-credentials
+      existingSecretPasswordKey: redis-password
+  clickhouse:
+    deploy: true
+    fullnameOverride: pca-langfuse-clickhouse
+    replicaCount: 1
+    resourcesPreset: small
+    auth:
+      username: default
+      existingSecret: pca-langfuse-credentials
+      existingSecretKey: clickhouse-password
+    persistence:
+      size: 20Gi
+    zookeeper:
+      fullnameOverride: pca-langfuse-zookeeper
+  s3:
+    deploy: true
+    fullnameOverride: pca-langfuse-s3
+    auth:
+      rootUser: minio
+      existingSecret: pca-langfuse-credentials
+      rootUserSecretKey: s3-root-user
+      rootPasswordSecretKey: s3-root-password
+    persistence:
+      size: 10Gi
+otelCollector:
+  image: otel/opentelemetry-collector-contrib:0.120.0
+  replicas: 1
+prometheus:
+  # cluster = Thanos :9091 + cluster-monitoring-view (ROSA full provision)
+  # namespace = Thanos :9092 namespace tenancy (existing OpenShift)
+  accessMode: cluster
+  thanosUrl: ""
+cost:
+  # PLACEHOLDER — illustrative L40S on-demand from sizing doc; not billing truth
+  gpuHourlyUsd: 1.86
+  gpuHourlyUsdIsPlaceholder: true
+persistence:
+  storageClass: ""
+  postgresSize: 10Gi
+  clickhouseSize: 20Gi
+  minioSize: 10Gi
