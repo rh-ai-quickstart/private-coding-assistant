@@ -1,0 +1,78 @@
+{{- if .Values.openshift.enabled }}
+# OpenShift MCP server — exposes cluster state (pods, events, deployments, etc.) as MCP tools.
+# Image: kubernetes-mcp-server built on UBI from the Red Hat MCP Catalog.
+#
+# NOTE on MCPServer CR (Developer Preview): the mcp.x-k8s.io/v1alpha1 MCPServer CR has a
+# known issue where its embedded default config references $CONFIG_PATH literally, causing
+# the server to fail unless --config is passed explicitly. Until the operator resolves this,
+# we deploy as a plain Deployment + Service which is functionally equivalent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-mcp
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: openshift-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openshift-mcp
+  template:
+    metadata:
+      labels:
+        app: openshift-mcp
+    spec:
+      serviceAccountName: mcp-openshift-sa
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp-server
+          image: {{ .Values.openshift.image }}
+          args:
+            - --config
+            - /mcp_config.toml
+            - --port
+            - "8080"
+            - --disable-multi-cluster
+            - --read-only
+            - --toolsets
+            - openshift,core,config
+            - --stateless
+          ports:
+            - containerPort: 8080
+              name: mcp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-mcp
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: openshift-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  selector:
+    app: openshift-mcp
+  ports:
+    - name: mcp
+      port: 8080
+      targetPort: 8080
+{{- end }}

@@ -1,0 +1,9 @@
+dependencies:
+- name: pca-guardrails
+  repository: ""
+  version: 0.1.0
+- name: pca-mcp
+  repository: ""
+  version: 0.1.0
+digest: sha256:b7cb243d2fe93b5f11f0eabd9c64504fdcdfcb77f8fd6fdb3604df69dbf087dd
+generated: "2026-07-13T11:51:39.698377+03:00"

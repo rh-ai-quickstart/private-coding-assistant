@@ -1,0 +1,22 @@
+{{- if .Values.gateway.enabled }}
+# MCPGatewayExtension — enables MCP protocol handling on the mcp-gateway resource.
+# Requires: Red Hat Connectivity Link operator (mcp.kuadrant.io/v1alpha1 CRDs)
+# Status: Technical Preview in Red Hat Connectivity Link / RHOAI 3.4
+#
+# If the CRD is not present, ArgoCD will skip this resource (SkipDryRunOnMissingResource).
+# Verify CRD exists: oc get crd mcpgatewayextensions.mcp.kuadrant.io
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPGatewayExtension
+metadata:
+  name: mcp-gateway-extension
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    namespace: {{ .Values.namespace }}
+{{- end }}

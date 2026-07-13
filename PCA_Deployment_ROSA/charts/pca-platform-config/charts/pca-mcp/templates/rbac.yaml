@@ -1,0 +1,47 @@
+{{- if .Values.openshift.enabled }}
+# ServiceAccount for the OpenShift MCP server pod (in-cluster access)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-openshift-sa
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+---
+# Read-only ClusterRole — the OpenShift MCP server needs cluster-wide read access
+# to answer queries about pods, events, deployments, namespaces, etc.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mcp-openshift-viewer
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events", "namespaces", "nodes", "services", "endpoints", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mcp-openshift-viewer
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+subjects:
+  - kind: ServiceAccount
+    name: mcp-openshift-sa
+    namespace: {{ .Values.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: mcp-openshift-viewer
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

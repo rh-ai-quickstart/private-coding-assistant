@@ -1,0 +1,18 @@
+namespace: ai-serving
+imageRegistry: quay.io
+# Red Hat OpenShift MCP Server — queries cluster state via natural language
+# Source: Red Hat MCP Catalog (curated, UBI-based, vulnerability-scanned)
+openshift:
+  enabled: true
+  image: quay.io/redhat-user-workloads/ocp-mcp-server-tenant/openshift-mcp-server-release-03:latest
+# MariaDB MCP Server — relational database schema queries for coding context
+# Source: Community tier in Red Hat MCP Catalog
+mariadb:
+  enabled: false
+  host: ""
+  secretName: ""
+# MCP Gateway — single cluster-internal entry point for all MCP servers
+# Requires: Red Hat Connectivity Link operator (mcp.kuadrant.io/v1alpha1 CRDs)
+# Status: Technical Preview in RHOAI 3.4
+gateway:
+  enabled: true

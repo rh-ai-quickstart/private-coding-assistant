@@ -1,0 +1,84 @@
+{{- if .Values.mariadb.enabled }}
+# MariaDB MCP server — exposes database schema and query tools to AI extensions.
+# Prerequisites:
+#   1. A running MariaDB instance reachable at .Values.mariadb.host
+#   2. An image mirrored from the Red Hat MCP Catalog community tier to your registry.
+#      Mirror: podman pull <source> --platform=linux/amd64 && podman push <dest> --platform=linux/amd64
+#   3. A Secret named .Values.mariadb.secretName with keys: DB_USER, DB_PASSWORD, DB_NAME
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb-mcp
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: mariadb-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb-mcp
+  template:
+    metadata:
+      labels:
+        app: mariadb-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp-server
+          image: {{ .Values.imageRegistry }}/mcp/mariadb-mcp-server:latest
+          ports:
+            - containerPort: 8080
+              name: mcp
+          env:
+            - name: DB_HOST
+              value: {{ .Values.mariadb.host | quote }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mariadb.secretName }}
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mariadb.secretName }}
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mariadb.secretName }}
+                  key: DB_NAME
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-mcp
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: mariadb-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  selector:
+    app: mariadb-mcp
+  ports:
+    - name: mcp
+      port: 8080
+      targetPort: 8080
+{{- end }}

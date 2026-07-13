@@ -1,0 +1,4 @@
+apiVersion: v2
+name: pca-mcp
+version: 0.1.0
+description: PCA MCP — MCPServer CRs and MCP Gateway (RHOAI 3.4 Developer/Tech Preview)

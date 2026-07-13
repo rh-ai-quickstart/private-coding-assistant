@@ -1,0 +1,25 @@
+{{- if .Values.gateway.enabled }}
+# Gateway resource for MCP traffic — uses the same Istio-backed gateway class as the
+# inference gateway, keeping all MCP communication cluster-internal.
+# The Istio controller provisions a ClusterIP Service named:
+#   mcp-gateway-data-science-gateway-class.<namespace>.svc.cluster.local
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mcp-gateway
+  namespace: {{ .Values.namespace }}
+  labels:
+    istio.io/rev: openshift-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  gatewayClassName: data-science-gateway-class
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: Same
+{{- end }}
