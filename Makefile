@@ -32,7 +32,11 @@ RUN_FLAGS := --rm \
 	$(KUBE_MOUNT) \
 	$(ENV_FILE_FLAG)
 
-.PHONY: build shell run help ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
+COMPONENT ?=
+PYTEST_ARGS ?=
+N ?= 4
+
+.PHONY: build shell run help smoke ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -107,3 +111,8 @@ mcp-disable: ## Disable MCP server on an already-deployed stack (AI_NAMESPACE=, 
 			--namespace $(DEV_NAMESPACE) --reuse-values \
 			--set mcp.enabled=false; \
 	fi
+
+smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_NAMESPACE=, COMPONENT=, N=, PYTEST_ARGS=) running in parallel 
+	$(MAKE) -C tests/cluster-smoke smoke \
+		AI_NAMESPACE=$(AI_NAMESPACE) DEV_NAMESPACE=$(DEV_NAMESPACE) \
+		COMPONENT=$(COMPONENT) N=$(N) PYTEST_ARGS='$(PYTEST_ARGS)'
