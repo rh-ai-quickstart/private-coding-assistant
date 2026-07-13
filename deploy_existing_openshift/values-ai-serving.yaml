@@ -1,2 +1,6 @@
 # Values override for pca-ai-serving when deploying on an existing OpenShift cluster.
 clusterResources: false
+# Namespace-tenancy Thanos (:9092) — no cluster-monitoring-view required
+pca-observability:
+  prometheus:
+    accessMode: namespace

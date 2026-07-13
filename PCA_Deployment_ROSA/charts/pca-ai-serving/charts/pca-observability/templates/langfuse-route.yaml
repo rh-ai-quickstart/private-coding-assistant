@@ -1,0 +1,25 @@
+{{- if and .Values.langfuse.enabled .Values.langfuse.route.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pca-langfuse
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-langfuse
+    app.kubernetes.io/part-of: pca-observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  {{- if .Values.langfuse.route.host }}
+  host: {{ .Values.langfuse.route.host | quote }}
+  {{- end }}
+  to:
+    kind: Service
+    name: pca-langfuse-web
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}

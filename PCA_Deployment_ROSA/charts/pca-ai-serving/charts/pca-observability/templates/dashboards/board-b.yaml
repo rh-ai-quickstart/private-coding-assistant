@@ -1,0 +1,97 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-b
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-b.json: |
+    {
+      "uid": "pca-board-b",
+      "title": "PCA B — UX / latency",
+      "tags": ["pca", "latency", "ttft"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-6h", "to": "now" },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "TTFT p50 / p95 / p99",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.99, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Inter-token latency p50 / p95",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(vllm:inter_token_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_time_per_output_token_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(vllm:inter_token_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_time_per_output_token_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "E2E request latency p50 / p95",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Queue time p50 / p95",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(vllm:request_queue_time_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_request_queue_time_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(vllm:request_queue_time_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_request_queue_time_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        }
+      ]
+    }
+{{- end }}

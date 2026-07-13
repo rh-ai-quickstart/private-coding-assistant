@@ -1,0 +1,46 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pca-grafana
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+---
+{{- if eq .Values.prometheus.accessMode "cluster" }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pca-grafana-cluster-monitoring-{{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-monitoring-view
+subjects:
+  - kind: ServiceAccount
+    name: pca-grafana
+    namespace: {{ $ns }}
+{{- else }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pca-grafana-view
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: pca-grafana
+    namespace: {{ $ns }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,79 @@
+{{- if and .Values.grafana.enabled .Values.langfuse.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-a
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-a.json: |
+    {
+      "uid": "pca-board-a",
+      "title": "PCA A — Users overview",
+      "tags": ["pca", "langfuse", "users"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-6h", "to": "now" },
+      "panels": [
+        {
+          "type": "text",
+          "title": "Per-user attribution",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Per-developer and per-team breakdowns live in **Langfuse** (userId = DevSpace `user`, tag `team`, metadata `devspace`). Open the Langfuse Route and filter by user/team.\n\nAggregate request volume below is from Prometheus (not attributed)."
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Request rate (aggregate)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m]))",
+              "legendFormat": "success/s"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Running / waiting requests",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(vllm:num_requests_running) or sum(vllm_num_requests_running)",
+              "legendFormat": "running"
+            },
+            {
+              "expr": "sum(vllm:num_requests_waiting) or sum(vllm_num_requests_waiting)",
+              "legendFormat": "waiting"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Prompt + generation tokens/s (aggregate)",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:prompt_tokens_total[5m])) or sum(rate(vllm_prompt_tokens_total[5m]))",
+              "legendFormat": "prompt tok/s"
+            },
+            {
+              "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
+              "legendFormat": "gen tok/s"
+            }
+          ]
+        }
+      ]
+    }
+{{- end }}

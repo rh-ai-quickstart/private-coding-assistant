@@ -1,0 +1,21 @@
+{{- if and .Values.langfuse.enabled .Values.langfuse.modelPrices }}
+{{- $ns := include "pca-observability.namespace" . -}}
+# Reference ConfigMap — apply these prices in Langfuse Project Settings → Models
+# (or via Langfuse API). Used for token $ cost in Langfuse UI / Board D.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-langfuse-model-prices
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-langfuse
+    app.kubernetes.io/part-of: pca-observability
+data:
+  model-prices.yaml: |
+    # USD per 1M tokens — configure in Langfuse to match
+{{- range .Values.langfuse.modelPrices }}
+    - model: {{ .model | quote }}
+      inputUsdPer1M: {{ .inputUsdPer1M }}
+      outputUsdPer1M: {{ .outputUsdPer1M }}
+{{- end }}
+{{- end }}

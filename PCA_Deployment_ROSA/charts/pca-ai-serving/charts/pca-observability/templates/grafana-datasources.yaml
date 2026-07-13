@@ -1,0 +1,41 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+{{- $thanos := include "pca-observability.thanosUrl" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-datasources
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  datasources.yaml.tpl: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        access: proxy
+        url: {{ $thanos }}
+        isDefault: true
+        jsonData:
+          httpMethod: GET
+          timeInterval: 30s
+          tlsSkipVerify: true
+          httpHeaderName1: Authorization
+          {{- if eq .Values.prometheus.accessMode "namespace" }}
+          customQueryParameters: "namespace={{ $ns }}"
+          {{- end }}
+        secureJsonData:
+          httpHeaderValue1: __BEARER_TOKEN__
+        editable: false
+  entrypoint.sh: |
+    #!/bin/sh
+    set -eu
+    TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    sed "s|__BEARER_TOKEN__|Bearer ${TOKEN}|g" \
+      /etc/grafana/provisioning-tpl/datasources.yaml.tpl \
+      > /etc/grafana/provisioning/datasources/datasources.yaml
+    exec /run.sh "$@"
+{{- end }}

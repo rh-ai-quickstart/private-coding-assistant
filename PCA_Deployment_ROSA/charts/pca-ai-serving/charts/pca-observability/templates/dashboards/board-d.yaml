@@ -1,0 +1,103 @@
+{{- if and .Values.grafana.enabled .Values.langfuse.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+{{- $gpu := .Values.cost.gpuHourlyUsd -}}
+{{- $ph := .Values.cost.gpuHourlyUsdIsPlaceholder -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-d
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-d.json: |
+    {
+      "uid": "pca-board-d",
+      "title": "PCA D — Tokens / cost fairness",
+      "tags": ["pca", "cost", "tokens", "fairness"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-24h", "to": "now" },
+      "panels": [
+        {
+          "type": "text",
+          "title": "Fairness & token cost",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Per-user / per-team token and $ cost live in **Langfuse** (model prices configured via Helm). Grafana shows aggregate Prometheus token rates plus a **PLACEHOLDER** GPU $/hr context ({{ $gpu }}{{ if $ph }} — override `cost.gpuHourlyUsd`{{ end }})."
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Prompt tokens/s",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:prompt_tokens_total[5m])) or sum(rate(vllm_prompt_tokens_total[5m]))",
+              "legendFormat": "prompt tok/s"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Generation tokens/s",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
+              "legendFormat": "gen tok/s"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "PLACEHOLDER — GPU $/hr (not billing truth)",
+          "description": "Illustrative L40S on-demand from sizing doc. Set cost.gpuHourlyUsdIsPlaceholder: false when overridden with real rates.",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "expr": "{{ $gpu }}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 2,
+              "displayName": "{{ if $ph }}PLACEHOLDER {{ end }}$/GPU-hr"
+            }
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Est. GPU burn $/day (1 GPU × placeholder rate)",
+          "gridPos": { "h": 4, "w": 8, "x": 8, "y": 12 },
+          "targets": [
+            {
+              "expr": "{{ $gpu }} * 24",
+              "instant": true
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Successful requests/s",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m]))",
+              "legendFormat": "success/s"
+            }
+          ]
+        }
+      ]
+    }
+{{- end }}

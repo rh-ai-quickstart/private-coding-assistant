@@ -1,0 +1,6 @@
+dependencies:
+- name: pca-observability
+  repository: ""
+  version: 0.1.0
+digest: sha256:7db5fde121b849094a4e6bc980dc51eed25200b63e672117c2f3ddb024df3393
+generated: "2026-07-13T14:10:17.671482368+03:00"

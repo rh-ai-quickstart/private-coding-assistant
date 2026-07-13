@@ -1,0 +1,23 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboards-provider
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: pca
+        orgId: 1
+        folder: PCA
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards/pca
+{{- end }}

@@ -1,0 +1,147 @@
+{{- if .Values.langfuse.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-otel-collector-config
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-otel-collector
+    app.kubernetes.io/part-of: pca-observability
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        timeout: 5s
+        send_batch_size: 512
+      # Map X-PCA-* identity headers (when present on spans) → Langfuse userId / metadata.
+      # Attribute names vary by instrumentation; try common HTTP header encodings.
+      # Phase 0 spike: verify on-cluster that vLLM/LLMISVC propagates these into OTEL spans.
+      transform:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements:
+              - set(attributes["user.id"], attributes["http.request.header.x-pca-user"]) where attributes["http.request.header.x-pca-user"] != nil
+              - set(attributes["user.id"], attributes["http.request.header.X-PCA-User"]) where attributes["user.id"] == nil and attributes["http.request.header.X-PCA-User"] != nil
+              - set(attributes["user.id"], attributes["x_pca_user"]) where attributes["user.id"] == nil and attributes["x_pca_user"] != nil
+              - set(attributes["langfuse.user.id"], attributes["user.id"]) where attributes["user.id"] != nil
+              - set(attributes["langfuse.trace.metadata.devspace"], attributes["http.request.header.x-pca-devspace"]) where attributes["http.request.header.x-pca-devspace"] != nil
+              - set(attributes["langfuse.trace.metadata.devspace"], attributes["http.request.header.X-PCA-DevSpace"]) where attributes["langfuse.trace.metadata.devspace"] == nil and attributes["http.request.header.X-PCA-DevSpace"] != nil
+              - set(attributes["langfuse.trace.metadata.team"], attributes["http.request.header.x-pca-team"]) where attributes["http.request.header.x-pca-team"] != nil
+              - set(attributes["langfuse.trace.metadata.team"], attributes["http.request.header.X-PCA-Team"]) where attributes["langfuse.trace.metadata.team"] == nil and attributes["http.request.header.X-PCA-Team"] != nil
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    exporters:
+      otlphttp/langfuse:
+        endpoint: http://pca-langfuse-web.{{ $ns }}.svc.cluster.local:3000/api/public/otel
+        headers:
+          Authorization: ${env:LANGFUSE_OTLP_AUTH}
+        tls:
+          insecure: true
+      debug:
+        verbosity: basic
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [transform, batch]
+          exporters: [otlphttp/langfuse, debug]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pca-otel-collector
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-otel-collector
+    app.kubernetes.io/part-of: pca-observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: {{ .Values.otelCollector.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pca-otel-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pca-otel-collector
+        app.kubernetes.io/part-of: pca-observability
+    spec:
+      containers:
+        - name: otel-collector
+          image: {{ .Values.otelCollector.image }}
+          args: ["--config=/conf/config.yaml"]
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+            - name: health
+              containerPort: 13133
+          env:
+            - name: LANGFUSE_OTLP_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: pca-langfuse-credentials
+                  key: otlp-auth-header
+          volumeMounts:
+            - name: config
+              mountPath: /conf
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap:
+            name: pca-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pca-otel-collector
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-otel-collector
+    app.kubernetes.io/part-of: pca-observability
+spec:
+  selector:
+    app.kubernetes.io/name: pca-otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+{{- end }}

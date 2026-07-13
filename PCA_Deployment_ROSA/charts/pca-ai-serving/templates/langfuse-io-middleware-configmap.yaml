@@ -1,0 +1,16 @@
+{{- /* Full prompt/completion capture middleware for vLLM (Langfuse I/O). */ -}}
+{{- if and .Values.langfuse.enabled (eq (.Values.langfuse.ioCapture | default "full") "full") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-langfuse-io-middleware
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: pca-langfuse-io
+    app.kubernetes.io/part-of: pca-ai-serving
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  pca_langfuse_io.py: |
+{{ .Files.Get "files/pca_langfuse_io.py" | indent 4 }}
+{{- end }}
