@@ -6,20 +6,18 @@ gatewayName: llm-d-gateway
 # Set observability.enabled=false to skip the entire subchart.
 observability:
   enabled: true
-# Top-level flags (mirrored into pca-observability — keep in sync)
+# Top-level grafana.enabled is unused by parent templates (subchart reads pca-observability.grafana).
 grafana:
   enabled: true
-langfuse:
-  enabled: false
-  # metadata = tokens/latency via OTEL only; full = also store prompt/completion via vLLM middleware
-  ioCapture: full
 pca-observability:
   # Inherit AI serving namespace (Makefile / --set also set this)
   namespace: ai-serving
   grafana:
     enabled: true
+  # Single source of truth for Langfuse (parent LLMInferenceService + subchart stack)
   langfuse:
     enabled: false
+    # metadata = tokens/latency via OTEL only; full = also store prompt/completion via vLLM middleware
     ioCapture: full
   prometheus:
     # ROSA full provision: cluster. Existing OpenShift override: namespace.

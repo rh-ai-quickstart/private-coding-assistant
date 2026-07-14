@@ -1,5 +1,8 @@
 {{- /* Full prompt/completion capture middleware for vLLM (Langfuse I/O). */ -}}
-{{- if and .Values.langfuse.enabled (eq (.Values.langfuse.ioCapture | default "full") "full") }}
+{{- include "pca-ai-serving.langfuse.validate" . -}}
+{{- $langfuseEnabled := eq (include "pca-ai-serving.langfuseEnabled" .) "true" -}}
+{{- $ioCapture := include "pca-ai-serving.langfuseIoCapture" . -}}
+{{- if and $langfuseEnabled (eq $ioCapture "full") }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

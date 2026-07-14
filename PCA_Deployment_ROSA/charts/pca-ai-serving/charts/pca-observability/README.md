@@ -10,23 +10,23 @@ Nested under `pca-ai-serving` — deploys with the same Helm release as llm-d/vL
 |------|---------|--------|
 | `observability.enabled` (parent) | `true` | Installs this subchart |
 | `grafana.enabled` | `true` | Grafana 1-pod + boards B/C (A/D when Langfuse on) |
-| `langfuse.enabled` | `false` | Langfuse + OTel Collector + OTLP on LLMInferenceService |
+| `langfuse.enabled` | `false` | Langfuse + OTel Collector + OTLP on LLMInferenceService (set as `pca-observability.langfuse.*` from parent) |
 | `langfuse.ioCapture` | `full` | `full` = vLLM middleware stores prompt/completion in Langfuse; `metadata` = OTEL tokens/latency only |
 
-Keep parent top-level `grafana.enabled` / `langfuse.enabled` / `langfuse.ioCapture` in sync with `pca-observability.*`.
+Parent LLMInferenceService wiring reads `pca-observability.langfuse.*` — one flag enables both the stack and vLLM OTLP/middleware.
 
 ### Enable Langfuse (opt-in)
 
 ```bash
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx \
-  HELM_ARGS='--set langfuse.enabled=true --set pca-observability.langfuse.enabled=true'
+  HELM_ARGS='--set pca-observability.langfuse.enabled=true'
 ```
 
 With Langfuse on, **full prompt/completion storage is the default** (`ioCapture: full`) via an in-process vLLM middleware (async after response — no IDE hop). Opt out of bodies:
 
 ```bash
-HELM_ARGS='--set langfuse.enabled=true --set pca-observability.langfuse.enabled=true \
-  --set langfuse.ioCapture=metadata --set pca-observability.langfuse.ioCapture=metadata'
+HELM_ARGS='--set pca-observability.langfuse.enabled=true \
+  --set pca-observability.langfuse.ioCapture=metadata'
 ```
 
 ## Prometheus access modes
