@@ -51,6 +51,41 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=dev-user1-devspaces AI_NAM
 
 ---
 
+## Observability (Grafana + optional Langfuse)
+
+Grafana (boards B/C — latency, KV/GPU) deploys by default with AI serving via `pca-observability`. Existing OpenShift uses Prometheus **namespace** tenancy (`:9092`); ROSA full provision uses **cluster** monitoring (`:9091`).
+
+| Flag | Default | What you get |
+|------|---------|--------------|
+| `grafana.enabled` | `true` | 1-pod Grafana + boards B/C. Boards A/D when Langfuse is on |
+| `pca-observability.langfuse.enabled` | `false` | Langfuse + OTel Collector; wires vLLM OTLP in the same release |
+| `pca-observability.langfuse.ioCapture` | `full` | When Langfuse is on: store full prompt/completion via vLLM middleware (async). Set `metadata` for tokens/latency only |
+
+```bash
+# Opt in to Langfuse (full I/O capture is default)
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx \
+  HELM_ARGS='--set pca-observability.langfuse.enabled=true'
+
+# Routes + secrets
+oc get route pca-grafana pca-langfuse -n $AI_NAMESPACE
+oc get secret pca-grafana-admin -n $AI_NAMESPACE -o jsonpath='{.data.admin-password}' | base64 -d; echo
+oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init-user-password}' | base64 -d; echo
+```
+
+**GPU $/hr PLACEHOLDER:** `cost.gpuHourlyUsd: 1.86` is illustrative L40S on-demand — **not** billing truth. Override per cluster and set `cost.gpuHourlyUsdIsPlaceholder: false`.
+
+**Attribution:** Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` / optional `X-PCA-Team` (from `devspaces[].team`). Full prompt/completion bodies go to Langfuse when `ioCapture=full`. See `PCA_Deployment_ROSA/charts/pca-ai-serving/charts/pca-observability/README.md`.
+
+### Combined: Langfuse + MCP
+
+```bash
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true \
+  HELM_ARGS='--set pca-observability.langfuse.enabled=true'
+make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> MCP_ENABLED=true
+```
+
+---
+
 ## MCP (Model Context Protocol)
 
 MCP gives AI coding extensions (Continue, Roo Code) live read-only access to cluster state — pods, events, deployments, routes — via natural language tool calls. It is optional and disabled by default.

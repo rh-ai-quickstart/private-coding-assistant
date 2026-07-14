@@ -62,32 +62,21 @@ oc get route pca-langfuse -n <NS>
 
 ### MCP (optional)
 
-MCP deploys as part of the platform-config chart. Enable it by adding two `--set` flags to the ai-serving upgrade:
-
 ```bash
-helm upgrade <release>-platform-config ./charts/pca-platform-config \
-  --reuse-values \
-  --set mcp.enabled=true \
-  --set pca-mcp.gateway.enabled=false \
-  --set pca-mcp.namespace=<AI_NAMESPACE>
+# From the start (combine with Langfuse HELM_ARGS on ai-serving if needed)
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true
+make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> MCP_ENABLED=true
+
+# Or toggle after deploy
+make mcp-enable AI_NAMESPACE=<AI_NAMESPACE> DEV_NAMESPACE=<DEV_NS>
+make mcp-disable AI_NAMESPACE=<AI_NAMESPACE> DEV_NAMESPACE=<DEV_NS>
 ```
 
-> `pca-mcp.gateway.enabled=false` is required — the MCP Gateway CRDs (`mcp.kuadrant.io`) are not available on most clusters yet.
+> Gateway CRDs (`mcp.kuadrant.io`) are not widely available — `MCP_ENABLED` always sets `pca-mcp.gateway.enabled=false`.
 
-Then enable MCP in the devspaces chart so extensions get the `mcpServers` config injected:
+After enabling, tell the developer to run **`Developer: Reload Window`** in VS Code. Verify: `oc get pods -n <AI_NAMESPACE> | grep openshift-mcp`
 
-```bash
-helm upgrade <release>-devspaces ./charts/pca-devspaces \
-  --reuse-values \
-  --set mcp.enabled=true
-```
-
-After upgrading, tell the developer to run **`Developer: Reload Window`** in VS Code to pick up the new MCP server config. The `openshift-ai-mcp` server will then appear in Continue's MCP panel and can answer cluster-state queries.
-
-Verify the MCP server is healthy:
-```bash
-oc get pods -n <AI_NAMESPACE> | grep openshift-mcp   # should be 1/1 Running
-```
+See `deploy_existing_openshift/README.md` and `pca-platform-config/charts/pca-mcp/README.md`.
 
 ### Guardrails (optional)
 

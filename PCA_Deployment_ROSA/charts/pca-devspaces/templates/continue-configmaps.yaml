@@ -43,6 +43,16 @@ data:
             {{- if $team }}
             X-PCA-Team: "{{ $team }}"
             {{- end }}
+    {{- if $.Values.mcp.enabled }}
+    mcpServers:
+      - name: "openshift-ai-mcp"
+        type: sse
+        {{- if $.Values.mcp.serverUrl }}
+        url: {{ $.Values.mcp.serverUrl | quote }}
+        {{- else }}
+        url: "http://openshift-mcp.{{ $.Values.aiServingNamespace }}.svc.cluster.local:8080/sse"
+        {{- end }}
+    {{- end }}
     tabAutocompleteModel:
       name: Qwen3-Coder Autocomplete (llm-d)
       provider: openai
