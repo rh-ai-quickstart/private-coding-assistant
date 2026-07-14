@@ -107,17 +107,8 @@ def _extract_output(body_bytes: bytes, content_type: str | None) -> Any:
     return "\n".join(parts) if parts else parsed
 
 
-def _usage_from_response(body_bytes: bytes) -> dict[str, Any] | None:
-    text = body_bytes.decode("utf-8", errors="replace").strip()
-    if not text or text.startswith("data:"):
-        return None
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        return None
-    usage = parsed.get("usage")
-    if not isinstance(usage, dict):
-        return None
+def _map_usage(usage: dict[str, Any]) -> dict[str, Any] | None:
+    """Map OpenAI-style usage fields to Langfuse generation usage keys."""
     out: dict[str, Any] = {}
     if "prompt_tokens" in usage:
         out["input"] = usage["prompt_tokens"]
@@ -126,6 +117,40 @@ def _usage_from_response(body_bytes: bytes) -> dict[str, Any] | None:
     if "total_tokens" in usage:
         out["total"] = usage["total_tokens"]
     return out or None
+
+
+def _usage_from_response(body_bytes: bytes) -> dict[str, Any] | None:
+    text = body_bytes.decode("utf-8", errors="replace").strip()
+    if not text:
+        return None
+    if text.startswith("data:") or "\ndata:" in text:
+        last: dict[str, Any] | None = None
+        for line in text.splitlines():
+            if not line.startswith("data:"):
+                continue
+            data = line[5:].strip()
+            if not data or data == "[DONE]":
+                continue
+            try:
+                chunk = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(chunk, dict):
+                continue
+            usage = chunk.get("usage")
+            if isinstance(usage, dict):
+                mapped = _map_usage(usage)
+                if mapped:
+                    last = mapped
+        return last
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    usage = parsed.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    return _map_usage(usage)
 
 
 def _post_langfuse(payload: dict[str, Any]) -> None:
@@ -225,12 +250,6 @@ async def langfuse_io_middleware(request, call_next):
     except Exception:
         return await call_next(request)
 
-    # Re-inject body so the downstream app can still read it.
-    async def receive():
-        return {"type": "http.request", "body": body, "more_body": False}
-
-    request = request.__class__(request.scope, receive)
-
     user_id = _header(request.headers, "X-PCA-User")
     devspace = _header(request.headers, "X-PCA-DevSpace")
     team = _header(request.headers, "X-PCA-Team")
@@ -241,8 +260,22 @@ async def langfuse_io_middleware(request, call_next):
         if isinstance(payload, dict):
             input_data = _extract_input(payload)
             model = payload.get("model")
+            # vLLM only emits a final SSE usage chunk when include_usage is set.
+            if payload.get("stream"):
+                opts = payload.get("stream_options")
+                if not isinstance(opts, dict):
+                    opts = {}
+                opts["include_usage"] = True
+                payload["stream_options"] = opts
+                body = json.dumps(payload).encode("utf-8")
     except (json.JSONDecodeError, UnicodeDecodeError):
         input_data = body.decode("utf-8", errors="replace")
+
+    # Re-inject body so the downstream app can still read it (possibly rewritten).
+    async def receive():
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    request = request.__class__(request.scope, receive)
 
     response = await call_next(request)
 
