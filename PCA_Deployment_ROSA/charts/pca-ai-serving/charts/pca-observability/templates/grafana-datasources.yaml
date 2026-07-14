@@ -1,6 +1,7 @@
 {{- if .Values.grafana.enabled }}
 {{- $ns := include "pca-observability.namespace" . -}}
 {{- $thanos := include "pca-observability.thanosUrl" . -}}
+{{- $gpuNs := .Values.prometheus.gpuMetricsNamespace | default "nvidia-gpu-operator" -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -30,6 +31,24 @@ data:
         secureJsonData:
           httpHeaderValue1: __BEARER_TOKEN__
         editable: false
+      {{- if eq .Values.prometheus.accessMode "namespace" }}
+      # DCGM / nvidia metrics live in the GPU operator namespace, not AI serving.
+      - name: Prometheus GPU
+        type: prometheus
+        uid: prometheus-gpu
+        access: proxy
+        url: {{ $thanos }}
+        isDefault: false
+        jsonData:
+          httpMethod: GET
+          timeInterval: 30s
+          tlsSkipVerify: true
+          httpHeaderName1: Authorization
+          customQueryParameters: "namespace={{ $gpuNs }}"
+        secureJsonData:
+          httpHeaderValue1: __BEARER_TOKEN__
+        editable: false
+      {{- end }}
   entrypoint.sh: |
     #!/bin/sh
     set -eu

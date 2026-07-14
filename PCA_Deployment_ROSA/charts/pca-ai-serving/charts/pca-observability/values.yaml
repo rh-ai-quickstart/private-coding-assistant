@@ -139,11 +139,16 @@ langfuse:
 otelCollector:
   image: otel/opentelemetry-collector-contrib:0.120.0
   replicas: 1
+  # Log every span to collector stdout (noisy under continuous inference)
+  debugExporter: true
 prometheus:
   # cluster = Thanos :9091 + cluster-monitoring-view (ROSA full provision)
   # namespace = Thanos :9092 namespace tenancy (existing OpenShift)
   accessMode: cluster
   thanosUrl: ""
+  # Namespace that scrapes DCGM / nvidia GPU metrics (Board C). Used only when
+  # accessMode=namespace so Grafana can query those metrics without cluster RBAC.
+  gpuMetricsNamespace: nvidia-gpu-operator
 cost:
   # PLACEHOLDER — illustrative L40S on-demand from sizing doc; not billing truth
   gpuHourlyUsd: 1.86

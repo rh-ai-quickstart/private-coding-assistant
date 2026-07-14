@@ -50,8 +50,10 @@ data:
           Authorization: ${env:LANGFUSE_OTLP_AUTH}
         tls:
           insecure: true
+      {{- if .Values.otelCollector.debugExporter }}
       debug:
         verbosity: basic
+      {{- end }}
 
     service:
       extensions: [health_check]
@@ -59,7 +61,7 @@ data:
         traces:
           receivers: [otlp]
           processors: [transform, batch]
-          exporters: [otlphttp/langfuse, debug]
+          exporters: [otlphttp/langfuse{{- if .Values.otelCollector.debugExporter }}, debug{{- end }}]
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -26,11 +26,30 @@ subjects:
     name: pca-grafana
     namespace: {{ $ns }}
 {{- else }}
+{{- $gpuNs := .Values.prometheus.gpuMetricsNamespace | default "nvidia-gpu-operator" -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: pca-grafana-view
   namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: pca-grafana
+    namespace: {{ $ns }}
+---
+# Thanos :9092 tenancy: GPU panels query this namespace for DCGM metrics.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pca-grafana-view-{{ $ns }}
+  namespace: {{ $gpuNs }}
   labels:
     app.kubernetes.io/name: pca-grafana
     app.kubernetes.io/part-of: pca-observability
