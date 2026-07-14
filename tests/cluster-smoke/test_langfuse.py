@@ -50,27 +50,69 @@ def _pca_headers_from_continue(dev_namespace: str) -> dict[str, str]:
     return headers
 
 
+def _list_langfuse_traces(
+    ai_namespace: str,
+    token: str,
+    *,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    status, traces = oc.in_cluster_http(
+        ai_namespace,
+        f"{urls.langfuse_svc(ai_namespace)}/api/public/traces?limit={limit}",
+        headers={"Authorization": f"Basic {token}"},
+        insecure=False,
+        timeout_secs=30,
+    )
+    if status != 200 or not isinstance(traces, dict):
+        return []
+    data = traces.get("data") or []
+    return [t for t in data if isinstance(t, dict)]
+
+
 def _find_langfuse_trace(
     ai_namespace: str,
     token: str,
     *,
     marker: str,
 ) -> dict[str, Any] | None:
-    status, traces = oc.in_cluster_http(
-        ai_namespace,
-        f"{urls.langfuse_svc(ai_namespace)}/api/public/traces?limit=50",
-        headers={"Authorization": f"Basic {token}"},
-        insecure=False,
-        timeout_secs=30,
-    )
-    if status != 200 or not isinstance(traces, dict):
-        return None
-    for trace in traces.get("data") or []:
+    for trace in _list_langfuse_traces(ai_namespace, token):
         in_s = _as_text(trace.get("input"))
         out_s = _as_text(trace.get("output"))
         if marker in in_s and out_s.strip():
             return trace
     return None
+
+
+def _chat_completion(
+    ai_namespace: str,
+    gateway_v1: str,
+    model_id: str,
+    *,
+    messages: list[dict[str, str]],
+    headers: dict[str, str],
+    max_tokens: int = 32,
+) -> tuple[dict[str, Any], str]:
+    status, body = oc.in_cluster_http(
+        ai_namespace,
+        f"{gateway_v1}/chat/completions",
+        method="POST",
+        headers=headers,
+        json_body={
+            "model": model_id,
+            "messages": messages,
+            "stream": False,
+            "max_tokens": max_tokens,
+            "chat_template_kwargs": {"enable_thinking": False},
+        },
+        timeout_secs=180,
+    )
+    assert status == 200, f"chat returned {status}: {body!r}"
+    assert isinstance(body, dict), body
+    choices = body.get("choices") or []
+    assert choices, body
+    completion = oc.message_text(choices[0])
+    assert completion.strip(), f"empty completion: {body}"
+    return body, completion
 
 
 def test_langfuse_route(ai_namespace: str) -> None:
@@ -257,6 +299,111 @@ def test_langfuse_full_io_capture_when_middleware_present(
 
     assert found, (
         f"expected Langfuse trace with input containing {marker!r} and non-empty output"
+    )
+
+
+def test_langfuse_multi_turn_history_in_separate_traces(
+    ai_namespace: str,
+    gateway_v1: str,
+    model_id: str,
+) -> None:
+    """Two chat HTTP requests → two Langfuse traces; turn-2 input holds full history.
+
+    Each request gets a new trace_id (middleware does not update/merge prior turns).
+    Turn N stores whatever messages[] the client sent (usually full history) and only
+    the new assistant reply as output.
+    """
+    if not oc.resource_exists(
+        "configmap", "pca-langfuse-io-middleware", namespace=ai_namespace
+    ):
+        pytest.skip("full I/O middleware not deployed (ioCapture!=full or Langfuse off)")
+
+    token = _langfuse_basic_auth(ai_namespace)
+    stamp = int(time.time())
+    turn1_marker = f"pca-smoke-mt1-{stamp}"
+    turn2_marker = f"pca-smoke-mt2-{stamp}"
+    headers = {
+        "X-PCA-User": "smoke-multiturn",
+        "X-PCA-DevSpace": "smoke-ns",
+        "X-PCA-Team": "smoke",
+    }
+
+    turn1_messages = [
+        {
+            "role": "user",
+            "content": f"Reply with the single word alpha only. {turn1_marker}",
+        },
+    ]
+    _, turn1_reply = _chat_completion(
+        ai_namespace,
+        gateway_v1,
+        model_id,
+        messages=turn1_messages,
+        headers=headers,
+        max_tokens=16,
+    )
+
+    turn2_messages = [
+        *turn1_messages,
+        {"role": "assistant", "content": turn1_reply},
+        {
+            "role": "user",
+            "content": f"Reply with the single word beta only. {turn2_marker}",
+        },
+    ]
+    _chat_completion(
+        ai_namespace,
+        gateway_v1,
+        model_id,
+        messages=turn2_messages,
+        headers=headers,
+        max_tokens=16,
+    )
+
+    turn1_trace: dict[str, Any] | None = None
+    turn2_trace: dict[str, Any] | None = None
+    for _ in range(10):
+        time.sleep(5)
+        for trace in _list_langfuse_traces(ai_namespace, token):
+            in_s = _as_text(trace.get("input"))
+            out_s = _as_text(trace.get("output"))
+            if not out_s.strip():
+                continue
+            # Turn 1 only: first marker, not the follow-up (turn 2 also contains turn1_marker).
+            if turn1_marker in in_s and turn2_marker not in in_s:
+                turn1_trace = trace
+            if turn2_marker in in_s:
+                turn2_trace = trace
+        if turn1_trace is not None and turn2_trace is not None:
+            break
+
+    assert turn1_trace is not None, (
+        f"expected separate Langfuse trace for turn 1 with marker={turn1_marker!r}"
+    )
+    assert turn2_trace is not None, (
+        f"expected Langfuse trace for turn 2 with multi-turn input marker={turn2_marker!r}"
+    )
+    assert turn1_trace.get("id") != turn2_trace.get("id"), (
+        f"expected distinct traces per HTTP request, got same id={turn1_trace.get('id')!r}"
+    )
+
+    turn1_in = _as_text(turn1_trace.get("input"))
+    turn1_out = _as_text(turn1_trace.get("output"))
+    assert turn1_marker in turn1_in
+    assert turn1_out.strip(), turn1_trace
+
+    turn2_in = _as_text(turn2_trace.get("input"))
+    turn2_out = _as_text(turn2_trace.get("output"))
+    # Multi-turn conversation is stored on the *second* request's input.
+    assert turn1_marker in turn2_in, f"turn-2 input missing turn-1 user message: {turn2_in[:500]!r}"
+    assert turn2_marker in turn2_in, f"turn-2 input missing turn-2 user message: {turn2_in[:500]!r}"
+    assert "assistant" in turn2_in.lower() or turn1_reply[:20] in turn2_in, (
+        f"turn-2 input missing prior assistant turn: {turn2_in[:500]!r}"
+    )
+    assert turn2_out.strip(), turn2_trace
+    # Output is only the new assistant reply for that request (not the request messages[]).
+    assert turn1_marker not in turn2_out, (
+        f"turn-2 output should not re-store turn-1 prompt text: {turn2_out[:300]!r}"
     )
 
 
