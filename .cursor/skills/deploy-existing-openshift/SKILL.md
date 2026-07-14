@@ -31,7 +31,7 @@ Grafana (boards B/C) deploys by default. Prometheus uses **namespace** tenancy (
 Optional Langfuse (traces + boards A/D):
 ```
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx \
-  HELM_ARGS='--set langfuse.enabled=true --set pca-observability.langfuse.enabled=true'
+  HELM_ARGS='--set pca-observability.langfuse.enabled=true'
 ```
 
 Retrieve credentials:
@@ -58,7 +58,7 @@ oc get route pca-langfuse -n <NS>
    - For multi-developer: each dev passes their own `DEV_NAMESPACE`. The first deploy creates global ConfigMaps; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false`.
    - Optional team attribution: `HELM_ARGS='--set devspaces[0].team=platform'` (sends `X-PCA-Team`).
    - Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` (and optional `X-PCA-Team`) for Langfuse.
-   - With Langfuse enabled, `langfuse.ioCapture` defaults to `full` (vLLM middleware stores prompt/completion bodies asynchronously). Opt out: `--set langfuse.ioCapture=metadata --set pca-observability.langfuse.ioCapture=metadata`.
+   - With Langfuse enabled, `pca-observability.langfuse.ioCapture` defaults to `full` (vLLM middleware stores prompt/completion bodies asynchronously). Opt out: `--set pca-observability.langfuse.ioCapture=metadata`.
 
 ### MCP (optional)
 

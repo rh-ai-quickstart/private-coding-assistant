@@ -1,5 +1,8 @@
 # LLMInferenceService — Qwen3-Coder-30B via llm-d (EPP + vLLM + Gateway API)
-{{- $ioFull := and .Values.langfuse.enabled (eq (.Values.langfuse.ioCapture | default "full") "full") }}
+{{- include "pca-ai-serving.langfuse.validate" . -}}
+{{- $langfuseEnabled := eq (include "pca-ai-serving.langfuseEnabled" .) "true" -}}
+{{- $ioCapture := include "pca-ai-serving.langfuseIoCapture" . -}}
+{{- $ioFull := and $langfuseEnabled (eq $ioCapture "full") }}
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
@@ -42,7 +45,7 @@ spec:
           - --tool-call-parser=qwen3_coder
           - --reasoning-parser=qwen3
           - --kv-cache-dtype=fp8
-          {{- if .Values.langfuse.enabled }}
+          {{- if $langfuseEnabled }}
           - --otlp-traces-endpoint=http://pca-otel-collector.{{ .Values.namespace }}.svc.cluster.local:4317
           - --collect-detailed-traces=all
           {{- end }}
@@ -50,9 +53,9 @@ spec:
           - --middleware
           - pca_langfuse_io.langfuse_io_middleware
           {{- end }}
-        {{- if or .Values.langfuse.enabled $ioFull }}
+        {{- if or $langfuseEnabled $ioFull }}
         env:
-          {{- if .Values.langfuse.enabled }}
+          {{- if $langfuseEnabled }}
           - name: OTEL_SERVICE_NAME
             value: vllm-qwen3-coder
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -64,7 +67,7 @@ spec:
           - name: PYTHONPATH
             value: /opt/pca
           - name: PCA_LANGFUSE_IO_CAPTURE
-            value: {{ .Values.langfuse.ioCapture | default "full" | quote }}
+            value: {{ $ioCapture | quote }}
           - name: LANGFUSE_BASE_URL
             value: http://pca-langfuse-web.{{ .Values.namespace }}.svc.cluster.local:3000
           - name: LANGFUSE_PUBLIC_KEY

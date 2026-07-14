@@ -57,15 +57,15 @@ Ships with `pca-ai-serving` via the `pca-observability` subchart:
 | Flag | Default | What you get |
 |------|---------|--------------|
 | `grafana.enabled` | `true` | 1-pod Grafana + boards B/C (latency, KV/GPU). Boards A/D when Langfuse is on |
-| `langfuse.enabled` | `false` | Langfuse + OTel Collector; wires vLLM OTLP in the same release |
-| `langfuse.ioCapture` | `full` | When Langfuse is on: store full prompt/completion via vLLM middleware (async). Set `metadata` to keep tokens/latency only |
+| `pca-observability.langfuse.enabled` | `false` | Langfuse + OTel Collector; wires vLLM OTLP in the same release |
+| `pca-observability.langfuse.ioCapture` | `full` | When Langfuse is on: store full prompt/completion via vLLM middleware (async). Set `metadata` to keep tokens/latency only |
 
 Existing OpenShift uses Prometheus **namespace** tenancy (`:9092`). ROSA full provision uses **cluster** monitoring (`:9091` + `cluster-monitoring-view`).
 
 ```bash
-# Opt in to Langfuse (full I/O capture is default — keep grafana + pca-observability flags in sync)
+# Opt in to Langfuse (full I/O capture is default)
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx \
-  HELM_ARGS='--set langfuse.enabled=true --set pca-observability.langfuse.enabled=true'
+  HELM_ARGS='--set pca-observability.langfuse.enabled=true'
 
 # Routes + secrets
 oc get route pca-grafana pca-langfuse -n $AI_NAMESPACE
