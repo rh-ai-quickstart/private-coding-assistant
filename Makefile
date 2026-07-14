@@ -36,7 +36,7 @@ COMPONENT ?=
 PYTEST_ARGS ?=
 N ?= 4
 
-.PHONY: build shell run help smoke ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
+.PHONY: build shell run help smoke unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -116,3 +116,6 @@ smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_NAMESPACE=, COMPONENT=, N=, PY
 	$(MAKE) -C tests/cluster-smoke smoke \
 		AI_NAMESPACE=$(AI_NAMESPACE) DEV_NAMESPACE=$(DEV_NAMESPACE) \
 		COMPONENT=$(COMPONENT) N=$(N) PYTEST_ARGS='$(PYTEST_ARGS)'
+
+unit: ## Local unit tests (PYTEST_ARGS=)
+	python -m pytest tests/unit -v $(PYTEST_ARGS)
