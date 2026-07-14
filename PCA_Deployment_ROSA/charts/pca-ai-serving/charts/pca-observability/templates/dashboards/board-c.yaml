@@ -2,6 +2,10 @@
 {{- $ns := include "pca-observability.namespace" . -}}
 {{- $gpu := .Values.cost.gpuHourlyUsd -}}
 {{- $ph := .Values.cost.gpuHourlyUsdIsPlaceholder -}}
+{{- $gpuDs := "prometheus" -}}
+{{- if eq .Values.prometheus.accessMode "namespace" -}}
+{{- $gpuDs = "prometheus-gpu" -}}
+{{- end -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -39,7 +43,7 @@ data:
           "type": "timeseries",
           "title": "GPU utilization (DCGM / nvidia)",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
           "targets": [
             {
               "expr": "avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle)",
@@ -52,7 +56,7 @@ data:
           "type": "timeseries",
           "title": "GPU memory used",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
           "targets": [
             {
               "expr": "avg(DCGM_FI_DEV_FB_USED) or avg(nvidia_gpu_memory_used_bytes)",

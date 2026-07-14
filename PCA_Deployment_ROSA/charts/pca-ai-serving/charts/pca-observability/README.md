@@ -12,6 +12,7 @@ Nested under `pca-ai-serving` — deploys with the same Helm release as llm-d/vL
 | `grafana.enabled` | `true` | Grafana 1-pod + boards B/C (A/D when Langfuse on) |
 | `langfuse.enabled` | `false` | Langfuse + OTel Collector + OTLP on LLMInferenceService (set as `pca-observability.langfuse.*` from parent) |
 | `langfuse.ioCapture` | `full` | `full` = vLLM middleware stores prompt/completion in Langfuse; `metadata` = OTEL tokens/latency only |
+| `otelCollector.debugExporter` | `true` | OTel Collector also logs every span to stdout; set `false` to silence under load |
 
 Parent LLMInferenceService wiring reads `pca-observability.langfuse.*` — one flag enables both the stack and vLLM OTLP/middleware.
 
@@ -34,9 +35,11 @@ HELM_ARGS='--set pca-observability.langfuse.enabled=true \
 | Mode | When | Thanos URL | RBAC |
 |------|------|------------|------|
 | `cluster` (default) | ROSA full provision | `:9091` | `cluster-monitoring-view` |
-| `namespace` | Existing OpenShift | `:9092` | namespace `view` |
+| `namespace` | Existing OpenShift | `:9092` | namespace `view` (+ GPU operator NS for Board C) |
 
 `deploy_existing_openshift/values-ai-serving.yaml` sets `accessMode: namespace`.
+
+In **namespace** mode, Board C GPU panels use a second datasource (`prometheus-gpu`) that queries `prometheus.gpuMetricsNamespace` (default `nvidia-gpu-operator`). Override if your DCGM exporter lives elsewhere (e.g. `openshift-nvidia-gpu-operator`).
 
 ## Routes
 
@@ -57,7 +60,9 @@ oc get secret pca-langfuse-credentials -n <AI_NS> -o jsonpath='{.data.init-proje
 oc get secret pca-langfuse-credentials -n <AI_NS> -o jsonpath='{.data.init-project-secret-key}' | base64 -d; echo
 ```
 
-Optional values overrides (`grafana.adminPassword`, `langfuse.salt`, …) skip random generation when set.
+Optional values overrides (`grafana.adminPassword`, `langfuse.credentials.salt`, …) skip random generation when set.
+
+**Salt note:** `salt` is plain text in `stringData` (Kubernetes base64-encodes once). If an older install double-encoded it, delete `pca-langfuse-credentials` and redeploy, or set `langfuse.credentials.salt` explicitly.
 
 ## Dashboards (A–D)
 

@@ -9,10 +9,10 @@ Failures only log; they never fail the client request.
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import json
 import logging
 import os
-import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -28,6 +28,10 @@ LANGFUSE_BASE_URL = os.environ.get(
 LANGFUSE_PUBLIC_KEY = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
 LANGFUSE_SECRET_KEY = os.environ.get("LANGFUSE_SECRET_KEY", "")
 ENABLED = os.environ.get("PCA_LANGFUSE_IO_CAPTURE", "full").lower() == "full"
+_EMIT_POOL = concurrent.futures.ThreadPoolExecutor(
+    max_workers=int(os.environ.get("PCA_LANGFUSE_IO_WORKERS", "4")),
+    thread_name_prefix="pca-langfuse-io",
+)
 
 _CAPTURE_SUFFIXES = ("/v1/chat/completions", "/v1/completions", "/chat/completions", "/completions")
 
@@ -174,7 +178,7 @@ def _post_langfuse(payload: dict[str, Any]) -> None:
         logger.warning(f"Langfuse I/O emit failed: {err}")
 
 
-def _emit_async(
+def _schedule_langfuse_emit(
     *,
     input_data: Any,
     output_data: Any,
@@ -184,6 +188,7 @@ def _emit_async(
     team: str | None,
     usage: dict[str, Any] | None,
 ) -> None:
+    """Queue a Langfuse ingest on the bounded emit pool (does not block the request)."""
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     trace_id = str(uuid.uuid4())
     gen_id = str(uuid.uuid4())
@@ -231,12 +236,7 @@ def _emit_async(
             },
         },
     ]
-    threading.Thread(
-        target=_post_langfuse,
-        args=({"batch": batch},),
-        name="pca-langfuse-io",
-        daemon=True,
-    ).start()
+    _EMIT_POOL.submit(_post_langfuse, {"batch": batch})
 
 
 async def langfuse_io_middleware(request, call_next):
@@ -302,7 +302,7 @@ async def langfuse_io_middleware(request, call_next):
                 if status_code < 400 and input_data is not None:
                     full = b"".join(chunks)
                     try:
-                        _emit_async(
+                        _schedule_langfuse_emit(
                             input_data=input_data,
                             output_data=_extract_output(full, content_type),
                             model=model,
@@ -332,7 +332,7 @@ async def langfuse_io_middleware(request, call_next):
         elif not isinstance(resp_body, bytes):
             resp_body = bytes(resp_body)
         if status_code < 400 and input_data is not None:
-            _emit_async(
+            _schedule_langfuse_emit(
                 input_data=input_data,
                 output_data=_extract_output(resp_body, content_type),
                 model=model,
