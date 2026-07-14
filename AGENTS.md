@@ -50,33 +50,6 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces \
 
 `ai-serving-deploy-existing-openshift` must run first (creates the AI serving namespace). `devspace-deploy-existing-openshift` requires the DevSpaces operator to be present on the cluster. The first devspace deploy creates global DevSpaces ConfigMaps in `openshift-devspaces`; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false` to avoid Helm ownership conflicts.
 
-### Observability (Grafana + optional Langfuse)
-
-Ships with `pca-ai-serving` via the `pca-observability` subchart:
-
-| Flag | Default | What you get |
-|------|---------|--------------|
-| `grafana.enabled` | `true` | 1-pod Grafana + boards B/C (latency, KV/GPU). Boards A/D when Langfuse is on |
-| `pca-observability.langfuse.enabled` | `false` | Langfuse + OTel Collector; wires vLLM OTLP in the same release |
-| `pca-observability.langfuse.ioCapture` | `full` | When Langfuse is on: store full prompt/completion via vLLM middleware (async). Set `metadata` to keep tokens/latency only |
-
-Existing OpenShift uses Prometheus **namespace** tenancy (`:9092`). ROSA full provision uses **cluster** monitoring (`:9091` + `cluster-monitoring-view`).
-
-```bash
-# Opt in to Langfuse (full I/O capture is default)
-make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx \
-  HELM_ARGS='--set pca-observability.langfuse.enabled=true'
-
-# Routes + secrets
-oc get route pca-grafana pca-langfuse -n $AI_NAMESPACE
-oc get secret pca-grafana-admin -n $AI_NAMESPACE -o jsonpath='{.data.admin-password}' | base64 -d; echo
-oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init-user-password}' | base64 -d; echo
-```
-
-**GPU $/hr PLACEHOLDER:** `cost.gpuHourlyUsd: 1.86` is illustrative L40S on-demand from the sizing doc — **not** billing truth. Override per cluster and set `cost.gpuHourlyUsdIsPlaceholder: false`.
-
-**Attribution:** Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` / optional `X-PCA-Team` (from `devspaces[].team`). Full prompt/completion bodies go to Langfuse via the vLLM middleware when `ioCapture=full`. See `pca-ai-serving/charts/pca-observability/README.md`.
-
 #### Parameters
 
 | Variable | Default | Used by |
@@ -84,6 +57,7 @@ oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init
 | `AI_NAMESPACE` | `private-assistant-ai-serving` | Both targets — the AI serving namespace |
 | `DEV_NAMESPACE` | *(required)* | devspace target — the developer's namespace |
 | `HF_TOKEN` | from `.env` | ai-serving target — HuggingFace token |
+| `MCP_ENABLED` | `false` | Both targets — enable `pca-mcp` + IDE MCP wiring |
 
 ### Cluster smoke tests (developer-only)
 
@@ -103,7 +77,7 @@ Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OT
 PCA_Deployment_ROSA/          # Full ROSA (AWS) deployment
 ├── terraform/                # Cluster provisioning (VPC, ROSA, GPU node pool)
 └── charts/
-    ├── pca-platform-config/  # Namespace, RBAC, secrets, DSC (+ optional guardrails)
+    ├── pca-platform-config/  # Namespace, RBAC, secrets, DSC (+ optional guardrails, pca-mcp)
     ├── pca-ai-serving/       # LLMInferenceService, PVC, HardwareProfile, pca-observability
     │   └── charts/pca-observability/  # Grafana + optional Langfuse/OTel Collector
     └── pca-devspaces/        # Per-developer DevWorkspaces + Roo/Continue/Cline ConfigMaps + global DevSpaces config
