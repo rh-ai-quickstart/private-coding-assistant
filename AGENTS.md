@@ -2,64 +2,45 @@
 
 Deploy a private, self-hosted AI coding assistant on OpenShift so developers each get their own namespace with an AI-powered IDE — no code leaves the cluster.
 
-## Deployment Options
+## Charts (waves)
 
-### 1. ROSA / ARO — Full from-scratch deployment
+ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
 
-Provisions a new cluster (ROSA on AWS or ARO on Azure) with Terraform, then deploys everything via ArgoCD (GitOps).
+| Chart | Wave | What it deploys | Namespaces / where |
+|-------|------|-----------------|-------------------|
+| `pca-app-of-apps` | root | AppProject + child Applications; sync-wave ordering | `openshift-gitops` (no workloads) |
+| `pca-operators` | 1 | Operator Subscriptions, cert-manager, LWS | `redhat-ods-operator` (RHOAI), `nvidia-gpu-operator`, `openshift-devspaces`, `openshift-nfd`, cert-manager, LWS |
+| `pca-platform-config` | 2 | Namespaces, HF token, DSC/DSCI, NFD, NVIDIA ClusterPolicy, CheCluster, OAuth HTPasswd, Maas gateway, LWS CR; optional `pca-guardrails` / `pca-mcp` | AI ns (default `ai-serving`); optional per-dev namespaces |
+| `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), gateway + HTTPRoute; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
+| `pca-devspaces` | 4 | DevWorkspace, Roo/Continue/Cline ConfigMaps, RBAC; global DevSpaces ConfigMaps | Per-dev ns; globals in `openshift-devspaces` |
 
-```
-cd PCA_Deployment_ROSA   # or PCA_Deployment_ARO
-# 1. Configure terraform/terraform.tfvars
-# 2. terraform init && terraform apply
-# 3. oc login to the new cluster
-# 4. Bootstrap ArgoCD — ArgoCD syncs all Helm charts automatically
-```
+## Where each target deploys
 
-### 2. Existing OpenShift — Helm-only onto a running cluster
+| Target | Charts |
+|--------|--------|
+| **ROSA / ARO** | All five via ArgoCD |
+| **Existing OpenShift** | `pca-platform-config`, `pca-ai-serving`, `pca-devspaces` only (Helm) |
 
-No infrastructure provisioning. Deploys directly via Helm onto a cluster that already has RHOAI, GPU operator, and DevSpaces installed.
+Existing OpenShift uses the charts under `PCA_Deployment_ROSA/charts` with overrides in `deploy_existing_openshift/`.
 
-Two separate targets:
+ARO charts are not being updated; ARO will migrate to the ROSA charts later.
 
-| Target | What it deploys |
-|--------|----------------|
-| `make ai-serving-deploy-existing-openshift` | AI serving backend (once per cluster) — namespace, HF token secret, model-cache PVC, LLMInferenceService (Qwen3-Coder-30B via llm-d/vLLM on GPU), Grafana (default on); optional Langfuse + OTel Collector |
-| `make devspace-deploy-existing-openshift` | Single developer workspace (per developer) — DevWorkspace with Roo Code, Continue, and Cline pre-configured to hit the cluster-internal llm-d endpoint, plus global DevSpaces ConfigMaps (Continue, VS Code extensions). Roo/Continue/Cline send `X-PCA-*` attribution headers |
+## ROSA / ARO — full from-scratch
 
-#### Single-developer setup (everything in one namespace)
+Terraform provisions the cluster; GitOps (`pca-app-of-apps`) syncs the five charts.
 
-```bash
-# 1. oc login to your cluster
-# 2. Set HF_TOKEN in .env or pass it directly
-make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
-make devspace-deploy-existing-openshift DEV_NAMESPACE=private-assistant-ai-serving
-```
+- ROSA: [PCA_Deployment_ROSA/README.md](PCA_Deployment_ROSA/README.md)
+- ARO: [PCA_Deployment_ARO/README.md](PCA_Deployment_ARO/README.md)
 
-#### Multi-developer setup (shared AI serving, separate devspaces)
+## Existing OpenShift — Helm-only
 
-```bash
-# 1. Deploy AI serving once
-make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
+No infrastructure provisioning. Deploys onto a cluster that already has RHOAI, GPU operator, and DevSpaces installed. Uses ROSA charts via `make ai-serving-deploy-existing-openshift` (once) and `make devspace-deploy-existing-openshift` (one or more developers).
 
-# 2. Each developer deploys their own workspace pointing to the shared AI serving
-make devspace-deploy-existing-openshift DEV_NAMESPACE=itay-devspaces
-make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces \
-  HELM_ARGS='--set devspacesGlobalConfig.enabled=false'
-```
+Deploy AI serving first, then each DevSpace into its own `DEV_NAMESPACE` (or the AI ns for a single-dev setup). The first DevSpace release owns the global ConfigMaps in `openshift-devspaces`; later ones must pass `HELM_ARGS='--set devspacesGlobalConfig.enabled=false'` or Helm conflicts.
 
-`ai-serving-deploy-existing-openshift` must run first (creates the AI serving namespace). `devspace-deploy-existing-openshift` requires the DevSpaces operator to be present on the cluster. The first devspace deploy creates global DevSpaces ConfigMaps in `openshift-devspaces`; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false` to avoid Helm ownership conflicts.
+Details: [deploy_existing_openshift/README.md](deploy_existing_openshift/README.md).
 
-#### Parameters
-
-| Variable | Default | Used by |
-|----------|---------|---------|
-| `AI_NAMESPACE` | `private-assistant-ai-serving` | Both targets — the AI serving namespace |
-| `DEV_NAMESPACE` | *(required)* | devspace target — the developer's namespace |
-| `HF_TOKEN` | from `.env` | ai-serving target — HuggingFace token |
-| `MCP_ENABLED` | `false` | Both targets — enable `pca-mcp` + IDE MCP wiring |
-
-### Cluster smoke tests (developer-only)
+## Cluster smoke tests (developer-only)
 
 After the stack is deployed, verify components against the live cluster (not CI):
 
@@ -74,22 +55,25 @@ Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OT
 ## Directory Structure
 
 ```
-PCA_Deployment_ROSA/          # Full ROSA (AWS) deployment
+PCA_Deployment_ROSA/          # Full ROSA (AWS) deployment — source of truth for charts
 ├── terraform/                # Cluster provisioning (VPC, ROSA, GPU node pool)
 └── charts/
+    ├── pca-app-of-apps/      # Root ArgoCD AppProject + child Applications
+    ├── pca-operators/        # Operator Subscriptions (RHOAI, GPU, DevSpaces, NFD, …)
     ├── pca-platform-config/  # Namespace, RBAC, secrets, DSC (+ optional guardrails, pca-mcp)
     ├── pca-ai-serving/       # LLMInferenceService, PVC, HardwareProfile, pca-observability
     │   └── charts/pca-observability/  # Grafana + optional Langfuse/OTel Collector
-    └── pca-devspaces/        # Per-developer DevWorkspaces + Roo/Continue/Cline ConfigMaps + global DevSpaces config
+    └── pca-devspaces/        # Per-developer DevWorkspaces + Roo/Continue/Cline + global config
 
-PCA_Deployment_ARO/           # Full ARO (Azure) deployment
-├── terraform/                # Cluster provisioning (VNet, ARO, GPU node pool)
+PCA_Deployment_ARO/           # Full ARO (Azure) — charts lag; will migrate to ROSA charts
+├── terraform/
 └── charts/
 
-deploy_existing_openshift/    # Helm value overrides (reuses ROSA charts with flags disabled)
-├── values-platform-config.yaml   # Disables cluster-scoped resources
-├── values-ai-serving.yaml        # Disables cluster-scoped resources; Prometheus namespace mode
-└── values-devspaces.yaml         # Single devspace, namespace from Helm release
+deploy_existing_openshift/    # Helm value overrides (reuses ROSA charts)
+├── README.md                 # Deploy steps + parameters
+├── values-platform-config.yaml
+├── values-ai-serving.yaml
+└── values-devspaces.yaml
 
-tests/cluster-smoke/              # Developer-only pytest smoke suite (`make smoke`)
+tests/cluster-smoke/          # Developer-only pytest smoke suite (`make smoke`)
 ```
