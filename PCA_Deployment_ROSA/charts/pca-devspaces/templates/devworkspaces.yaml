@@ -79,22 +79,22 @@ spec:
           component: dev-tools
           commandLine: |
             mkdir -p ~/.config/opencode ~/.local/share/opencode
-            python3 << 'PYEOF'
-import json, os
-config = {
-    "$schema": "https://opencode.ai/config.json",
-    "provider": {
-        "vllm": {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": "Private AI Gateway (llm-d)",
-            "options": {"baseURL": os.environ["OPENAI_BASE_URL"]},
-            "models": {os.environ["VLLM_MODEL_ID"]: {"name": os.environ["VLLM_MODEL_ID"]}}
-        }
-    },
-    "model": "vllm/" + os.environ["VLLM_MODEL_ID"]
-}
-open(os.path.expanduser("~/.config/opencode/opencode.json"), "w").write(json.dumps(config, indent=2))
-PYEOF
+            python3 -c "
+            import json, os
+            config = {
+                '\x24schema': 'https://opencode.ai/config.json',
+                'provider': {
+                    'vllm': {
+                        'npm': '@ai-sdk/openai-compatible',
+                        'name': 'Private AI Gateway (llm-d)',
+                        'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
+                        'models': {os.environ['VLLM_MODEL_ID']: {'name': os.environ['VLLM_MODEL_ID']}}
+                    }
+                },
+                'model': 'vllm/' + os.environ['VLLM_MODEL_ID']
+            }
+            open(os.path.expanduser('~/.config/opencode/opencode.json'), 'w').write(json.dumps(config, indent=2))
+            "
             echo '{"vllm":{"type":"api","key":"EMPTY"}}' > ~/.local/share/opencode/auth.json
             echo "OpenCode config written"
       - id: download-opencode-extension
@@ -111,8 +111,14 @@ PYEOF
           label: "Start OpenCode Web UI"
           component: dev-tools
           commandLine: |
+            NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+            OPENCODE_SERVER_PASSWORD=$(oc get secret opencode-web-password -n "$NS" \
+              -o jsonpath='{.data.password}' | base64 -d)
+            export OPENCODE_SERVER_PASSWORD
+            printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
+            export PATH="/tmp:$PATH"
             nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
-            echo "OpenCode Web UI started on port 4096"
+            echo "OpenCode Web UI started on port 4096 (password-protected)"
     events:
       postStart:
         - write-opencode-config

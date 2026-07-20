@@ -46,4 +46,35 @@ roleRef:
   kind: Role
   name: workspace-pod-exec
   apiGroup: rbac.authorization.k8s.io
+{{- if eq ($devspace.type | default "continue") "opencode" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: opencode-web-secret-reader
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["opencode-web-password"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: opencode-web-secret-reader
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+subjects:
+  - kind: Group
+    name: system:serviceaccounts:{{ $ns }}
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: opencode-web-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
 {{- end }}

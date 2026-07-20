@@ -39,7 +39,9 @@ spec:
       USER root
       RUN curl -fsSL https://opencode.ai/install | OPENCODE_VERSION={{ .Values.opencodeBuild.opencodeVersion }} bash && \
           cp /home/user/.opencode/bin/opencode /usr/local/bin/opencode && \
-          chmod 755 /usr/local/bin/opencode
+          chmod 755 /usr/local/bin/opencode && \
+          printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open && \
+          chmod 755 /usr/local/bin/xdg-open
       RUN mkdir -p /home/user/.config/opencode /home/user/.local/share/opencode && \
           echo '{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Private AI Gateway (llm-d)","options":{"baseURL":"https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1","extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{"{{ .Values.modelId }}":{"name":"{{ .Values.modelId }}"}}}},"model":"vllm/{{ .Values.modelId }}"}' \
             > /home/user/.config/opencode/opencode.json && \

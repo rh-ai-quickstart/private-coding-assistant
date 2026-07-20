@@ -184,6 +184,18 @@ After the workspace is `Running 1/1`, the Web UI is available at the `opencode-w
 oc get routes -n <username>-devspaces | grep opencode-web
 ```
 
+The Web UI is password-protected (HTTP Basic Auth). Credentials:
+
+- **Username**: `opencode`
+- **Password**: retrieve with:
+
+```bash
+oc get secret opencode-web-password -n <username>-devspaces \
+  -o jsonpath='{.data.password}' | base64 -d
+```
+
+The password is generated once at first deploy and preserved across `helm upgrade` runs.
+
 The TUI (`opencode`) is available in the workspace terminal — use **Terminal: Create New Terminal (select a container)** and pick `dev-tools` to avoid the DevSpaces cursor focus issue.
 
 ### Local terminal (desktop OpenCode)
