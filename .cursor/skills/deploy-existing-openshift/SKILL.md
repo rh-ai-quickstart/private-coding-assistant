@@ -60,6 +60,30 @@ oc get route pca-langfuse -n <NS>
    - Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` (and optional `X-PCA-Team`) for Langfuse.
    - With Langfuse enabled, `pca-observability.langfuse.ioCapture` defaults to `full` (vLLM middleware stores prompt/completion bodies asynchronously). Opt out: `--set pca-observability.langfuse.ioCapture=metadata`.
 
+### OpenCode Devspace (per developer, alternative to Continue/Roo/Cline)
+
+OpenCode is a separate workspace type using a custom image with the OpenCode CLI pre-installed and a Web UI on port 4096.
+
+**First time only — build the image:**
+```bash
+oc start-build devspaces-opencode -n opencode-build --follow
+```
+(The BuildConfig is created by the first `devspace-opencode-deploy-existing-openshift` run.)
+
+**Deploy:**
+```bash
+make devspace-opencode-deploy-existing-openshift \
+  DEV_NAMESPACE=<username>-devspaces \
+  AI_NAMESPACE=<ai-namespace> \
+  DEV_USER=<username>
+```
+
+The user starts the workspace from the DevSpaces dashboard. The Web UI is password-protected (HTTP Basic Auth, username: `opencode`). Retrieve the password:
+```bash
+oc get secret opencode-web-password -n <username>-devspaces \
+  -o jsonpath='{.data.password}' | base64 -d
+```
+
 ### MCP (optional)
 
 ```bash
