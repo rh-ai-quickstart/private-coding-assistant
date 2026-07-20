@@ -1,6 +1,61 @@
 # Deploying on an Existing OpenShift Cluster
 
-This directory contains Helm values overrides for deploying the Private AI Code Assistant on an existing OpenShift cluster (where operators and platform resources are already provisioned).
+Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GPU operator, and DevSpaces already installed). Uses charts from `PCA_Deployment_ROSA/charts`.
+
+| Target | What it deploys |
+|--------|-----------------|
+| `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel |
+| `make devspace-deploy-existing-openshift` | Per-developer DevWorkspace (Roo/Continue/Cline → cluster llm-d), plus global DevSpaces ConfigMaps |
+
+`ai-serving-deploy-existing-openshift` must run first. The first devspace deploy creates global ConfigMaps in `openshift-devspaces`; subsequent deploys should set `devspacesGlobalConfig.enabled=false`.
+
+### Single-developer setup (everything in one namespace)
+
+```bash
+# 1. oc login to your cluster
+# 2. Set HF_TOKEN in .env or pass it directly
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
+make devspace-deploy-existing-openshift DEV_NAMESPACE=private-assistant-ai-serving
+```
+
+### Multi-developer setup (shared AI serving, separate devspaces)
+
+```bash
+# 1. Deploy AI serving once
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
+
+# 2. Each developer deploys their own workspace pointing to the shared AI serving
+make devspace-deploy-existing-openshift DEV_NAMESPACE=itay-devspaces
+make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces \
+  HELM_ARGS='--set devspacesGlobalConfig.enabled=false'
+```
+
+## Parameters
+
+| Variable | Default | Used by | Notes |
+|----------|---------|---------|-------|
+| `AI_NAMESPACE` | `private-assistant-ai-serving` | Both | AI serving namespace |
+| `DEV_NAMESPACE` | *(required)* | Devspace | Developer namespace |
+| `HF_TOKEN` | from `.env` (`HUGGINGFACE_TOKEN`) | AI serving | HuggingFace token |
+| `MCP_ENABLED` | `false` | Both | Enable `pca-mcp` + IDE MCP wiring |
+| `HELM_ARGS` | *(empty)* | Both | Extra `helm upgrade --install` flags |
+
+### Common `HELM_ARGS`
+
+| Flag | When |
+|------|------|
+| `--set devspacesGlobalConfig.enabled=false` | 2nd+ developer (avoid Helm ownership of global ConfigMaps in `openshift-devspaces`) |
+| `--set pca-observability.langfuse.enabled=true` | Opt in Langfuse (+ OTel) with AI serving |
+| `--set guardrails.enabled=true --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080` | Route IDE chat through guardrails on a devspace |
+
+### Related make targets
+
+| Target | Purpose |
+|--------|---------|
+| `make setup-idp` | HTPasswd IDP from `values-platform-config.yaml` |
+| `make mcp-enable` / `make mcp-disable` | Toggle MCP on an already-deployed stack (`AI_NAMESPACE=`, `DEV_NAMESPACE=`) |
+| `make ai-serving-undeploy-existing-openshift` | Remove AI serving + delete `AI_NAMESPACE` |
+| `make devspace-undeploy-existing-openshift` | Remove one devspace (`DEV_NAMESPACE=` required) |
 
 ## Authentication and Identity Provider Configuration
 
