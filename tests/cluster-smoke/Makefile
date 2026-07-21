@@ -17,7 +17,7 @@ help: ## Show smoke-test help
 	@echo "Usage:"
 	@echo "  make smoke AI_NAMESPACE=<ns> [DEV_NAMESPACE=<ns>] [COMPONENT=<marker>] [N=4] [PYTEST_ARGS='...']"
 	@echo ""
-	@echo "Markers: readiness vllm grafana langfuse otel devspaces guardrails"
+	@echo "Markers: readiness vllm grafana langfuse otel devspaces guardrails ai_gateway"
 	@echo "Parallelism: N=4 by default (pytest-xdist). Use N=1 for serial."
 	@echo "Example: make smoke COMPONENT=vllm AI_NAMESPACE=ai-serving"
 

@@ -6,9 +6,19 @@ import json
 
 import pytest
 
-from pca_smoke import oc
+from pca_smoke import oc, urls
 
 pytestmark = pytest.mark.devspaces
+
+
+def _assert_gateway_or_proxy_url(text: str, ai_namespace: str, config_name: str) -> None:
+    """IDE configs should hit RHCL (default), llm-d escape hatch, or guardrails."""
+    assert (
+        f"{urls.AI_GATEWAY_NAME}-{urls.GATEWAY_CLASS}.{ai_namespace}" in text
+        or f"{urls.GATEWAY_NAME}-{urls.GATEWAY_CLASS}.{ai_namespace}" in text
+        or "guardrails-proxy" in text
+        or urls.GUARDRAILS_PROXY in text
+    ), f"{config_name} does not reference RHCL / llm-d / guardrails:\n{text[:500]}"
 
 
 def test_continue_configmap(require_dev_namespace: str, ai_namespace: str) -> None:
@@ -19,14 +29,10 @@ def test_continue_configmap(require_dev_namespace: str, ai_namespace: str) -> No
     data = oc.configmap_data("continue-config", ns)
     yaml_text = data.get("config.yaml") or ""
     assert "X-PCA-User" in yaml_text or "X-PCA-DevSpace" in yaml_text, yaml_text[:500]
-    assert (
-        f"llm-d-gateway-data-science-gateway-class.{ai_namespace}" in yaml_text
-        or "guardrails-proxy" in yaml_text
-        or "/v1" in yaml_text
-    ), f"continue config does not reference gateway/proxy:\n{yaml_text[:500]}"
+    _assert_gateway_or_proxy_url(yaml_text, ai_namespace, "continue-config")
 
 
-def test_roo_code_configmap(require_dev_namespace: str) -> None:
+def test_roo_code_configmap(require_dev_namespace: str, ai_namespace: str) -> None:
     ns = require_dev_namespace
     assert oc.resource_exists(
         "configmap", "roo-code-provider-config", namespace=ns
@@ -36,6 +42,19 @@ def test_roo_code_configmap(require_dev_namespace: str) -> None:
     assert "X-PCA-User" in joined or "openAiHeaders" in joined or "X-PCA" in joined, (
         f"roo config missing attribution headers: {list(data.keys())}"
     )
+    _assert_gateway_or_proxy_url(joined, ai_namespace, "roo-code-provider-config")
+
+
+def test_cline_configmap(require_dev_namespace: str, ai_namespace: str) -> None:
+    ns = require_dev_namespace
+    if not oc.resource_exists("configmap", "cline-provider-config", namespace=ns):
+        pytest.skip(f"cline-provider-config missing in {ns}")
+    data = oc.configmap_data("cline-provider-config", ns)
+    joined = "\n".join(data.values())
+    assert "X-PCA-User" in joined or "X-PCA-DevSpace" in joined or "openAiHeaders" in joined, (
+        f"cline config missing attribution headers: {list(data.keys())}"
+    )
+    _assert_gateway_or_proxy_url(joined, ai_namespace, "cline-provider-config")
 
 
 def test_devworkspace_exists(require_dev_namespace: str) -> None:
@@ -52,16 +71,34 @@ def test_harness_chat_with_attribution(
     gateway_v1: str,
     model_id: str,
 ) -> None:
-    """Simulate Roo/Continue: chat completion with X-PCA-* headers."""
+    """Simulate Roo/Continue: chat with X-PCA-* via default IDE path (RHCL) or llm-d."""
     ns = require_dev_namespace
+    headers: dict[str, str] = {
+        "X-PCA-User": "smoke-test",
+        "X-PCA-DevSpace": ns,
+    }
+    # Default IDE path is RHCL + API key; fall back to llm-d when front door absent.
+    if oc.resource_exists("gateway", urls.AI_GATEWAY_NAME, namespace=ai_namespace):
+        if not oc.resource_exists(
+            "secret", urls.AI_GATEWAY_APIKEY_SECRET, namespace=ns
+        ):
+            pytest.skip(
+                f"RHCL gateway present but secret/{urls.AI_GATEWAY_APIKEY_SECRET} "
+                f"missing in {ns}"
+            )
+        base = urls.ai_gateway_v1(ai_namespace)
+        api_key = oc.secret_data(
+            urls.AI_GATEWAY_APIKEY_SECRET, urls.AI_GATEWAY_APIKEY_KEY, ns
+        )
+        headers["Authorization"] = f"Bearer {api_key}"
+    else:
+        base = gateway_v1
+
     status, body = oc.in_cluster_http(
         ai_namespace,
-        f"{gateway_v1}/chat/completions",
+        f"{base}/chat/completions",
         method="POST",
-        headers={
-            "X-PCA-User": "smoke-test",
-            "X-PCA-DevSpace": ns,
-        },
+        headers=headers,
         json_body={
             "model": model_id,
             "messages": [{"role": "user", "content": "Reply with the single word pong."}],

@@ -52,6 +52,27 @@ def gateway_v1(ai_namespace: str) -> str:
     return urls.gateway_v1(ai_namespace)
 
 
+@pytest.fixture(scope="session")
+def require_ai_gateway(ai_namespace: str) -> str:
+    if not oc.resource_exists("gateway", urls.AI_GATEWAY_NAME, namespace=ai_namespace):
+        pytest.skip(
+            f"Gateway/{urls.AI_GATEWAY_NAME} not deployed in {ai_namespace}"
+        )
+    status = oc.condition_status(
+        "gateway", urls.AI_GATEWAY_NAME, "Accepted", ai_namespace
+    )
+    if status != "True":
+        pytest.skip(
+            f"Gateway/{urls.AI_GATEWAY_NAME} Accepted={status!r} in {ai_namespace}"
+        )
+    return ai_namespace
+
+
+@pytest.fixture(scope="session")
+def ai_gateway_v1(require_ai_gateway: str) -> str:
+    return urls.ai_gateway_v1(require_ai_gateway)
+
+
 def require_resource(resource: str, name: str, namespace: str, reason: str) -> None:
     if not oc.resource_exists(resource, name, namespace=namespace):
         pytest.skip(reason)
@@ -101,3 +122,15 @@ def require_dev_namespace(dev_namespace: str | None) -> str:
     if not dev_namespace:
         pytest.skip("DEV_NAMESPACE not set — skipping DevSpaces tests")
     return dev_namespace
+
+
+@pytest.fixture
+def require_opencode(require_dev_namespace: str) -> dict:
+    """Skip unless a Running OpenCode DevWorkspace exists in DEV_NAMESPACE."""
+    ns = require_dev_namespace
+    dw = oc.find_running_opencode_devworkspace(ns)
+    if dw is None:
+        pytest.skip(
+            f"no Running OpenCode DevWorkspace in {ns} — skipping OpenCode tests"
+        )
+    return dw

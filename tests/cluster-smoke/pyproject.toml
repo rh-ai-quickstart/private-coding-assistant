@@ -21,6 +21,7 @@ markers = [
   "otel: OTel Collector (skipped if Langfuse off)",
   "devspaces: DevSpaces config + harness request",
   "guardrails: Guardrails proxy (skipped if not deployed)",
+  "ai_gateway: RHCL front door (AuthPolicy, API keys, IDE configs; skipped if not deployed)",
 ]
 testpaths = ["."]
 pythonpath = ["."]
