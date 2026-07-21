@@ -30,6 +30,24 @@ def test_gateway_accepted(ai_namespace: str) -> None:
     assert status == "True", f"Gateway/{urls.GATEWAY_NAME} Accepted={status!r}"
 
 
+def test_ai_gateway_accepted_if_present(ai_namespace: str) -> None:
+    """RHCL front door is optional until charts are synced with aiGateway.enabled."""
+    if not oc.resource_exists(
+        "gateway", urls.AI_GATEWAY_NAME, namespace=ai_namespace
+    ):
+        pytest.skip(f"Gateway/{urls.AI_GATEWAY_NAME} not deployed in {ai_namespace}")
+    status = oc.condition_status(
+        "gateway", urls.AI_GATEWAY_NAME, "Accepted", ai_namespace
+    )
+    assert status == "True", f"Gateway/{urls.AI_GATEWAY_NAME} Accepted={status!r}"
+    assert oc.resource_exists(
+        "httproute", urls.AI_GATEWAY_HTTP_ROUTE, namespace=ai_namespace
+    ), f"HTTPRoute/{urls.AI_GATEWAY_HTTP_ROUTE} missing in {ai_namespace}"
+    assert oc.resource_exists(
+        "authpolicy", urls.AI_GATEWAY_AUTH_POLICY, namespace=ai_namespace
+    ), f"AuthPolicy/{urls.AI_GATEWAY_AUTH_POLICY} missing in {ai_namespace}"
+
+
 def test_model_cache_pvc_bound(ai_namespace: str) -> None:
     assert oc.resource_exists(
         "pvc", urls.PVC_NAME, namespace=ai_namespace

@@ -121,6 +121,72 @@ def configmap_data(name: str, namespace: str) -> dict[str, str]:
     return obj.get("data") or {}
 
 
+def list_resource_names(
+    resource: str,
+    namespace: str,
+    *,
+    label_selector: str | None = None,
+) -> list[str]:
+    args = ["get", resource, "-n", namespace, "-o", "jsonpath={.items[*].metadata.name}"]
+    if label_selector:
+        args.extend(["-l", label_selector])
+    result = run_oc(*args, check=False)
+    if result.returncode != 0:
+        return []
+    return [n for n in result.stdout.split() if n]
+
+
+def list_devworkspaces(namespace: str) -> list[dict[str, Any]]:
+    result = run_oc(
+        "get", "devworkspace", "-n", namespace, "-o", "json", check=False
+    )
+    if result.returncode != 0:
+        return []
+    try:
+        return list((json.loads(result.stdout).get("items") or []))
+    except json.JSONDecodeError:
+        return []
+
+
+def is_opencode_devworkspace(devworkspace: dict[str, Any]) -> bool:
+    """True when the DevWorkspace is an OpenCode workspace (image or name)."""
+    name = (devworkspace.get("metadata") or {}).get("name") or ""
+    if "opencode" in name.lower():
+        return True
+    for component in (
+        (devworkspace.get("spec") or {}).get("template") or {}
+    ).get("components") or []:
+        image = ((component.get("container") or {}).get("image") or "")
+        if "devspaces-opencode" in image or "/opencode" in image:
+            return True
+    return False
+
+
+def find_running_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
+    """Return a Running OpenCode DevWorkspace in namespace, or None."""
+    for item in list_devworkspaces(namespace):
+        if not is_opencode_devworkspace(item):
+            continue
+        phase = (item.get("status") or {}).get("phase") or ""
+        if phase == "Running":
+            return item
+    return None
+
+
+def devworkspace_env(devworkspace: dict[str, Any]) -> dict[str, str]:
+    """Flatten container env name→value from a DevWorkspace spec."""
+    env: dict[str, str] = {}
+    for component in (
+        (devworkspace.get("spec") or {}).get("template") or {}
+    ).get("components") or []:
+        for entry in (component.get("container") or {}).get("env") or []:
+            name = entry.get("name")
+            if not name or "value" not in entry:
+                continue
+            env[str(name)] = str(entry.get("value") or "")
+    return env
+
+
 def in_cluster_http(
     namespace: str,
     url: str,

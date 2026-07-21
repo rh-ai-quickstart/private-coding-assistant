@@ -27,6 +27,7 @@ make smoke COMPONENT=otel
 make smoke COMPONENT=devspaces DEV_NAMESPACE=private-assistant-itay
 make smoke COMPONENT=langfuse DEV_NAMESPACE=private-assistant-itay   # includes DevSpace→Langfuse I/O test when DEV_NAMESPACE set
 make smoke COMPONENT=guardrails
+make smoke COMPONENT=ai_gateway DEV_NAMESPACE=private-assistant-itay
 make smoke COMPONENT=readiness
 
 # Free-form pytest filter
@@ -48,7 +49,7 @@ make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=dev1-devspaces
 |----------|---------|---------|
 | `AI_NAMESPACE` | `private-assistant-ai-serving` | AI serving / observability namespace |
 | `DEV_NAMESPACE` | _(empty)_ | DevSpaces namespace; DevSpaces tests skip if unset |
-| `COMPONENT` | _(empty)_ | Pytest marker: `readiness`, `vllm`, `grafana`, `langfuse`, `otel`, `devspaces`, `guardrails` |
+| `COMPONENT` | _(empty)_ | Pytest marker: `readiness`, `vllm`, `grafana`, `langfuse`, `otel`, `devspaces`, `guardrails`, `ai_gateway` |
 | `N` | `4` | pytest-xdist workers (`-n`); use `N=1` for serial |
 | `PYTEST_ARGS` | _(empty)_ | Extra args passed to pytest |
 
@@ -56,13 +57,14 @@ Optional components (Langfuse, OTel, Guardrails, DevSpaces) **auto-skip** when r
 
 ## What is checked
 
-1. **readiness** — LLMIS Ready, Gateway Accepted, PVC Bound, predictor pods, optional Grafana/Langfuse/OTel/Guardrails/DevWorkspace
-2. **vllm** — `/v1/models`, chat, completions, streaming, tool-calling (with `enable_thinking: false`), workload `/health`
+1. **readiness** — LLMIS Ready, llm-d Gateway Accepted, optional RHCL `pca-ai-gateway` Accepted + local HTTPRoute + AuthPolicy, PVC Bound, predictor pods, optional Grafana/Langfuse/OTel/Guardrails/DevWorkspace
+2. **vllm** — `/v1/models`, chat, completions, streaming, tool-calling (with `enable_thinking: false`), workload `/health` (hits **llm-d** Gateway directly — inference layer, not RHCL)
 3. **grafana** — route, `/api/health`, Prometheus datasource, dashboard ConfigMaps, Prometheus via `/api/ds/query`
 4. **langfuse** — route, health, credentials, project API auth, short-named dependency Services, traces after chat
 5. **otel** — deploy Available, health extension
-6. **devspaces** — Continue/Roo ConfigMaps, DevWorkspace CR, harness chat with `X-PCA-*` headers
+6. **devspaces** — Continue/Roo/Cline ConfigMaps (RHCL default, or llm-d / guardrails), DevWorkspace CR, harness chat with `X-PCA-*` (and Bearer API key when RHCL is present)
 7. **guardrails** — `/healthz`, clean chat, injection block (soft-skip if warn mode)
+8. **ai_gateway** — RHCL Gateway Accepted, HTTPRoute + AuthPolicy present, API key auth (401/403 without/invalid key), per-DevSpace `pca-ai-gw-apikey` + AI ns mirror, chat happy path, Continue/Roo/Cline must use `pca-ai-gateway` host + non-`EMPTY` apiKey, IDE harness via gateway; **OpenCode** (skipped unless a Running OpenCode DevWorkspace exists in `DEV_NAMESPACE`): `OPENAI_API_KEY` matches Secret + RHCL URL, Secret → Bearer → `chat/completions` → 200 (skipped if gateway absent)
 
 In-cluster HTTP uses ephemeral `curlimages/curl` pods via `oc run` (gateway is ClusterIP-only).
 
