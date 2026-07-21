@@ -1,1 +1,9 @@
-{}
+# Operator install toggles (ROSA / ARO GitOps only).
+# Existing OpenShift assumes RHCL is already installed — see deploy_existing_openshift/README.md.
+operators:
+  rhcl:
+    enabled: true
+    namespace: kuadrant-system
+    channel: stable
+    # Must match GatewayClass controller for data-science-gateway-class (OpenShift AI).
+    gatewayControllerNames: "openshift.io/gateway-controller/v1"

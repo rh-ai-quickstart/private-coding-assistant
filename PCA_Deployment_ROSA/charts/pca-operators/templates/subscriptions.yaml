@@ -129,3 +129,53 @@ spec:
   name: nfd
   source: redhat-operators
   sourceNamespace: openshift-marketplace
+{{- if (.Values.operators).rhcl.enabled | default true }}
+---
+# Red Hat Connectivity Link (RHCL / Kuadrant) — AI Gateway auth + future quotas
+# Authorino and Limitador Operators are installed automatically as RHCL dependencies.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: kuadrant
+  namespace: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhcl-operator
+  namespace: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: {{ (.Values.operators).rhcl.channel | default "stable" }}
+  installPlanApproval: Automatic
+  name: rhcl-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  config:
+    env:
+    - name: ISTIO_GATEWAY_CONTROLLER_NAMES
+      # OpenShift AI data-science-gateway-class uses openshift.io/gateway-controller/v1
+      value: {{ (.Values.operators).rhcl.gatewayControllerNames | default "openshift.io/gateway-controller/v1" | quote }}
+---
+# Kuadrant CR deploys Authorino + Limitador instances used by AuthPolicy / RateLimitPolicy.
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: kuadrant
+  namespace: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec: {}
+{{- end }}
