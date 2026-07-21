@@ -3,6 +3,37 @@ clusterResources: true
 vllm:
   maxModelLen: 32768
 gatewayName: llm-d-gateway
+# RHCL AI Gateway in front of llm-d (auth + future multi-destination / quotas).
+# Does not replace llm-d-gateway / EPP / InferencePool.
+aiGateway:
+  enabled: true
+  name: pca-ai-gateway
+  gatewayClassName: data-science-gateway-class
+  # When true, DevSpaces IDEs skip RHCL and call llm-d directly (break-glass).
+  escapeHatchToLlmd: false
+  tls:
+    secretName: qwen3-coder-kserve-self-signed-certs
+  # Existing OpenShift has RHCL operator but may lack a Kuadrant CR — create one.
+  kuadrant:
+    create: true
+    namespace: kuadrant-system
+    name: kuadrant
+  backends:
+    local:
+      enabled: true
+    # Phase-1 stubs — enable later and route by OpenAI model name.
+    otherCluster:
+      enabled: false
+      url: ""
+    external:
+      enabled: false
+      url: ""
+  # Follow-up: RateLimitPolicy / TokenRateLimitPolicy (not enforced in Phase 1).
+  rateLimits:
+    enabled: false
+  # Follow-up: scale the front-door Gateway Deployment (not enforced in Phase 1).
+  ha:
+    replicas: 1
 # Observability (pca-observability subchart)
 # Installs when observability.enabled (default true because grafana.enabled defaults true).
 # Set observability.enabled=false to skip the entire subchart.

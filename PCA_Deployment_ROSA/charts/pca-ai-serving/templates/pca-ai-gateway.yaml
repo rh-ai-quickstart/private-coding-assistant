@@ -1,0 +1,41 @@
+{{- if .Values.aiGateway.enabled }}
+{{/*
+  RHCL AI Gateway front door (separate hop in front of llm-d).
+
+  Client URL (ClusterIP Service created by the Gateway controller):
+    https://{{ .Values.aiGateway.name }}-data-science-gateway-class.{{ .Values.namespace }}.svc.cluster.local/v1
+
+  Do not replace llm-d-gateway — traffic still flows RHCL → llm-d → EPP → vLLM.
+
+  Follow-ups (not enforced in Phase 1):
+    - RateLimitPolicy / TokenRateLimitPolicy (aiGateway.rateLimits)
+    - Multi-replica HA for the front-door Gateway (aiGateway.ha.replicas)
+    - otherCluster / external backends routed by OpenAI model name
+*/}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.aiGateway.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    istio.io/rev: openshift-gateway
+    kuadrant.io/gateway: "true"
+    app.kubernetes.io/component: pca-ai-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  gatewayClassName: {{ .Values.aiGateway.gatewayClassName | default "data-science-gateway-class" }}
+  listeners:
+  - name: https
+    port: 443
+    protocol: HTTPS
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: {{ .Values.aiGateway.tls.secretName | default "qwen3-coder-kserve-self-signed-certs" }}
+        kind: Secret
+    allowedRoutes:
+      namespaces:
+        from: Same
+{{- end }}

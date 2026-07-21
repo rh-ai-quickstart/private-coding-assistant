@@ -1,0 +1,31 @@
+{{- if .Values.aiGateway.enabled }}
+{{/*
+  Kuadrant CR deploys Authorino (+ Limitador) so AuthPolicy can enforce.
+  Required on existing OpenShift (pca-operators is ROSA/ARO only).
+  Idempotent if a cluster-wide Kuadrant already exists elsewhere — Authorino
+  is still shared; create only when aiGateway.kuadrant.create is true (default).
+*/}}
+{{- if (.Values.aiGateway.kuadrant).create | default true }}
+{{- $kNs := (.Values.aiGateway.kuadrant).namespace | default "kuadrant-system" }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $kNs }}
+  labels:
+    app.kubernetes.io/part-of: pca-ai-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: {{ (.Values.aiGateway.kuadrant).name | default "kuadrant" }}
+  namespace: {{ $kNs }}
+  labels:
+    app.kubernetes.io/part-of: pca-ai-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec: {}
+{{- end }}
+{{- end }}

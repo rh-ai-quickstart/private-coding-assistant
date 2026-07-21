@@ -5,6 +5,10 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     istio.io/rev: openshift-gateway
+  annotations:
+    # Auth is enforced at the RHCL front door (pca-ai-gateway AuthPolicy).
+    # Keep ODH from recreating kubernetesTokenReview AuthPolicies on this Gateway.
+    opendatahub.io/managed: "false"
 spec:
   gatewayClassName: data-science-gateway-class
   listeners:

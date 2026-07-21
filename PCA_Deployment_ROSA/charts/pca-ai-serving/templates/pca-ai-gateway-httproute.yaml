@@ -1,0 +1,39 @@
+{{- if and .Values.aiGateway.enabled .Values.aiGateway.backends.local.enabled }}
+{{/*
+  Route /v1 from the RHCL front door to the existing llm-d Gateway Service.
+  Service name follows Gateway API convention: {gatewayName}-{gatewayClassName}
+*/}}
+{{- $llmdSvc := printf "%s-%s" (.Values.gatewayName | default "llm-d-gateway") (.Values.aiGateway.gatewayClassName | default "data-science-gateway-class") }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.aiGateway.name }}-local
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: pca-ai-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parentRefs:
+  - name: {{ .Values.aiGateway.name }}
+    namespace: {{ .Values.namespace }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /v1
+    backendRefs:
+    - name: {{ $llmdSvc }}
+      port: 443
+    timeouts:
+      request: "0s"
+      backendRequest: "0s"
+{{- end }}
+{{- /* Stubs: enable otherCluster / external later and route by OpenAI model name */ -}}
+{{- if and .Values.aiGateway.enabled .Values.aiGateway.backends.otherCluster.enabled .Values.aiGateway.backends.otherCluster.url }}
+{{- fail "aiGateway.backends.otherCluster is a Phase-1 stub; set enabled=false until model-name routing is implemented" }}
+{{- end }}
+{{- if and .Values.aiGateway.enabled .Values.aiGateway.backends.external.enabled .Values.aiGateway.backends.external.url }}
+{{- fail "aiGateway.backends.external is a Phase-1 stub; set enabled=false until model-name routing is implemented" }}
+{{- end }}

@@ -1,1 +1,21 @@
-{}
+# ARO pca-ai-serving values (namespace often hardcoded in templates; kept for overrides).
+namespace: ai-serving
+aiGateway:
+  enabled: true
+  name: pca-ai-gateway
+  escapeHatchToLlmd: false
+  tls:
+    secretName: llm-d-gateway-tls
+  backends:
+    local:
+      enabled: true
+    otherCluster:
+      enabled: false
+      url: ""
+    external:
+      enabled: false
+      url: ""
+  rateLimits:
+    enabled: false
+  ha:
+    replicas: 1

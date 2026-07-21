@@ -1,0 +1,31 @@
+{{- if .Values.aiGateway.enabled }}
+{{/*
+  API-key AuthPolicy on the RHCL front-door HTTPRoute.
+  Keys are Secrets labeled app.kubernetes.io/component=pca-ai-gateway-apikey
+  (created per DevSpaces namespace by pca-devspaces into this AI serving namespace).
+  OpenAI-compatible clients send Authorization: Bearer <key> (Authorino default).
+*/}}
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: {{ .Values.aiGateway.name }}-apikey
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: pca-ai-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: {{ .Values.aiGateway.name }}-local
+  rules:
+    authentication:
+      "pca-ai-gateway-apikey":
+        apiKey:
+          allNamespaces: true
+          selector:
+            matchLabels:
+              app.kubernetes.io/component: pca-ai-gateway-apikey
+{{- end }}
