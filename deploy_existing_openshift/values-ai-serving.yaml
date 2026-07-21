@@ -6,3 +6,9 @@ pca-observability:
     accessMode: namespace
 vllm:
   maxModelLen: 49152
+# RHCL front door (requires RHCL operator already on cluster; chart creates Kuadrant CR).
+aiGateway:
+  enabled: true
+  escapeHatchToLlmd: false
+  kuadrant:
+    create: true

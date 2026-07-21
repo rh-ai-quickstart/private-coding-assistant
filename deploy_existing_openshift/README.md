@@ -4,10 +4,25 @@ Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GP
 
 | Target | What it deploys |
 |--------|-----------------|
-| `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel |
-| `make devspace-deploy-existing-openshift` | Per-developer DevWorkspace (Roo/Continue/Cline → cluster llm-d), plus global DevSpaces ConfigMaps |
+| `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel; RHCL AI Gateway front door |
+| `make devspace-deploy-existing-openshift` | Per-developer DevWorkspace (Roo/Continue/Cline → RHCL → llm-d), plus global DevSpaces ConfigMaps |
 
 `ai-serving-deploy-existing-openshift` must run first. The first devspace deploy creates global ConfigMaps in `openshift-devspaces`; subsequent deploys should set `devspacesGlobalConfig.enabled=false`.
+
+### Prerequisite: Red Hat Connectivity Link (RHCL)
+
+Existing OpenShift does **not** install RHCL via make. Before enabling the AI Gateway front door, ensure:
+
+- `rhcl-operator` Subscription is Succeeded (Authorino + Limitador come with it)
+- CRDs exist: `authpolicies.kuadrant.io` (and optionally `ratelimitpolicies.kuadrant.io`)
+- A `Kuadrant` CR exists (chart creates `kuadrant` in `kuadrant-system` when `aiGateway.kuadrant.create=true`)
+
+Auth for inference is enforced on **`pca-ai-gateway`** (API keys). The llm-d Gateway is annotated `opendatahub.io/managed=false` so OpenShift AI does not attach kubernetesTokenReview AuthPolicies that would break RHCL → llm-d.
+IDE traffic defaults to:
+
+`https://pca-ai-gateway-data-science-gateway-class.<AI_NAMESPACE>.svc.cluster.local/v1`
+
+Each DevSpaces namespace gets an API key Secret (`pca-ai-gw-apikey`); the same key is mirrored into the AI serving namespace for AuthPolicy validation (`pca-ai-gw-apikey-<devNamespace>`). Break-glass: `--set aiGateway.escapeHatchToLlmd=true` points IDEs at llm-d directly (no API key).
 
 ### Single-developer setup (everything in one namespace)
 
@@ -47,6 +62,8 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces \
 | `--set devspacesGlobalConfig.enabled=false` | 2nd+ developer (avoid Helm ownership of global ConfigMaps in `openshift-devspaces`) |
 | `--set pca-observability.langfuse.enabled=true` | Opt in Langfuse (+ OTel) with AI serving |
 | `--set guardrails.enabled=true --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080` | Route IDE chat through guardrails on a devspace |
+| `--set aiGateway.escapeHatchToLlmd=true` | Skip RHCL; IDEs call llm-d Gateway directly |
+| `--set aiGateway.enabled=false` | Disable RHCL front door resources / IDE RHCL URL |
 
 ### Related make targets
 
@@ -372,3 +389,14 @@ When switching from HTPasswd to enterprise IDP, the `devspaces.instances` list i
 ### Dev Spaces Authentication
 
 Dev Spaces inherits the cluster IDP automatically. Once users can `oc login`, they can access the Dev Spaces dashboard and create workspaces. Per-user namespace isolation is handled by the DevWorkspace controller using the authenticated user identity.
+
+## RHCL AI Gateway follow-ups (not Phase 1)
+
+Documented for later work — charts already stub the values:
+
+| Topic | Values stub | Notes |
+|-------|-------------|--------|
+| Rate / token limits | `aiGateway.rateLimits.enabled` | `RateLimitPolicy` / `TokenRateLimitPolicy` on `pca-ai-gateway` |
+| Front-door HA | `aiGateway.ha.replicas` | Scale the Gateway Deployment beyond 1 replica |
+| Other-cluster / external backends | `aiGateway.backends.otherCluster` / `external` | Enable + route by OpenAI `model` name |
+| Key audit | — | Optional per-developer key lifecycle beyond shared AuthPolicy accept-list |

@@ -13,6 +13,7 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
 2. **Cluster access** — run `oc whoami` directly on the host (not inside the container). If it fails, ask the user to log in.
 3. **AI serving namespace** — always use `private-assistant-ai-serving` (the default). Do not ask.
 4. **DevSpace namespace** — ask the user for a suffix. The namespace will be `private-assistant-<suffix>` (e.g. if the user says "itay", the namespace is `private-assistant-itay`).
+5. **RHCL (AI Gateway)** — existing OpenShift does not install the RHCL *operator* via make. Confirm `oc get crd authpolicies.kuadrant.io`. The ai-serving chart creates a `Kuadrant` CR in `kuadrant-system` when `aiGateway.kuadrant.create=true`. IDE traffic defaults to `pca-ai-gateway` with per-DevSpaces API keys. llm-d Gateway is annotated `opendatahub.io/managed=false` so ODH does not attach conflicting AuthPolicies.
 
 ## Deployment Steps
 

@@ -2,6 +2,11 @@
 # Single devspace — namespace defaults to Release.Namespace (passed via --namespace).
 devspacesGlobalConfig:
   enabled: true
+# IDE traffic defaults to RHCL AI Gateway (pca-ai-gateway). Per-DEV_NAMESPACE API keys
+# are created automatically and mirrored into AI_NAMESPACE for AuthPolicy.
+aiGateway:
+  enabled: true
+  escapeHatchToLlmd: false
 devspaces:
   - name: code-workspace-1
     user: dev-user1

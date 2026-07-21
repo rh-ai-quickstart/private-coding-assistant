@@ -2,6 +2,25 @@
 
 Deploy a private, self-hosted AI coding assistant on OpenShift so developers each get their own namespace with an AI-powered IDE — no code leaves the cluster.
 
+## Inference request path (RHCL + llm-d)
+
+```mermaid
+flowchart TD
+  IDE[DevSpaces]
+  RHCL[RHCL AI Gateway]
+  Local[llm-d]
+  Other[Other cluster]
+  Ext[External APIs]
+  EPP[EPP]
+  VLLM[vLLM]
+
+  IDE --> RHCL
+  RHCL --> Local
+  RHCL -.-> Other
+  RHCL -.-> Ext
+  Local --> EPP --> VLLM
+```
+
 ## Charts (waves)
 
 ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
@@ -9,10 +28,10 @@ ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
 | Chart | Wave | What it deploys | Namespaces / where |
 |-------|------|-----------------|-------------------|
 | `pca-app-of-apps` | root | AppProject + child Applications; sync-wave ordering | `openshift-gitops` (no workloads) |
-| `pca-operators` | 1 | Operator Subscriptions, cert-manager, LWS | `redhat-ods-operator` (RHOAI), `nvidia-gpu-operator`, `openshift-devspaces`, `openshift-nfd`, cert-manager, LWS |
+| `pca-operators` | 1 | Operator Subscriptions, cert-manager, LWS, RHCL (Kuadrant) | `redhat-ods-operator` (RHOAI), `nvidia-gpu-operator`, `openshift-devspaces`, `openshift-nfd`, cert-manager, LWS, `kuadrant-system` |
 | `pca-platform-config` | 2 | Namespaces, HF token, DSC/DSCI, NFD, NVIDIA ClusterPolicy, CheCluster, OAuth HTPasswd, Maas gateway, LWS CR; optional `pca-guardrails` / `pca-mcp` | AI ns (default `ai-serving`); optional per-dev namespaces |
-| `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), gateway + HTTPRoute; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
-| `pca-devspaces` | 4 | DevWorkspace, Roo/Continue/Cline ConfigMaps, RBAC; global DevSpaces ConfigMaps | Per-dev ns; globals in `openshift-devspaces` |
+| `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), llm-d gateway + HTTPRoute, RHCL AI Gateway (`pca-ai-gateway`) + AuthPolicy; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
+| `pca-devspaces` | 4 | DevWorkspace, Roo/Continue/Cline ConfigMaps, per-ns API keys, RBAC; global DevSpaces ConfigMaps | Per-dev ns; globals in `openshift-devspaces` |
 
 ## Where each target deploys
 
@@ -23,7 +42,7 @@ ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
 
 Existing OpenShift uses the charts under `PCA_Deployment_ROSA/charts` with overrides in `deploy_existing_openshift/`.
 
-ARO charts are not being updated; ARO will migrate to the ROSA charts later.
+ARO charts lag behind ROSA for most features; RHCL gateway pieces were mirrored for parity where practical. Full ARO migration to ROSA charts is still planned.
 
 ## ROSA / ARO — full from-scratch
 
@@ -48,9 +67,10 @@ After the stack is deployed, verify components against the live cluster (not CI)
 make smoke                                              # full suite
 make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=dev1-devspaces   # ROSA/ARO
 make smoke COMPONENT=vllm                               # one marker
+make smoke COMPONENT=ai_gateway DEV_NAMESPACE=<dev-ns>  # RHCL front door + API keys
 ```
 
-Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OTel / Guardrails / DevSpaces checks auto-skip when those resources are absent. Set `DEV_NAMESPACE` for DevSpaces harness tests.
+Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OTel / Guardrails / DevSpaces / AI Gateway checks auto-skip when those resources are absent. Set `DEV_NAMESPACE` for DevSpaces and AI Gateway key/config tests.
 
 ## Directory Structure
 
@@ -59,18 +79,18 @@ PCA_Deployment_ROSA/          # Full ROSA (AWS) deployment — source of truth f
 ├── terraform/                # Cluster provisioning (VPC, ROSA, GPU node pool)
 └── charts/
     ├── pca-app-of-apps/      # Root ArgoCD AppProject + child Applications
-    ├── pca-operators/        # Operator Subscriptions (RHOAI, GPU, DevSpaces, NFD, …)
+    ├── pca-operators/        # Operator Subscriptions (RHOAI, GPU, DevSpaces, NFD, RHCL, …)
     ├── pca-platform-config/  # Namespace, RBAC, secrets, DSC (+ optional guardrails, pca-mcp)
-    ├── pca-ai-serving/       # LLMInferenceService, PVC, HardwareProfile, pca-observability
+    ├── pca-ai-serving/       # LLMInferenceService, llm-d + pca-ai-gateway, pca-observability
     │   └── charts/pca-observability/  # Grafana + optional Langfuse/OTel Collector
-    └── pca-devspaces/        # Per-developer DevWorkspaces + Roo/Continue/Cline + global config
+    └── pca-devspaces/        # Per-developer DevWorkspaces + Roo/Continue/Cline + API keys
 
 PCA_Deployment_ARO/           # Full ARO (Azure) — charts lag; will migrate to ROSA charts
 ├── terraform/
 └── charts/
 
 deploy_existing_openshift/    # Helm value overrides (reuses ROSA charts)
-├── README.md                 # Deploy steps + parameters
+├── README.md                 # Deploy steps + parameters (incl. RHCL prerequisite)
 ├── values-platform-config.yaml
 ├── values-ai-serving.yaml
 └── values-devspaces.yaml
