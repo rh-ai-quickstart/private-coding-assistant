@@ -207,6 +207,57 @@ NSEOF
 		"system:serviceaccounts:${USER_NS}" \
 		--namespace=opencode-build 2>/dev/null || true
 
+	# RHCL API key (same deterministic scheme as Helm pca-devspaces.aiGateway.apiKey
+	# with apiKeySeed=pca-aro). Prefer existing Secret so upgrades keep the key.
+	AI_NS="${AI_SERVING_NAMESPACE:-ai-serving}"
+	GW_BASE_URL="${PCA_AI_GATEWAY_URL:-https://pca-ai-gateway-data-science-gateway-class.${AI_NS}.svc.cluster.local/v1}"
+	MODEL_ID="${VLLM_MODEL_ID:-Qwen/Qwen3.6-35B-A3B-FP8}"
+	API_KEY_SEED="${PCA_API_KEY_SEED:-pca-aro}"
+	if EXISTING_KEY=$(oc get secret pca-ai-gw-apikey -n "${USER_NS}" \
+		-o jsonpath='{.data.api_key}' 2>/dev/null) && [[ -n ${EXISTING_KEY} ]]; then
+		API_KEY=$(printf '%s' "${EXISTING_KEY}" | base64 -d)
+	else
+		API_KEY=$(printf '%s/%s/pca-ai-gw' "${API_KEY_SEED}" "${USER_NS}" | sha256sum | cut -c1-48)
+	fi
+	AI_SECRET_NAME="pca-ai-gw-apikey-$(printf '%s' "${USER_NS}" | cut -c1-40 | sed 's/-$//')"
+
+	# Switch to kubeadmin to create Authorino mirror in AI ns + DevSpaces Secret
+	if [[ -n ${KUBEADMIN_PASS:-} ]]; then
+		oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
+			--insecure-skip-tls-verify=true &>/dev/null
+	fi
+	cat <<SEOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pca-ai-gw-apikey
+  namespace: ${USER_NS}
+  labels:
+    app.kubernetes.io/name: pca-ai-gw-apikey
+    app.kubernetes.io/part-of: pca-devspaces
+    app.kubernetes.io/component: pca-ai-gateway-apikey
+type: Opaque
+stringData:
+  api_key: ${API_KEY}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${AI_SECRET_NAME}
+  namespace: ${AI_NS}
+  labels:
+    authorino.kuadrant.io/managed-by: authorino
+    app.kubernetes.io/component: pca-ai-gateway-apikey
+    app.kubernetes.io/part-of: pca-devspaces
+    pca.ai/dev-namespace: ${USER_NS}
+  annotations:
+    pca.ai/dev-namespace: ${USER_NS}
+type: Opaque
+stringData:
+  api_key: ${API_KEY}
+SEOF
+	info "RHCL API key Secrets ready for ${USER_NS} (Authorino mirror in ${AI_NS})."
+
 	# Login as the user and create the workspace
 	oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
 		--insecure-skip-tls-verify=true &>/dev/null
@@ -246,13 +297,13 @@ spec:
           mountSources: true
           env:
             - name: VLLM_ENDPOINT
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "${GW_BASE_URL}"
             - name: VLLM_MODEL_ID
-              value: "Qwen/Qwen3.6-35B-A3B-FP8"
+              value: "${MODEL_ID}"
             - name: OPENAI_API_KEY
-              value: "EMPTY"
+              value: "${API_KEY}"
             - name: OPENAI_BASE_URL
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: "${GW_BASE_URL}"
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
             - name: OPENCODE_SERVER_PASSWORD
@@ -267,6 +318,31 @@ spec:
               attributes:
                 cookiesAuthEnabled: true
     commands:
+      - id: write-opencode-config
+        exec:
+          label: "Write OpenCode Config"
+          component: dev-tools
+          commandLine: |
+            mkdir -p ~/.config/opencode ~/.local/share/opencode
+            python3 -c "
+            import json, os
+            config = {
+                '\x24schema': 'https://opencode.ai/config.json',
+                'provider': {
+                    'vllm': {
+                        'npm': '@ai-sdk/openai-compatible',
+                        'name': 'Private AI Gateway (llm-d)',
+                        'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
+                        'models': {os.environ['VLLM_MODEL_ID']: {'name': os.environ['VLLM_MODEL_ID']}}
+                    }
+                },
+                'model': 'vllm/' + os.environ['VLLM_MODEL_ID']
+            }
+            open(os.path.expanduser('~/.config/opencode/opencode.json'), 'w').write(json.dumps(config, indent=2))
+            "
+            # Overwrites image-baked auth.json EMPTY at workspace postStart
+            echo "{\"vllm\":{\"type\":\"api\",\"key\":\"\$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
+            echo "OpenCode config written"
       - id: download-opencode-extension
         exec:
           component: dev-tools
@@ -285,6 +361,7 @@ spec:
           label: "Start OpenCode Web UI"
     events:
       postStart:
+        - write-opencode-config
         - download-opencode-extension
         - start-opencode-web
 WSEOF

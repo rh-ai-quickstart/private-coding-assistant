@@ -6,10 +6,8 @@
 {{- $ns := $devspace.namespace | default $.Release.Namespace }}
 {{- $user := $devspace.user | default "unknown" }}
 {{- $team := $devspace.team | default "" }}
-{{- $baseUrl := printf "https://llm-d-gateway-data-science-gateway-class.%s.svc.cluster.local/v1" $.Values.aiServingNamespace }}
-{{- if $.Values.guardrails.enabled }}
-{{- $baseUrl = printf "%s/v1" $.Values.guardrails.endpoint }}
-{{- end }}
+{{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" $ }}
+{{- $apiKey := include "pca-devspaces.aiGateway.ideApiKey" (dict "root" $ "ns" $ns) }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -31,7 +29,7 @@ data:
         "openai-compatible": {
           "apiProvider": "openai-compatible",
           "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
-          "openAiCompatibleApiKey": "EMPTY",
+          "openAiCompatibleApiKey": {{ $apiKey | quote }},
           "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiHeaders": {
             "X-PCA-User": {{ $user | quote }},
@@ -45,7 +43,7 @@ data:
     {
       "apiProvider": "openai-compatible",
       "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
-      "openAiCompatibleApiKey": "EMPTY",
+      "openAiCompatibleApiKey": {{ $apiKey | quote }},
       "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
       "openAiHeaders": {
         "X-PCA-User": {{ $user | quote }},
@@ -74,7 +72,7 @@ data:
         "openai-compatible": {
           "apiProvider": "openai-compatible",
           "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
-          "openAiCompatibleApiKey": "EMPTY",
+          "openAiCompatibleApiKey": {{ $apiKey | quote }},
           "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiHeaders": {
             "X-PCA-User": {{ $user | quote }},

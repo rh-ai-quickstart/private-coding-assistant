@@ -54,13 +54,13 @@ spec:
           mountSources: true
           env:
             - name: VLLM_ENDPOINT
-              value: "https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1"
+              value: {{ include "pca-devspaces.aiGateway.baseUrl" $ | quote }}
             - name: VLLM_MODEL_ID
               value: {{ $.Values.modelId | quote }}
             - name: OPENAI_API_KEY
-              value: "EMPTY"
+              value: {{ include "pca-devspaces.aiGateway.ideApiKey" (dict "root" $ "ns" $ns) | quote }}
             - name: OPENAI_BASE_URL
-              value: "https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1"
+              value: {{ include "pca-devspaces.aiGateway.baseUrl" $ | quote }}
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
             - name: DEFAULT_EXTENSIONS
@@ -93,7 +93,7 @@ spec:
             }
             open(os.path.expanduser('~/.config/opencode/opencode.json'), 'w').write(json.dumps(config, indent=2))
             "
-            echo '{"vllm":{"type":"api","key":"EMPTY"}}' > ~/.local/share/opencode/auth.json
+            echo "{\"vllm\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
             echo "OpenCode config written"
       - id: download-opencode-extension
         exec:
@@ -155,13 +155,13 @@ spec:
           mountSources: true
           env:
             - name: VLLM_ENDPOINT
-              value: "https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1"
+              value: {{ include "pca-devspaces.aiGateway.baseUrl" $ | quote }}
             - name: VLLM_MODEL_ID
               value: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
             - name: OPENAI_API_KEY
-              value: "EMPTY"
+              value: {{ include "pca-devspaces.aiGateway.ideApiKey" (dict "root" $ "ns" $ns) | quote }}
             - name: OPENAI_BASE_URL
-              value: "https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1"
+              value: {{ include "pca-devspaces.aiGateway.baseUrl" $ | quote }}
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
             - name: CONTINUE_GLOBAL_DIR

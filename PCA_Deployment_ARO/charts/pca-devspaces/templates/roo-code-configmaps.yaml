@@ -1,9 +1,10 @@
 # OpenCode configuration ConfigMaps for DevSpaces workspaces.
 #
 # These ConfigMaps are mounted into each workspace and provide the OpenCode
-# global config pointing to the cluster-internal llm-d AI gateway.
-# OpenCode also reads OPENCODE_CONFIG_CONTENT env var (set in DevWorkspace)
-# as a runtime override, so this ConfigMap serves as a belt-and-suspenders backup.
+# global config pointing to the RHCL AI gateway (or llm-d escape hatch).
+# API key is not stored here — set via OPENAI_API_KEY + postStart auth.json
+# overwrite (see setup-devspaces-users.sh / write-opencode-config).
+{{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -27,14 +28,14 @@ data:
           "npm": "@ai-sdk/openai-compatible",
           "name": "Private AI Gateway (llm-d)",
           "options": {
-            "baseURL": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+            "baseURL": {{ $baseUrl | quote }}
           },
           "models": {
-            "Qwen/Qwen3.6-35B-A3B-FP8": {
-              "name": "Qwen3.6 35B (Private AI)"
+            {{ .Values.modelId | quote }}: {
+              "name": {{ .Values.modelId | quote }}
             }
           }
         }
       },
-      "model": "vllm/Qwen/Qwen3.6-35B-A3B-FP8"
+      "model": {{ printf "vllm/%s" .Values.modelId | quote }}
     }

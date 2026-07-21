@@ -1,9 +1,12 @@
 # OpenCode custom DevSpaces image — build infrastructure.
 # Automatically builds the custom image on cluster deploy via GitOps.
 #
-# The BuildConfig creates the image from assets/Dockerfile.opencode
+# The BuildConfig creates the image from an inline Dockerfile
 # and stores it in the internal registry. DevWorkspaces reference
 # this image for OpenCode-enabled workspaces.
+#
+# auth.json key EMPTY is a bake-time placeholder; overwritten at workspace
+# postStart (write-opencode-config) from OPENAI_API_KEY — same as ROSA.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -40,7 +43,8 @@ spec:
           cp /home/user/.opencode/bin/opencode /usr/local/bin/opencode && \
           chmod 755 /usr/local/bin/opencode
       RUN mkdir -p /home/user/.config/opencode /home/user/.local/share/opencode && \
-          echo '{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Private AI Gateway (llm-d)","options":{"baseURL":"https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"},"models":{"Qwen/Qwen3.6-35B-A3B-FP8":{"name":"Qwen3.6 35B (Private AI)"}}}},"model":"vllm/Qwen/Qwen3.6-35B-A3B-FP8"}' > /home/user/.config/opencode/opencode.json && \
+          echo '{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Private AI Gateway","options":{"baseURL":"{{ include "pca-devspaces.aiGateway.baseUrl" . }}"},"models":{"{{ .Values.modelId }}":{"name":"{{ .Values.modelId }}"}}}},"model":"vllm/{{ .Values.modelId }}"}' \
+            > /home/user/.config/opencode/opencode.json && \
           echo '{"vllm":{"type":"api","key":"EMPTY"}}' > /home/user/.local/share/opencode/auth.json && \
           chown -R 1001:0 /home/user/.config/opencode /home/user/.local/share/opencode && \
           chmod -R g=u /home/user/.config/opencode /home/user/.local/share/opencode

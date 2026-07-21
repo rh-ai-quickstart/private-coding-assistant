@@ -5,6 +5,9 @@
 # The BuildConfig creates the image from an inline Dockerfile
 # and stores it in the internal registry. DevWorkspaces reference
 # this image for OpenCode-enabled workspaces.
+#
+# auth.json key EMPTY is a bake-time placeholder; overwritten at workspace
+# postStart (write-opencode-config) from OPENAI_API_KEY (ideApiKey).
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -43,7 +46,7 @@ spec:
           printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open && \
           chmod 755 /usr/local/bin/xdg-open
       RUN mkdir -p /home/user/.config/opencode /home/user/.local/share/opencode && \
-          echo '{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Private AI Gateway (llm-d)","options":{"baseURL":"https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1","extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{"{{ .Values.modelId }}":{"name":"{{ .Values.modelId }}"}}}},"model":"vllm/{{ .Values.modelId }}"}' \
+          echo '{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Private AI Gateway","options":{"baseURL":"{{ include "pca-devspaces.aiGateway.baseUrl" . }}","extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{"{{ .Values.modelId }}":{"name":"{{ .Values.modelId }}"}}}},"model":"vllm/{{ .Values.modelId }}"}' \
             > /home/user/.config/opencode/opencode.json && \
           echo '{"vllm":{"type":"api","key":"EMPTY"}}' > /home/user/.local/share/opencode/auth.json && \
           chown -R 1001:0 /home/user/.config/opencode /home/user/.local/share/opencode && \

@@ -1,5 +1,8 @@
 {{- if .Values.devspacesGlobalConfig.enabled }}
-# Continue config (source namespace — synced to all user namespaces by DevSpaces operator)
+# Continue config (source namespace — synced to all user namespaces by DevSpaces operator).
+# apiKey EMPTY is a cluster-wide placeholder; overwritten at Helm deploy time by the
+# per-namespace continue-config (continue-configmaps.yaml → ideApiKey).
+{{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -23,11 +26,8 @@ data:
       - name: Qwen3-Coder (llm-d)
         provider: openai
         model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-        {{- if .Values.guardrails.enabled }}
-        apiBase: {{ .Values.guardrails.endpoint }}/v1
-        {{- else }}
-        apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
-        {{- end }}
+        apiBase: {{ $baseUrl }}
+        # EMPTY: overwritten at Helm deploy by per-ns continue-config (ideApiKey)
         apiKey: EMPTY
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
         requestOptions:
@@ -46,7 +46,8 @@ data:
       name: Qwen3-Coder Autocomplete (llm-d)
       provider: openai
       model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-      apiBase: https://llm-d-gateway-data-science-gateway-class.{{ .Values.aiServingNamespace }}.svc.cluster.local/v1
+      apiBase: {{ $baseUrl }}
+      # EMPTY: overwritten at Helm deploy by per-ns continue-config (ideApiKey)
       apiKey: EMPTY
       requestOptions:
         verifySsl: false

@@ -19,8 +19,10 @@
 #   3. Run scripts/setup-devspaces-users.sh which:
 #      a. Logs in as each user via `oc login`
 #      b. Discovers the auto-provisioned namespace
-#      c. Grants image-puller RBAC for the custom OpenCode image
-#      d. Creates the DevWorkspace AS the user (sets creator label correctly)
+#      c. Creates per-ns RHCL API key Secrets (+ AI ns mirror for Authorino)
+#      d. Grants image-puller RBAC for the custom OpenCode image
+#      e. Creates the DevWorkspace AS the user with OPENAI_API_KEY set
+#      f. postStart write-opencode-config overwrites image-baked auth.json EMPTY
 #
 # This file is a REFERENCE TEMPLATE — it is not applied by ArgoCD.
 # The actual workspace creation is handled by the setup script.
@@ -31,8 +33,10 @@
 #   command downloads the .vsix from Open VSX and the editor picks it up.
 #   See: https://eclipse.dev/che/docs/stable/administration-guide/default-extensions-for-microsoft-visual-studio-code/
 #
-# Model endpoint (routed through llm-d EPP → vLLM):
-#   https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
+# Model endpoint (RHCL AI Gateway → llm-d EPP → vLLM):
+#   {{ include "pca-devspaces.aiGateway.baseUrl" . }}
+# Escape hatch (direct llm-d): set aiGateway.escapeHatchToLlmd=true.
+{{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" . }}
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:
@@ -68,13 +72,15 @@ spec:
           mountSources: true
           env:
             - name: VLLM_ENDPOINT
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: {{ $baseUrl | quote }}
             - name: VLLM_MODEL_ID
-              value: "Qwen/Qwen3.6-35B-A3B-FP8"
+              value: {{ .Values.modelId | quote }}
+            # PLACEHOLDER_API_KEY — setup-devspaces-users.sh overwrites at provision time
+            # with the per-ns RHCL key (same as ROSA ideApiKey → OPENAI_API_KEY).
             - name: OPENAI_API_KEY
-              value: "EMPTY"
+              value: "PLACEHOLDER_API_KEY"
             - name: OPENAI_BASE_URL
-              value: "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1"
+              value: {{ $baseUrl | quote }}
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
             - name: OPENCODE_SERVER_PASSWORD
@@ -89,6 +95,31 @@ spec:
               attributes:
                 cookiesAuthEnabled: true
     commands:
+      - id: write-opencode-config
+        exec:
+          label: "Write OpenCode Config"
+          component: dev-tools
+          commandLine: |
+            mkdir -p ~/.config/opencode ~/.local/share/opencode
+            python3 -c "
+            import json, os
+            config = {
+                '\x24schema': 'https://opencode.ai/config.json',
+                'provider': {
+                    'vllm': {
+                        'npm': '@ai-sdk/openai-compatible',
+                        'name': 'Private AI Gateway (llm-d)',
+                        'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
+                        'models': {os.environ['VLLM_MODEL_ID']: {'name': os.environ['VLLM_MODEL_ID']}}
+                    }
+                },
+                'model': 'vllm/' + os.environ['VLLM_MODEL_ID']
+            }
+            open(os.path.expanduser('~/.config/opencode/opencode.json'), 'w').write(json.dumps(config, indent=2))
+            "
+            # Overwrites image-baked auth.json EMPTY at workspace postStart
+            echo "{\"vllm\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
+            echo "OpenCode config written"
       - id: download-opencode-extension
         exec:
           component: dev-tools
@@ -107,5 +138,6 @@ spec:
           label: "Start OpenCode Web UI"
     events:
       postStart:
+        - write-opencode-config
         - download-opencode-extension
         - start-opencode-web

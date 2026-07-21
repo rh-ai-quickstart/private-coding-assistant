@@ -5,6 +5,8 @@
 {{- $ns := $devspace.namespace | default $.Release.Namespace }}
 {{- $user := $devspace.user | default "unknown" }}
 {{- $team := $devspace.team | default "" }}
+{{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" $ }}
+{{- $apiKey := include "pca-devspaces.aiGateway.ideApiKey" (dict "root" $ "ns" $ns) }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -29,12 +31,8 @@ data:
       - name: Qwen3-Coder (llm-d)
         provider: openai
         model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-        {{- if $.Values.guardrails.enabled }}
-        apiBase: {{ $.Values.guardrails.endpoint }}/v1
-        {{- else }}
-        apiBase: https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1
-        {{- end }}
-        apiKey: EMPTY
+        apiBase: {{ $baseUrl }}
+        apiKey: {{ $apiKey }}
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
         requestOptions:
           verifySsl: false
@@ -58,8 +56,8 @@ data:
       name: Qwen3-Coder Autocomplete (llm-d)
       provider: openai
       model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-      apiBase: https://llm-d-gateway-data-science-gateway-class.{{ $.Values.aiServingNamespace }}.svc.cluster.local/v1
-      apiKey: EMPTY
+      apiBase: {{ $baseUrl }}
+      apiKey: {{ $apiKey }}
       requestOptions:
         verifySsl: false
         headers:
