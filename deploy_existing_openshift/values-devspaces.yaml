@@ -1,9 +1,12 @@
 # Values override for pca-devspaces when deploying on an existing OpenShift cluster.
 # Single devspace — namespace defaults to Release.Namespace (passed via --namespace).
+# Global ConfigMap is VS Code extensions only. Continue/Roo/Cline configs (API key +
+# X-PCA-*) come from per-namespace templates in this release — keep aiGateway on.
 devspacesGlobalConfig:
   enabled: true
 # IDE traffic defaults to RHCL AI Gateway (pca-ai-gateway). Per-DEV_NAMESPACE API keys
 # are created automatically and mirrored into AI_NAMESPACE for AuthPolicy.
+# Do not set escapeHatchToLlmd=true unless break-glass (leaves apiKey EMPTY).
 aiGateway:
   enabled: true
   escapeHatchToLlmd: false

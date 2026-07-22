@@ -18,6 +18,13 @@ Existing OpenShift does **not** install RHCL via make. Before enabling the AI Ga
 - A `Kuadrant` CR exists (chart creates `kuadrant` in `kuadrant-system` when `aiGateway.kuadrant.create=true`)
 
 Auth for inference is enforced on **`pca-ai-gateway`** (API keys). The llm-d Gateway is annotated `opendatahub.io/managed=false` so OpenShift AI does not attach kubernetesTokenReview AuthPolicies that would break RHCL → llm-d.
+
+If `AuthPolicy` stays `Accepted=False` with `MissingDependency` after RHCL/Authorino are up, restart the Kuadrant operator once:
+
+```bash
+oc delete pod -n kuadrant-system -l control-plane=controller-manager
+```
+
 IDE traffic defaults to:
 
 `https://pca-ai-gateway-data-science-gateway-class.<AI_NAMESPACE>.svc.cluster.local/v1`

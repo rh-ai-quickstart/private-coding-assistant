@@ -4,9 +4,16 @@ clusterResources: false
 pca-observability:
   prometheus:
     accessMode: namespace
+  grafana:
+    # Optional. Empty → chart uses a deterministic password (safe for re-sync).
+    # Set explicitly if you want a known admin password:
+    #   adminPassword: "change-me"
+    adminPassword: ""
 vllm:
   maxModelLen: 49152
 # RHCL front door (requires RHCL operator already on cluster; chart creates Kuadrant CR).
+# AuthPolicy needs Authorino + Gateway API ready; if Accepted=False MissingDependency,
+# restart the Kuadrant operator pod once after RHCL finishes installing.
 aiGateway:
   enabled: true
   escapeHatchToLlmd: false
