@@ -224,38 +224,29 @@ NSEOF
 	# Switch to kubeadmin to create Authorino mirror in AI ns + DevSpaces Secret
 	if [[ -n ${KUBEADMIN_PASS:-} ]]; then
 		oc login "${API_URL}" --username=kubeadmin --password="${KUBEADMIN_PASS}" \
-			--insecure-skip-tls-verify=true &>/dev/null
+			--insecure-skip-tls-verify=true
 	fi
-	cat <<SEOF | oc apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: pca-ai-gw-apikey
-  namespace: ${USER_NS}
-  labels:
-    app.kubernetes.io/name: pca-ai-gw-apikey
-    app.kubernetes.io/part-of: pca-devspaces
-    app.kubernetes.io/component: pca-ai-gateway-apikey
-type: Opaque
-stringData:
-  api_key: ${API_KEY}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ${AI_SECRET_NAME}
-  namespace: ${AI_NS}
-  labels:
-    authorino.kuadrant.io/managed-by: authorino
-    app.kubernetes.io/component: pca-ai-gateway-apikey
-    app.kubernetes.io/part-of: pca-devspaces
-    pca.ai/dev-namespace: ${USER_NS}
-  annotations:
-    pca.ai/dev-namespace: ${USER_NS}
-type: Opaque
-stringData:
-  api_key: ${API_KEY}
-SEOF
+	# DevSpaces-side key (IDE / postStart). Idempotent create→apply (same pattern as htpass-secret).
+	oc create secret generic pca-ai-gw-apikey \
+		--from-literal=api_key="${API_KEY}" \
+		-n "${USER_NS}" \
+		--dry-run=client -o yaml | oc apply -f -
+	oc label secret pca-ai-gw-apikey -n "${USER_NS}" --overwrite \
+		app.kubernetes.io/name=pca-ai-gw-apikey \
+		app.kubernetes.io/part-of=pca-devspaces \
+		app.kubernetes.io/component=pca-ai-gateway-apikey
+	# Authorino mirror in AI ns (platform-owned; AuthPolicy selector matches these labels).
+	oc create secret generic "${AI_SECRET_NAME}" \
+		--from-literal=api_key="${API_KEY}" \
+		-n "${AI_NS}" \
+		--dry-run=client -o yaml | oc apply -f -
+	oc label secret "${AI_SECRET_NAME}" -n "${AI_NS}" --overwrite \
+		authorino.kuadrant.io/managed-by=authorino \
+		app.kubernetes.io/component=pca-ai-gateway-apikey \
+		app.kubernetes.io/part-of=pca-devspaces \
+		"pca.ai/dev-namespace=${USER_NS}"
+	oc annotate secret "${AI_SECRET_NAME}" -n "${AI_NS}" --overwrite \
+		"pca.ai/dev-namespace=${USER_NS}"
 	info "RHCL API key Secrets ready for ${USER_NS} (Authorino mirror in ${AI_NS})."
 
 	# Login as the user and create the workspace

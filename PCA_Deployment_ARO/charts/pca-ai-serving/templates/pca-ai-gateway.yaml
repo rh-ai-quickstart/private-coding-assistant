@@ -87,5 +87,6 @@ spec:
           selector:
             matchLabels:
               app.kubernetes.io/component: pca-ai-gateway-apikey
+              authorino.kuadrant.io/managed-by: authorino
 {{- end }}
 {{- end }}

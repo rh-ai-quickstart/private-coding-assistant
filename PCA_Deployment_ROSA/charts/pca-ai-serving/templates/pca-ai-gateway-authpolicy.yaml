@@ -1,8 +1,8 @@
 {{- if .Values.aiGateway.enabled }}
 {{/*
   API-key AuthPolicy on the RHCL front-door HTTPRoute.
-  Keys are Secrets labeled app.kubernetes.io/component=pca-ai-gateway-apikey
-  (created per DevSpaces namespace by pca-devspaces into this AI serving namespace).
+  Keys are AI-ns mirror Secrets labeled component=pca-ai-gateway-apikey AND
+  authorino.kuadrant.io/managed-by=authorino (DevSpaces-ns Secrets omit managed-by).
   OpenAI-compatible clients send Authorization: Bearer <key> (Authorino default).
 */}}
 apiVersion: kuadrant.io/v1
@@ -28,4 +28,5 @@ spec:
           selector:
             matchLabels:
               app.kubernetes.io/component: pca-ai-gateway-apikey
+              authorino.kuadrant.io/managed-by: authorino
 {{- end }}

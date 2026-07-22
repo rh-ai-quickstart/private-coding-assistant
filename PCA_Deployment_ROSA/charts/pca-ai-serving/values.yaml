@@ -13,9 +13,10 @@ aiGateway:
   escapeHatchToLlmd: false
   tls:
     secretName: qwen3-coder-kserve-self-signed-certs
-  # Existing OpenShift has RHCL operator but may lack a Kuadrant CR — create one.
+  # ROSA/ARO: pca-operators already owns Namespace + Kuadrant CR (default false).
+  # Existing OpenShift: override create=true (see deploy_existing_openshift/values-ai-serving.yaml).
   kuadrant:
-    create: true
+    create: false
     namespace: kuadrant-system
     name: kuadrant
   backends:
