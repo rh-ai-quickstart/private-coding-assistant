@@ -13,7 +13,16 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
 2. **Cluster access** — run `oc whoami` directly on the host (not inside the container). If it fails, ask the user to log in.
 3. **AI serving namespace** — always use `private-assistant-ai-serving` (the default). Do not ask.
 4. **DevSpace namespace** — ask the user for a suffix. The namespace will be `private-assistant-<suffix>` (e.g. if the user says "itay", the namespace is `private-assistant-itay`).
-5. **RHCL (AI Gateway)** — existing OpenShift does not install the RHCL *operator* via make. Confirm `oc get crd authpolicies.kuadrant.io`. The ai-serving chart creates a `Kuadrant` CR in `kuadrant-system` when `aiGateway.kuadrant.create=true`. IDE traffic defaults to `pca-ai-gateway` with per-DevSpaces API keys. llm-d Gateway is annotated `opendatahub.io/managed=false` so ODH does not attach conflicting AuthPolicies.
+5. **RHCL (AI Gateway)** — existing OpenShift does not install the RHCL *operator* via make. Confirm `oc get crd authpolicies.kuadrant.io`. The ai-serving chart creates a `Kuadrant` CR in `kuadrant-system` when `aiGateway.kuadrant.create=true` (the default for existing OCP). IDE traffic defaults to `pca-ai-gateway` with per-DevSpaces API keys. llm-d Gateway is annotated `opendatahub.io/managed=false` so ODH does not attach conflicting AuthPolicies.
+
+   **If `kuadrant-system` is already owned by another Helm release** (shared cluster), the install will fail with an ownership conflict. Detect with:
+   ```bash
+   oc get namespace kuadrant-system -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null
+   ```
+   If it prints a different release name, add `HELM_ARGS='--set aiGateway.kuadrant.create=false'` to reuse the existing Kuadrant instance:
+   ```bash
+   make ai-serving-deploy-existing-openshift HELM_ARGS='--set aiGateway.kuadrant.create=false'
+   ```
 
 ## Deployment Steps
 
@@ -125,3 +134,14 @@ make devspace-undeploy-existing-openshift DEV_NAMESPACE=<DEV_NS>
 # Remove the AI serving stack (removes namespace)
 make ai-serving-undeploy-existing-openshift
 ```
+
+**If the namespace gets stuck terminating**, it is almost always a `GuardrailsOrchestrator` finalizer (`trustyai.opendatahub.io/gorch-finalizer`) blocking deletion. Check and clear it:
+```bash
+# Confirm the blocker
+oc get namespace <NS> -o jsonpath='{.status.conditions[?(@.type=="NamespaceContentRemaining")].message}'
+
+# Remove the finalizer so the namespace can complete termination
+oc patch $(oc get guardrailsorchestrators -n <NS> -o name) \
+  -n <NS> --type=merge -p '{"metadata":{"finalizers":[]}}'
+```
+This is safe — the TrustyAI operator has already been notified of deletion; patching the finalizer just unblocks the namespace controller.
