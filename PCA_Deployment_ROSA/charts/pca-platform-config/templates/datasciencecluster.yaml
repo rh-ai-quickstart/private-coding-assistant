@@ -24,8 +24,6 @@ spec:
       managementState: Managed
     aipipelines:
       managementState: Managed
-    modelmeshserving:
-      managementState: Managed
     workbenches:
       managementState: Managed
     {{- if .Values.guardrails.enabled }}
