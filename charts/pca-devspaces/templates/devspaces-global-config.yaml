@@ -1,58 +1,9 @@
 {{- if .Values.devspacesGlobalConfig.enabled }}
-# Continue config (source namespace — synced to all user namespaces by DevSpaces operator).
-# The DevSpaces operator propagates this via subpath mount, so the propagated copy is
-# read-only in workspace pods. This global ConfigMap MUST carry the real API key —
-# per-namespace overrides are overwritten by propagation and cannot be updated in-place.
-{{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" . }}
-{{- $apiKey := include "pca-devspaces.aiGateway.ideApiKey" (dict "root" . "ns" .Release.Namespace) }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: continue-config
-  namespace: openshift-devspaces
-  labels:
-    app.kubernetes.io/component: workspaces-config
-    app.kubernetes.io/part-of: che.eclipse.org
-    controller.devfile.io/mount-to-devworkspace: "true"
-    controller.devfile.io/watch-configmap: "true"
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-    controller.devfile.io/mount-as: subpath
-    controller.devfile.io/mount-path: /home/user/.continue
-data:
-  config.yaml: |
-    name: Private Code Assistant
-    version: 1.0.0
-    schema: v1
-    models:
-      - name: Qwen3-Coder (RHCL)
-        provider: openai
-        model: {{ .Values.modelId }}
-        apiBase: {{ $baseUrl }}
-        apiKey: {{ $apiKey }}
-        systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
-        requestOptions:
-          verifySsl: false
-    {{- if .Values.mcp.enabled }}
-    mcpServers:
-      - name: "openshift-ai-mcp"
-        type: sse
-        {{- if .Values.mcp.serverUrl }}
-        url: {{ .Values.mcp.serverUrl | quote }}
-        {{- else }}
-        url: "http://openshift-mcp.{{ .Values.aiServingNamespace }}.svc.cluster.local:8080/sse"
-        {{- end }}
-    {{- end }}
-    tabAutocompleteModel:
-      name: Qwen3-Coder Autocomplete
-      provider: openai
-      model: {{ .Values.modelId }}
-      apiBase: {{ $baseUrl }}
-      apiKey: {{ $apiKey }}
-      requestOptions:
-        verifySsl: false
----
-# Cluster-wide VS Code extension recommendations for all DevSpaces workspaces
+# Cluster-wide VS Code extension recommendations for all DevSpaces workspaces.
+# Continue config lives ONLY in per-namespace continue-configmaps.yaml (real
+# ideApiKey + X-PCA-* headers). Do not put a mountable continue-config here —
+# DevSpaces copies openshift-devspaces ConfigMaps with mount-to-devworkspace
+# into user namespaces and would clobber the per-ns key/headers with EMPTY.
 apiVersion: v1
 kind: ConfigMap
 metadata:

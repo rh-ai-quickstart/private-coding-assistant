@@ -12,7 +12,7 @@ spec:
     kserve:
       managementState: Managed
       modelsAsService:
-        managementState: Managed
+        managementState: Removed
       nim:
         managementState: Managed
       rawDeploymentServiceConfig: Headed
@@ -23,8 +23,6 @@ spec:
     dashboard:
       managementState: Managed
     aipipelines:
-      managementState: Managed
-    modelmeshserving:
       managementState: Managed
     workbenches:
       managementState: Managed
