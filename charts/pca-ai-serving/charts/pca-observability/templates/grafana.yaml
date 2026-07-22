@@ -20,6 +20,8 @@ spec:
       labels:
         app.kubernetes.io/name: pca-grafana
         app.kubernetes.io/part-of: pca-observability
+      annotations:
+        checksum/admin-secret: {{ include (print $.Template.BasePath "/grafana-secret.yaml") . | sha256sum }}
     spec:
       serviceAccountName: pca-grafana
       containers:
