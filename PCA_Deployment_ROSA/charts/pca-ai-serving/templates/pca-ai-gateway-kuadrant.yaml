@@ -2,10 +2,10 @@
 {{/*
   Kuadrant CR deploys Authorino (+ Limitador) so AuthPolicy can enforce.
   Required on existing OpenShift (pca-operators is ROSA/ARO only).
-  Idempotent if a cluster-wide Kuadrant already exists elsewhere — Authorino
-  is still shared; create only when aiGateway.kuadrant.create is true (default).
+  Default create=false so ROSA/ARO GitOps does not double-own Namespace/Kuadrant
+  with pca-operators (ArgoCD SSA + selfHeal). Existing OpenShift sets create=true.
 */}}
-{{- if (.Values.aiGateway.kuadrant).create | default true }}
+{{- if (.Values.aiGateway.kuadrant).create | default false }}
 {{- $kNs := (.Values.aiGateway.kuadrant).namespace | default "kuadrant-system" }}
 apiVersion: v1
 kind: Namespace
