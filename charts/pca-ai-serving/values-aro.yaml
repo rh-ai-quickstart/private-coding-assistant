@@ -33,10 +33,22 @@ storage:
 epp:
   enabled: true
 tlsJob:
-  enabled: true
+  enabled: false
 aiGateway:
   enabled: true
   tls:
-    secretName: "llm-d-gateway-tls"
+    secretName: "qwen36-vllm-kserve-self-signed-certs"
 observability:
-  enabled: false
+  enabled: true
+pca-observability:
+  namespace: hacohen-ai-coder
+  grafana:
+    enabled: true
+  langfuse:
+    enabled: true
+    ioCapture: full
+  prometheus:
+    accessMode: namespace
+  cost:
+    gpuHourlyUsd: 4.50
+    gpuHourlyUsdIsPlaceholder: true

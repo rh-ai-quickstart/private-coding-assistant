@@ -8,8 +8,8 @@ dashboardSamples:
   enabled: true
 devspaces:
   - namespace: "dev1-devspaces"
-    username: "Dev1"
-    workspaceName: "pca-workspace"
+    name: "pca-workspace"
+    user: "Dev1"
   - namespace: "dev2-devspaces"
-    username: "Dev2"
-    workspaceName: "pca-workspace"
+    name: "pca-workspace"
+    user: "Dev2"
