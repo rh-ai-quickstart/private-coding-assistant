@@ -1,6 +1,6 @@
 # Deploying on an Existing OpenShift Cluster
 
-Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GPU operator, and DevSpaces already installed). Uses charts from `PCA_Deployment_ROSA/charts`.
+Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GPU operator, and DevSpaces already installed). Uses charts from `charts`.
 
 | Target | What it deploys |
 |--------|-----------------|
@@ -146,7 +146,7 @@ oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init
 
 **GPU $/hr PLACEHOLDER:** `cost.gpuHourlyUsd: 1.86` is illustrative L40S on-demand — **not** billing truth. Override per cluster and set `cost.gpuHourlyUsdIsPlaceholder: false`.
 
-**Attribution:** Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` / optional `X-PCA-Team` (from `devspaces[].team`). Full prompt/completion bodies go to Langfuse when `ioCapture=full`. See `PCA_Deployment_ROSA/charts/pca-ai-serving/charts/pca-observability/README.md`.
+**Attribution:** Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` / optional `X-PCA-Team` (from `devspaces[].team`). Full prompt/completion bodies go to Langfuse when `ioCapture=full`. See `charts/pca-ai-serving/charts/pca-observability/README.md`.
 
 ### Combined: Langfuse + MCP
 
@@ -193,7 +193,7 @@ make mcp-disable AI_NAMESPACE=<ai-ns> DEV_NAMESPACE=<dev-ns>
 
 ### Adding more data sources
 
-See `PCA_Deployment_ROSA/charts/pca-platform-config/charts/pca-mcp/README.md` for how to add further MCP servers (MariaDB, Confluence, Jira, GitLab) by enabling the disabled-by-default templates.
+See `charts/pca-platform-config/charts/pca-mcp/README.md` for how to add further MCP servers (MariaDB, Confluence, Jira, GitLab) by enabling the disabled-by-default templates.
 
 ---
 
