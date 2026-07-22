@@ -1,3 +1,4 @@
+{{- if .Values.devspacesGlobalConfig.enabled }}
 # Cluster-wide VS Code extension recommendations for all DevSpaces workspaces.
 # NOTE: "recommendations" only show the extension in the sidebar — they do NOT
 # auto-install. For auto-installation, use the DEFAULT_EXTENSIONS env var
@@ -23,3 +24,4 @@ data:
         "sst-dev.opencode"
       ]
     }
+{{- end }}

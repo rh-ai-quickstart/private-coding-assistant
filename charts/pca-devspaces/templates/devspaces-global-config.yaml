@@ -1,8 +1,10 @@
 {{- if .Values.devspacesGlobalConfig.enabled }}
 # Continue config (source namespace — synced to all user namespaces by DevSpaces operator).
-# apiKey EMPTY is a cluster-wide placeholder; overwritten at Helm deploy time by the
-# per-namespace continue-config (continue-configmaps.yaml → ideApiKey).
+# The DevSpaces operator propagates this via subpath mount, so the propagated copy is
+# read-only in workspace pods. This global ConfigMap MUST carry the real API key —
+# per-namespace overrides are overwritten by propagation and cannot be updated in-place.
 {{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" . }}
+{{- $apiKey := include "pca-devspaces.aiGateway.ideApiKey" (dict "root" . "ns" .Release.Namespace) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -23,12 +25,11 @@ data:
     version: 1.0.0
     schema: v1
     models:
-      - name: Qwen3-Coder (llm-d)
+      - name: Qwen3-Coder (RHCL)
         provider: openai
-        model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+        model: {{ .Values.modelId }}
         apiBase: {{ $baseUrl }}
-        # EMPTY: overwritten at Helm deploy by per-ns continue-config (ideApiKey)
-        apiKey: EMPTY
+        apiKey: {{ $apiKey }}
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
         requestOptions:
           verifySsl: false
@@ -43,12 +44,11 @@ data:
         {{- end }}
     {{- end }}
     tabAutocompleteModel:
-      name: Qwen3-Coder Autocomplete (llm-d)
+      name: Qwen3-Coder Autocomplete
       provider: openai
-      model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+      model: {{ .Values.modelId }}
       apiBase: {{ $baseUrl }}
-      # EMPTY: overwritten at Helm deploy by per-ns continue-config (ideApiKey)
-      apiKey: EMPTY
+      apiKey: {{ $apiKey }}
       requestOptions:
         verifySsl: false
 ---
