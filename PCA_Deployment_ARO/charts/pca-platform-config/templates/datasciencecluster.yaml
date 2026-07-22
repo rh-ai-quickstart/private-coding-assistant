@@ -21,7 +21,7 @@ spec:
       managementState: Managed
     dashboard:
       managementState: Managed
-    datasciencepipelines:
+    aipipelines:
       managementState: Managed
     modelmeshserving:
       managementState: Managed

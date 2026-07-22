@@ -3,7 +3,7 @@ grafana:
   enabled: true
   image: docker.io/grafana/grafana:11.5.2
   replicas: 1
-  # Optional override; empty → Helm generates and stores in Secret pca-grafana-admin
+  # Optional override; empty → deterministic password from namespace/release (Argo-safe)
   adminPassword: ""
   route:
     enabled: true
