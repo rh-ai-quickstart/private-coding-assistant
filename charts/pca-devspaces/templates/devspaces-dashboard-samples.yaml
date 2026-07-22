@@ -1,0 +1,142 @@
+{{- if .Values.dashboardSamples.enabled }}
+# DevSpaces dashboard configuration — custom samples and default image.
+# Makes the OpenCode workspace visible on the DevSpaces landing page.
+#
+# OPENAI_API_KEY in the sample is EMPTY (cluster-wide template cannot hold a
+# per-ns key). Prefer scripts/setup-devspaces-users.sh which:
+#   1. mints per-ns RHCL API key Secrets (+ AI ns Authorino mirror)
+#   2. sets OPENAI_API_KEY on the DevWorkspace
+#   3. postStart write-opencode-config overwrites image-baked auth.json EMPTY
+{{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-getting-started-sample
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/part-of: che.eclipse.org
+    app.kubernetes.io/component: getting-started-sample
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    che.eclipse.org/display-name: "OpenCode - Private AI Code Assistant"
+    che.eclipse.org/description: "AI-powered coding workspace with OpenCode extension + Web UI, pre-configured for private {{ .Values.modelId }} model via llm-d Gateway."
+    che.eclipse.org/tags: '["AI","OpenCode","Private"]'
+    che.eclipse.org/icon: "https://opencode.ai/favicon.ico"
+data:
+  devfile.yaml: |
+    schemaVersion: 2.2.2
+    metadata:
+      name: opencode-private-ai
+      displayName: "OpenCode - Private AI Code Assistant"
+      description: "AI-powered coding with OpenCode + Qwen3.6 via private llm-d Gateway. Includes VS Code extension (Ctrl+Esc) and browser Web UI (port 4096)."
+    projects:
+      - name: private-ai-coding-assistant
+        git:
+          remotes:
+            origin: https://github.com/manujoy7/Private_AI_Coding_Assistant.git
+    components:
+      - name: dev-tools
+        container:
+          image: image-registry.openshift-image-registry.svc:5000/opencode-build/devspaces-opencode:latest
+          memoryRequest: 1Gi
+          memoryLimit: 8Gi
+          cpuRequest: 500m
+          cpuLimit: 4000m
+          mountSources: true
+          sourceMapping: /projects
+          env:
+            - name: VLLM_ENDPOINT
+              value: {{ $baseUrl | quote }}
+            - name: VLLM_MODEL_ID
+              value: {{ .Values.modelId | quote }}
+            # EMPTY here: cluster-wide sample; overwritten at provision time by
+            # setup-devspaces-users.sh (OPENAI_API_KEY) + postStart auth.json write.
+            - name: OPENAI_API_KEY
+              value: "EMPTY"
+            - name: OPENAI_BASE_URL
+              value: {{ $baseUrl | quote }}
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              value: "0"
+            - name: OPENCODE_SERVER_PASSWORD
+              value: "changeme"
+            - name: DEFAULT_EXTENSIONS
+              value: "/tmp/opencode-ext/sst-dev.opencode.vsix"
+          endpoints:
+            - name: opencode-web
+              targetPort: 4096
+              exposure: public
+              protocol: https
+              attributes:
+                cookiesAuthEnabled: true
+    commands:
+      - id: write-opencode-config
+        exec:
+          label: "Write OpenCode Config"
+          component: dev-tools
+          commandLine: |
+            mkdir -p ~/.config/opencode ~/.local/share/opencode
+            python3 -c "
+            import json, os
+            config = {
+                '\x24schema': 'https://opencode.ai/config.json',
+                'provider': {
+                    'vllm': {
+                        'npm': '@ai-sdk/openai-compatible',
+                        'name': 'Private AI Gateway (llm-d)',
+                        'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
+                        'models': {os.environ['VLLM_MODEL_ID']: {'name': os.environ['VLLM_MODEL_ID']}}
+                    }
+                },
+                'model': 'vllm/' + os.environ['VLLM_MODEL_ID']
+            }
+            open(os.path.expanduser('~/.config/opencode/opencode.json'), 'w').write(json.dumps(config, indent=2))
+            "
+            echo "{\"vllm\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
+            echo "OpenCode config written"
+      - id: download-opencode-extension
+        exec:
+          label: "Download OpenCode Extension"
+          component: dev-tools
+          commandLine: |
+            mkdir -p /tmp/opencode-ext
+            curl -fsSL "https://open-vsx.org/api/sst-dev/opencode/latest/file/sst-dev.opencode-0.0.13.vsix" \
+              --location -o /tmp/opencode-ext/sst-dev.opencode.vsix
+            echo "OpenCode extension downloaded"
+      - id: start-opencode-web
+        exec:
+          label: "Start OpenCode Web UI"
+          component: dev-tools
+          commandLine: |
+            nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
+            echo "OpenCode Web UI started on port 4096"
+    events:
+      postStart:
+        - write-opencode-config
+        - download-opencode-extension
+        - start-opencode-web
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-dashboard-sample
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/part-of: che.eclipse.org
+    app.kubernetes.io/component: samples
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+data:
+  sample.json: |
+    [
+      {
+        "displayName": "OpenCode - Private AI Code Assistant",
+        "description": "AI-powered coding workspace with OpenCode extension + browser Web UI. Pre-configured for private Qwen3.6-35B model. Provision via setup-devspaces-users.sh for RHCL API keys.",
+        "tags": ["AI", "OpenCode", "Private", "Qwen3.6"],
+        "url": "https://github.com/manujoy7/Private_AI_Coding_Assistant",
+        "icon": {
+          "base64data": "",
+          "mediatype": "image/svg+xml"
+        }
+      }
+    ]
+{{- end }}

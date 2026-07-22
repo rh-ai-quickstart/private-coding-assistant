@@ -1,4 +1,0 @@
-apiVersion: v2
-name: pca-platform-config
-version: 0.1.0
-description: PCA Platform Configuration — namespaces, RBAC, secrets, DSC

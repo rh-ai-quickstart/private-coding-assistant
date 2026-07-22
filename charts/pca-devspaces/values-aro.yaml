@@ -1,0 +1,15 @@
+modelId: "Qwen/Qwen3.6-35B-A3B-FP8"
+opencodeBuild:
+  enabled: true
+  opencodeVersion: "1.15.13"
+aiGateway:
+  apiKeySeed: "pca-aro"
+dashboardSamples:
+  enabled: true
+devspaces:
+  - namespace: "dev1-devspaces"
+    username: "Dev1"
+    workspaceName: "pca-workspace"
+  - namespace: "dev2-devspaces"
+    username: "Dev2"
+    workspaceName: "pca-workspace"

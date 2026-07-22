@@ -1,6 +1,0 @@
-gitops:
-  repoURL: "__overridden_at_deploy_time__"
-  targetRevision: main
-  basePath: "__overridden_at_deploy_time__"
-hfToken:
-  raw: "__overridden_at_deploy_time__"

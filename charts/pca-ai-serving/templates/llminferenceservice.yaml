@@ -1,0 +1,115 @@
+# LLMInferenceService — Qwen3-Coder-30B via llm-d (EPP + vLLM + Gateway API)
+{{- include "pca-ai-serving.langfuse.validate" . -}}
+{{- $langfuseEnabled := eq (include "pca-ai-serving.langfuseEnabled" .) "true" -}}
+{{- $ioCapture := include "pca-ai-serving.langfuseIoCapture" . -}}
+{{- $ioFull := and $langfuseEnabled (eq $ioCapture "full") }}
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: {{ .Values.model.name }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    security.opendatahub.io/enable-auth: "false"
+spec:
+  replicas: 1
+  model:
+    uri: hf://{{ .Values.model.id }}
+    name: {{ .Values.model.id }}
+  router:
+    route: {}
+    gateway:
+      refs:
+        - name: {{ .Values.gatewayName | default "llm-d-gateway" }}
+          namespace: {{ .Values.gatewayNamespace | default .Values.namespace }}
+    scheduler: {}
+  template:
+    volumes:
+      - name: kserve-provision-location
+        persistentVolumeClaim:
+          claimName: model-cache
+      {{- if $ioFull }}
+      - name: pca-langfuse-io
+        configMap:
+          name: pca-langfuse-io-middleware
+      {{- end }}
+    containers:
+      - name: main
+        {{- if .Values.vllm.image }}
+        image: {{ .Values.vllm.image }}
+        {{- end }}
+        args:
+          - --disable-uvicorn-access-log
+          - --max-model-len={{ .Values.vllm.maxModelLen }}
+          - --gpu-memory-utilization=0.90
+          - --enable-prefix-caching
+          - --enable-auto-tool-choice
+          - --tool-call-parser={{ .Values.vllm.toolCallParser }}
+          - --reasoning-parser={{ .Values.vllm.reasoningParser }}
+          - --kv-cache-dtype=fp8
+          {{- if $langfuseEnabled }}
+          - --otlp-traces-endpoint=http://pca-otel-collector.{{ .Values.namespace }}.svc.cluster.local:4317
+          - --collect-detailed-traces=all
+          {{- end }}
+          {{- if $ioFull }}
+          - --middleware
+          - pca_langfuse_io.langfuse_io_middleware
+          {{- end }}
+        {{- if or $langfuseEnabled $ioFull .Values.vllm.extraEnv }}
+        env:
+          {{- if $langfuseEnabled }}
+          - name: OTEL_SERVICE_NAME
+            value: vllm-{{ .Values.model.name }}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://pca-otel-collector.{{ .Values.namespace }}.svc.cluster.local:4317
+          - name: OTEL_TRACES_SAMPLER
+            value: always_on
+          {{- end }}
+          {{- if $ioFull }}
+          - name: PYTHONPATH
+            value: /opt/pca
+          - name: PCA_LANGFUSE_IO_CAPTURE
+            value: {{ $ioCapture | quote }}
+          - name: LANGFUSE_BASE_URL
+            value: http://pca-langfuse-web.{{ .Values.namespace }}.svc.cluster.local:3000
+          - name: LANGFUSE_PUBLIC_KEY
+            valueFrom:
+              secretKeyRef:
+                name: pca-langfuse-credentials
+                key: init-project-public-key
+          - name: LANGFUSE_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: pca-langfuse-credentials
+                key: init-project-secret-key
+          {{- end }}
+          {{- range $key, $val := .Values.vllm.extraEnv }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end }}
+        {{- end }}
+        {{- if $ioFull }}
+        volumeMounts:
+          - name: pca-langfuse-io
+            mountPath: /opt/pca
+            readOnly: true
+        {{- end }}
+        resources:
+          limits:
+            cpu: {{ .Values.hardware.cpu.limit | quote }}
+            memory: {{ .Values.hardware.memory.limit }}
+            nvidia.com/gpu: {{ .Values.hardware.gpuCount | quote }}
+          requests:
+            cpu: {{ .Values.hardware.cpu.request | quote }}
+            memory: {{ .Values.hardware.memory.request }}
+            nvidia.com/gpu: {{ .Values.hardware.gpuCount | quote }}
+    nodeSelector:
+      {{ .Values.hardware.instanceTypeLabel }}: {{ .Values.hardware.gpuProduct }}
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      - key: g6e-gpu
+        operator: Exists
+        effect: NoSchedule

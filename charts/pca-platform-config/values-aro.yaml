@@ -1,0 +1,7 @@
+auth:
+  htpasswd:
+    enabled: true
+guardrails:
+  enabled: false
+mcp:
+  enabled: false

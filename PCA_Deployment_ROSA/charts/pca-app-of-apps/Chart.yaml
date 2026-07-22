@@ -1,4 +1,0 @@
-apiVersion: v2
-name: pca-app-of-apps
-version: 0.1.0
-description: PCA root App-of-Apps — creates AppProject and child Application CRs

@@ -1,0 +1,51 @@
+{{- if .Values.epp.enabled }}
+# InferencePool + InferenceModel — scalable model routing through EPP.
+#
+# InferencePool selects vLLM predictor pods by label and routes through the
+# EPP for intelligent scheduling. When multiple replicas are running, EPP
+# uses queue depth + prefix cache scoring to pick the optimal replica.
+#
+# InferenceModel maps the model name to the pool, enabling multi-model
+# routing through a single Gateway endpoint.
+#
+# To scale: simply increase InferenceService replicas (or add HPA).
+# The InferencePool automatically discovers new pods via label selector.
+apiVersion: inference.networking.k8s.io/v1
+kind: InferencePool
+metadata:
+  name: {{ .Values.model.poolName }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  targetPorts:
+    - number: 8000
+  selector:
+    matchLabels:
+      serving.kserve.io/inferenceservice: {{ .Values.model.name }}
+  endpointPickerRef:
+    name: llm-d-epp
+    port:
+      number: 9002
+---
+# InferenceModel maps model name to pool for Gateway API routing.
+# Clients request the model by ID and the Gateway routes
+# to the correct InferencePool via the model field in the request body.
+#
+# For multi-model setups, create additional InferenceModel resources
+# pointing to different InferencePools.
+apiVersion: inference.networking.x-k8s.io/v1alpha2
+kind: InferenceModel
+metadata:
+  name: {{ .Values.model.name }}-model
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  modelName: {{ .Values.model.id | quote }}
+  criticality: Critical
+  poolRef:
+    name: {{ .Values.model.poolName }}
+{{- end }}

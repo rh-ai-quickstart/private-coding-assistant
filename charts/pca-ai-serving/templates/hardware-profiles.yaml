@@ -1,0 +1,42 @@
+{{- if .Values.clusterResources }}
+apiVersion: infrastructure.opendatahub.io/v1
+kind: HardwareProfile
+metadata:
+  name: gpu-{{ .Values.hardware.gpuProduct | lower | replace "." "-" | replace "_" "-" }}
+  namespace: redhat-ods-applications
+  labels:
+    app.opendatahub.io/hardwareprofile: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    opendatahub.io/display-name: {{ .Values.hardware.gpuProduct }}
+    opendatahub.io/description: GPU node for LLM inference with vLLM.
+spec:
+  identifiers:
+    - displayName: CPU
+      identifier: cpu
+      resourceType: CPU
+      defaultCount: {{ .Values.hardware.cpu.request }}
+      minCount: 1
+      maxCount: {{ .Values.hardware.cpu.limit }}
+    - displayName: Memory
+      identifier: memory
+      resourceType: Memory
+      defaultCount: {{ .Values.hardware.memory.request }}
+      minCount: 4Gi
+      maxCount: {{ .Values.hardware.memory.limit }}
+    - displayName: GPU
+      identifier: nvidia.com/gpu
+      defaultCount: {{ .Values.hardware.gpuCount }}
+      minCount: 1
+      maxCount: {{ .Values.hardware.gpuCount }}
+  scheduling:
+    type: Node
+    node:
+      nodeSelector:
+        {{ .Values.hardware.instanceTypeLabel }}: {{ .Values.hardware.gpuProduct }}
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+{{- end }}

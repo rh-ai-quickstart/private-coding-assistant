@@ -1,0 +1,240 @@
+# All operator Subscriptions managed by ArgoCD.
+# Sync wave 1: these must install before platform config (wave 2) uses their CRDs.
+# Red Hat OpenShift AI (RHOAI) 3.3+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ods-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: redhat-ods-operator
+  namespace: redhat-ods-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhods-operator
+  namespace: redhat-ods-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: {{ (.Values.operators).rhoai.channel | default "stable-3.4" }}
+  installPlanApproval: Automatic
+  name: rhods-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+# NVIDIA GPU Operator
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nvidia-gpu-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: nvidia-gpu-operator
+  namespace: nvidia-gpu-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  targetNamespaces:
+    - nvidia-gpu-operator
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: gpu-operator-certified
+  namespace: nvidia-gpu-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: {{ (.Values.operators).nvidiaGpu.channel | default "v25.3" }}
+  installPlanApproval: Automatic
+  name: gpu-operator-certified
+  source: certified-operators
+  sourceNamespace: openshift-marketplace
+---
+# OpenShift Dev Spaces
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-devspaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/part-of: che.eclipse.org
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-devspaces
+  namespace: openshift-devspaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: devspaces
+  namespace: openshift-devspaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: devspaces
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+{{- if (.Values.operators).nfd.enabled | default true }}
+---
+# Node Feature Discovery (required by NVIDIA GPU Operator to detect GPUs)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-nfd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-nfd
+  namespace: openshift-nfd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  targetNamespaces:
+    - openshift-nfd
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: nfd
+  namespace: openshift-nfd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: nfd
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+{{- end }}
+{{- if (.Values.operators).serviceMesh.enabled | default false }}
+---
+# OpenShift Service Mesh (required by llm-d/Gateway on ARO)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-operators
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: servicemeshoperator3
+  namespace: openshift-operators
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: servicemeshoperator3
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+{{- end }}
+{{- if (.Values.operators).serverless.enabled | default false }}
+---
+# OpenShift Serverless (KNative, required by KServe on ARO)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-serverless
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-serverless
+  namespace: openshift-serverless
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: serverless-operator
+  namespace: openshift-serverless
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: serverless-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+{{- end }}
+{{- if (.Values.operators).rhcl.enabled | default true }}
+---
+# Red Hat Connectivity Link (RHCL / Kuadrant) — AI Gateway auth + future quotas
+# Authorino and Limitador Operators are installed automatically as RHCL dependencies.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: kuadrant
+  namespace: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhcl-operator
+  namespace: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: {{ (.Values.operators).rhcl.channel | default "stable" }}
+  installPlanApproval: Automatic
+  name: rhcl-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  config:
+    env:
+    - name: ISTIO_GATEWAY_CONTROLLER_NAMES
+      # OpenShift AI data-science-gateway-class uses openshift.io/gateway-controller/v1
+      value: {{ (.Values.operators).rhcl.gatewayControllerNames | default "openshift.io/gateway-controller/v1" | quote }}
+---
+# Kuadrant CR deploys Authorino + Limitador instances used by AuthPolicy / RateLimitPolicy.
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: kuadrant
+  namespace: {{ (.Values.operators).rhcl.namespace | default "kuadrant-system" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec: {}
+{{- end }}

@@ -1,0 +1,30 @@
+model:
+  id: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+  name: "qwen3-coder"
+  poolName: "qwen3-coder-inference-pool"
+vllm:
+  maxModelLen: 32768
+  toolCallParser: "qwen3_coder"
+  reasoningParser: "qwen3"
+hardware:
+  gpuProduct: "g6e.2xlarge"
+  instanceTypeLabel: "node.kubernetes.io/instance-type"
+  gpuCount: 1
+  cpu:
+    request: "2"
+    limit: "4"
+  memory:
+    request: 16Gi
+    limit: 48Gi
+storage:
+  storageClass: "gp3-csi"
+  modelCacheSize: 100Gi
+observability:
+  enabled: true
+pca-observability:
+  grafana:
+    enabled: true
+  langfuse:
+    enabled: false
+  prometheus:
+    accessMode: cluster

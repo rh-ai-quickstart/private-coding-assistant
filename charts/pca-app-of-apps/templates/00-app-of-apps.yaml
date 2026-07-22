@@ -1,0 +1,200 @@
+# Root App-of-Apps: ArgoCD discovers child Applications in this directory.
+# Each child Application below points to a subdirectory of manifests.
+# Sync waves ensure correct ordering: operators first, then platform, then workloads.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: private-code-assistant
+  namespace: openshift-gitops
+spec:
+  description: Private AI Code Assistant — full stack
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+# Wave 1: Operators
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-operators
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-operators
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-{{ .Values.gitops.cloud }}.yaml
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+---
+# Wave 2: Platform Configuration
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-platform-config
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-platform-config
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-{{ .Values.gitops.cloud }}.yaml
+      parameters:
+        - name: hfToken.raw
+          value: {{ .Values.hfToken.raw | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+---
+# Wave 3: AI Serving (Models, Gateway, PVCs)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-ai-serving
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-ai-serving
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-{{ .Values.gitops.cloud }}.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ai-serving
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 60s
+        factor: 2
+        maxDuration: 10m
+---
+# Wave 4: DevSpaces Workspaces and Extension Configuration
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-devspaces
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-devspaces
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-{{ .Values.gitops.cloud }}.yaml
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+---
+# Wave 5: Benchmarks (one-shot GuideLLM sweep — not continuously reconciled)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pca-benchmarks
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: private-code-assistant
+  source:
+    repoURL: {{ .Values.gitops.repoURL }}
+    targetRevision: {{ .Values.gitops.targetRevision }}
+    path: {{ .Values.gitops.basePath }}/pca-benchmarks
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-{{ .Values.gitops.cloud }}.yaml
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,42 @@
+model:
+  id: "Qwen/Qwen3.6-35B-A3B-FP8"
+  name: "qwen36-vllm"
+  poolName: "qwen36-vllm-pool"
+vllm:
+  image: "vllm/vllm-openai:v0.19.0"
+  maxModelLen: 262144
+  toolCallParser: "qwen3_xml"
+  reasoningParser: "qwen3"
+  extraEnv:
+    VLLM_ENABLE_CUDA_COMPATIBILITY: "1"
+    LD_LIBRARY_PATH: "/usr/local/cuda/compat:/usr/local/cuda/lib64:/usr/lib64"
+    HF_HOME: "/model-cache"
+    HF_HUB_OFFLINE: "0"
+    TRITON_CACHE_DIR: "/model-cache/triton-cache"
+    XDG_CACHE_HOME: "/model-cache/xdg-cache"
+    HOME: "/tmp"
+    DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
+    VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
+hardware:
+  gpuProduct: "NVIDIA-H100-NVL"
+  instanceTypeLabel: "nvidia.com/gpu.product"
+  gpuCount: 1
+  cpu:
+    request: "8"
+    limit: "16"
+  memory:
+    request: 80Gi
+    limit: 120Gi
+storage:
+  storageClass: "managed-csi"
+  modelCacheSize: 100Gi
+epp:
+  enabled: true
+tlsJob:
+  enabled: true
+aiGateway:
+  enabled: true
+  tls:
+    secretName: "llm-d-gateway-tls"
+observability:
+  enabled: false

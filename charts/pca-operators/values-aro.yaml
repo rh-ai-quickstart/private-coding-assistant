@@ -1,0 +1,11 @@
+operators:
+  rhoai:
+    channel: fast-3.x
+  nvidiaGpu:
+    channel: v26.3
+  nfd:
+    enabled: false
+  serviceMesh:
+    enabled: true
+  serverless:
+    enabled: true

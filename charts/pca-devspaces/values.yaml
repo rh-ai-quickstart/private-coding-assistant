@@ -1,0 +1,35 @@
+aiServingNamespace: ai-serving
+modelId: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+opencodeBuild:
+  enabled: false
+  opencodeVersion: "1.15.13"
+devspacesGlobalConfig:
+  enabled: true
+# RHCL AI Gateway — default IDE base URL (see _helpers.tpl aiGateway.baseUrl).
+aiGateway:
+  enabled: true
+  name: pca-ai-gateway
+  gatewayClassName: data-science-gateway-class
+  escapeHatchToLlmd: false
+  apiKeySecretName: pca-ai-gw-apikey
+guardrails:
+  enabled: false
+  endpoint: "http://pca-guardrails:8034/guardrailed"
+mcp:
+  enabled: false
+  # Direct MCP server SSE URL. Defaults to openshift-mcp service in aiServingNamespace.
+  # Override if deploying to a different namespace or using the MCP Gateway.
+  serverUrl: ""
+dashboardSamples:
+  enabled: false
+devspaces:
+  - namespace: dev-user1-devspaces
+    name: code-workspace-1
+    user: dev-user1
+    # team: optional — becomes Langfuse tag team=<value> via X-PCA-Team
+  - namespace: dev-user2-devspaces
+    name: code-workspace-2
+    user: dev-user2
+  - namespace: dev-user3-devspaces
+    name: code-workspace-3
+    user: dev-user3
