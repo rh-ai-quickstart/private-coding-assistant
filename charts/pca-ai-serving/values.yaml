@@ -4,6 +4,8 @@ model:
   id: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
   name: "qwen3-coder"
   poolName: "qwen3-coder-inference-pool"
+  workloadServiceSuffix: "kserve-workload-svc"
+  workloadServicePort: 8000
 vllm:
   maxModelLen: 32768
   toolCallParser: "qwen3_coder"

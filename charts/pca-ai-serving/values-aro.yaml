@@ -3,6 +3,7 @@ model:
   name: "qwen36-vllm"
   poolName: "qwen36-vllm-pool"
   workloadServiceSuffix: "predictor"
+  workloadServicePort: 80
 vllm:
   useCustomRuntime: true
   image: "vllm/vllm-openai:v0.19.0"

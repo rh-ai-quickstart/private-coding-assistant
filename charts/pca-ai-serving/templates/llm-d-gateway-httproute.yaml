@@ -52,7 +52,7 @@ spec:
         value: /
     backendRefs:
     - name: {{ .Values.model.name }}-{{ .Values.model.workloadServiceSuffix | default "kserve-workload-svc" }}
-      port: 80
+      port: {{ .Values.model.workloadServicePort | default 8000 }}
     timeouts:
       request: "0s"
       backendRequest: "0s"
