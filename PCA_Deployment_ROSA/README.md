@@ -60,41 +60,31 @@ The end result is a ROSA HCP cluster running:
 ## Directory Structure
 
 ```
-PCA_deployment/
-├── README.md                              ← You are here
-├── terraform/
-│   ├── versions.tf                        # Provider pinning (rhcs 1.7.6, aws 5.x)
-│   ├── variables.tf                       # All configurable inputs with defaults
-│   ├── main.tf                            # VPC, ROSA HCP, machine pools, IDP
-│   ├── gitops-bootstrap.tf                # GitOps operator install + App-of-Apps
-│   ├── outputs.tf                         # Cluster API URL, console URL, IDs
-│   ├── terraform.tfvars.example           # Template (copy to terraform.tfvars)
-│   └── .gitignore                         # Prevents secrets from being committed
-├── argocd/
-│   ├── 00-app-of-apps.yaml               # Root AppProject + 4 child Applications
-│   ├── 01-operators/                      # Wave 1: Operator Subscriptions
-│   │   ├── subscriptions.yaml             #   RHOAI, SM, GPU, DevSpaces, Serverless
-│   │   ├── cert-manager.yaml              #   cert-manager (llm-d-playbook)
-│   │   ├── leader-worker-set.yaml         #   LWS (llm-d-playbook)
-│   │   ├── nvidia-cluster-policy.yaml     #   GPU stack activation
-│   │   └── lws-operator-cr.yaml           #   LWS controller CR
-│   ├── 02-platform-config/                # Wave 2: Cluster Configuration
-│   │   ├── namespaces.yaml                #   ai-serving, devN-devspaces
-│   │   ├── datasciencecluster.yaml        #   KServe "Headed" mode
-│   │   ├── checluster.yaml                #   Dev Spaces instance
-│   │   ├── rbac.yaml                      #   User → namespace RoleBindings
-│   │   └── hf-token-placeholder.yaml      #   HuggingFace secret (placeholder)
-│   ├── 03-ai-serving/                     # Wave 3: Model Serving
-│   │   ├── llminferenceservice.yaml       #   Qwen3-Coder-30B via LLMInferenceService (llm-d)
-│   │   ├── hardware-profiles.yaml         #   Trainium HardwareProfile
-│   │   └── vllm-neuron-runtime-template.yaml
-│   └── 04-devspaces/                      # Wave 4: Developer Experience
-│       ├── vscode-extensions-config.yaml  #   Extension recommendations
-│       ├── roo-code-configmaps.yaml       #   Pre-configured Roo Code settings
-│       └── devworkspaces.yaml             #   code-workspace-1/2/3 with postStart
-└── scripts/
-    ├── seal-secret.sh                     # Sealed Secrets helper (production)
-    └── validate.sh                        # Post-deployment validation
+private-coding-assistant/              ← repo root (fork and clone this)
+├── charts/                            # Unified Helm charts — ROSA and ARO share these
+│   ├── pca-app-of-apps/               #   Root ArgoCD AppProject + child Applications
+│   ├── pca-operators/                 #   Wave 1: Operator Subscriptions (RHOAI, GPU, DevSpaces, NFD, RHCL, …)
+│   ├── pca-platform-config/           #   Wave 2: Namespace, RBAC, secrets, DSC, CheCluster
+│   │   ├── charts/pca-guardrails/     #     Optional: TrustyAI guardrails proxy
+│   │   └── charts/pca-mcp/           #     Optional: OpenShift MCP server
+│   ├── pca-ai-serving/                #   Wave 3: LLMInferenceService, llm-d Gateway, RHCL AI Gateway
+│   │   └── charts/pca-observability/ #     Optional: Grafana + Langfuse/OTel Collector
+│   ├── pca-devspaces/                 #   Wave 4: DevWorkspaces + Roo/Continue/Cline + API keys
+│   └── pca-benchmarks/               #   Wave 5: GuideLLM sweep (disabled by default)
+│
+└── PCA_Deployment_ROSA/               ← You are here
+    ├── README.md
+    ├── terraform/                     # AWS infrastructure provisioning
+    │   ├── main.tf                    #   VPC, ROSA HCP, machine pools, IDP
+    │   ├── gitops-bootstrap.tf        #   OpenShift GitOps operator + App-of-Apps bootstrap
+    │   ├── variables.tf               #   All configurable inputs with defaults
+    │   ├── versions.tf                #   Provider pinning (rhcs, aws)
+    │   ├── outputs.tf                 #   Cluster API URL, console URL
+    │   └── terraform.tfvars.example
+    └── scripts/
+        ├── seal-secret.sh             # Sealed Secrets helper (production)
+        ├── setup-idp.sh              # HTPasswd IDP setup
+        └── validate.sh               # Post-deployment validation
 ```
 
 ---
@@ -266,36 +256,14 @@ Save it — you will use it in Step 4 and Step 11.
 
 #### 3a. Fork and clone
 
-Fork this repository to your own GitHub/GitLab account (ArgoCD needs to pull from a Git repo you control), then clone it:
+Fork this repository to your own GitHub/GitLab account — ArgoCD pulls from a Git repo you control — then clone it:
 
 ```bash
-git clone https://github.com/<your-org>/rosa-llm-driven-deployment.git
-cd rosa-llm-driven-deployment/PCA_deployment
+git clone https://github.com/<your-org>/private-coding-assistant.git
+cd private-coding-assistant
 ```
 
-#### 3b. Set the ArgoCD repository URL
-
-Open `argocd/00-app-of-apps.yaml` and replace every instance of `REPLACE_WITH_GITOPS_REPO_URL` with your forked repository's HTTPS URL:
-
-```bash
-# Example using sed (adjust the URL):
-sed -i '' 's|REPLACE_WITH_GITOPS_REPO_URL|https://github.com/<your-org>/rosa-llm-driven-deployment.git|g' argocd/00-app-of-apps.yaml
-```
-
-Verify:
-```bash
-grep "repoURL" argocd/00-app-of-apps.yaml
-```
-
-All four lines should show your repository URL.
-
-#### 3c. Commit and push
-
-```bash
-git add argocd/00-app-of-apps.yaml
-git commit -m "Set ArgoCD repo URL for GitOps"
-git push origin main
-```
+That is all for this step. The ArgoCD repository URL is passed as a Terraform variable (`gitops_repo_url`) in Step 4 — there are no files to manually edit or commit.
 
 ---
 
@@ -348,9 +316,9 @@ devspaces_users = [
 huggingface_token = "hf_..."
 
 # REQUIRED — your forked repo URL
-gitops_repo_url      = "https://github.com/<your-org>/rosa-llm-driven-deployment.git"
+gitops_repo_url      = "https://github.com/<your-org>/private-coding-assistant.git"
 gitops_repo_revision = "main"
-gitops_repo_path     = "PCA_deployment/argocd"
+gitops_repo_path     = "charts/pca-app-of-apps"
 ```
 
 **Security note:** `terraform.tfvars` is excluded from Git by the `.gitignore` file. Never commit it.
@@ -515,8 +483,13 @@ oc create secret generic pca-repo \
   --from-literal=password='ghp_your_personal_access_token'
 oc label secret pca-repo -n openshift-gitops argocd.argoproj.io/secret-type=repository
 
-# 5. Apply the App-of-Apps
-oc apply -f ../argocd/00-app-of-apps.yaml
+# 5. Render and apply the App-of-Apps Helm chart
+helm template pca-root charts/pca-app-of-apps \
+  --set gitops.repoURL="https://github.com/<your-org>/private-coding-assistant.git" \
+  --set gitops.targetRevision=main \
+  --set gitops.basePath=charts \
+  --set gitops.cloud=rosa \
+  --set hfToken.raw="hf_your_actual_token_here" | oc apply -f -
 ```
 
 ---
@@ -555,6 +528,7 @@ Expected progression:
 | 2 | `pca-platform-config` | Synced | Healthy | ~5 min |
 | 3 | `pca-ai-serving` | Synced | Progressing → Healthy | ~10-15 min |
 | 4 | `pca-devspaces` | Synced | Healthy | ~5 min |
+| 5 | `pca-benchmarks` | Synced | Healthy | ~2 min (disabled by default) |
 
 Wait until all four show **Synced** and **Healthy**.
 
@@ -648,46 +622,55 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 
 ## What Gets Deployed
 
-### Wave 1 — Operators
+### Wave 1 — Operators (`pca-operators`)
 
 | Operator | Channel | Namespace |
 |----------|---------|-----------|
-| Red Hat OpenShift AI (RHOAI) | stable-2.19 | redhat-ods-operator |
+| Red Hat OpenShift AI (RHOAI) | stable | redhat-ods-operator |
 | OpenShift Service Mesh | stable | openshift-operators |
 | NVIDIA GPU Operator | v24.9 | nvidia-gpu-operator |
+| Node Feature Discovery (NFD) | stable | openshift-nfd |
 | OpenShift Dev Spaces | stable | openshift-devspaces |
 | OpenShift Serverless | stable | openshift-serverless |
-| cert-manager | (kustomize) | cert-manager |
-| LeaderWorkerSet | (kustomize) | lws-system |
+| Red Hat Connectivity Link (RHCL/Kuadrant) | stable | kuadrant-system |
+| cert-manager | stable | cert-manager |
+| LeaderWorkerSet | stable | lws-system |
 
-### Wave 2 — Platform Configuration
+### Wave 2 — Platform Configuration (`pca-platform-config`)
 
-- Namespaces: `ai-serving`, `dev1-devspaces`, `dev2-devspaces`, `dev3-devspaces`
-- DataScienceCluster with `rawDeploymentServiceConfig: Headed`
+- Namespace: `ai-serving` (default; configurable via `aiNamespace` in values)
+- DataScienceCluster and DSCI with KServe enabled
 - CheCluster instance in `openshift-devspaces`
-- RBAC: each dev user gets `admin` in their devspaces namespace
-- HuggingFace token secret (placeholder)
+- NVIDIA ClusterPolicy and NFD instance
+- OAuth HTPasswd IDP with developer users
+- HuggingFace token secret
+- Optional: `pca-guardrails` (TrustyAI guardrails proxy) and `pca-mcp` (OpenShift MCP server)
 
-### Wave 3 — AI Serving
+### Wave 3 — AI Serving (`pca-ai-serving`)
 
 - **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts)
-- **TLS**: Self-signed cert Job for the llm-d Gateway
-- **Model Deployment** (`qwen3-coder`): `Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8` with vLLM args:
+- **LLMInferenceService** (`qwen3-coder`): `Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8` with vLLM args:
   - `--tool-call-parser qwen3_coder --reasoning-parser qwen3`
   - `--max-model-len 32768 --gpu-memory-utilization 0.90`
   - `--enable-prefix-caching --kv-cache-dtype fp8`
   - EPP scorer weights: queue=2, kv-cache=2, prefix-cache=3
-- **Gateway + HTTPRoute**: cluster-internal llm-d Gateway with EPP routing
-- **HardwareProfile**: Trainium trn1.32xlarge definition
-- **ServingRuntime**: vLLM Neuron runtime template for Inferentia/Trainium
+- **llm-d Gateway + HTTPRoute**: cluster-internal llm-d Gateway with EPP routing
+- **RHCL AI Gateway** (`pca-ai-gateway`): HTTPS front door with per-developer API key auth (AuthPolicy)
+- **HardwareProfile**: GPU hardware profile definition
+- **ServingRuntime**: vLLM Neuron runtime template for Inferentia/Trainium (optional)
+- **pca-observability** (optional): Grafana dashboards + optional Langfuse/OTel Collector
 
-### Wave 4 — Developer Workspaces
+### Wave 4 — Developer Workspaces (`pca-devspaces`)
 
-- VS Code extension recommendations (Roo Code, Continue, Cline)
-- Roo Code ConfigMaps per namespace (pre-configured with model endpoint, streaming disabled)
-- DevWorkspaces:
-  - `code-workspace-1` (dev1): Full setup — Roo Code + Continue + Cline with postStart auto-install
-  - `code-workspace-2` (dev2), `code-workspace-3` (dev3): Roo Code only
+- Roo Code, Continue, and Cline ConfigMaps per namespace (pre-configured with model endpoint)
+- Per-namespace API key secrets for RHCL AI Gateway authentication
+- DevWorkspaces with postStart auto-install of extensions
+- Global DevSpaces ConfigMaps in `openshift-devspaces`
+
+### Wave 5 — Benchmarks (`pca-benchmarks`)
+
+- GuideLLM sweep Job for performance benchmarking
+- **Disabled by default** — opt in via `values-rosa.yaml`
 
 ### Extension Pre-Configuration Details
 
@@ -757,15 +740,13 @@ rosa edit machinepool gpu-l40s --cluster=rosa-pca --replicas=2
 
 ### Scaling model replicas
 
-Edit `argocd/03-ai-serving/llminferenceservice.yaml` → change `spec.modelSpec.replicas`, commit and push. ArgoCD syncs automatically.
+Edit `charts/pca-ai-serving/values-rosa.yaml` → update `llmInferenceService.replicas`, commit and push. ArgoCD syncs automatically.
 
 ### Adding a new model
 
-1. Create a PVC in `03-ai-serving/pvcs.yaml`
-2. Add a new `LLMInferenceService` YAML in `03-ai-serving/`
-3. Add HTTPRoute rules in `llm-d-gateway.yaml` for the new InferencePool
-4. Update DevSpaces ConfigMaps if extensions should use the new model
-5. Commit and push — ArgoCD syncs automatically
+1. Update `charts/pca-ai-serving/values-rosa.yaml` with the new model configuration
+2. Update `charts/pca-devspaces/values-rosa.yaml` if extensions should use the new model
+3. Commit and push — ArgoCD syncs automatically
 
 ### Enabling Inferentia
 
@@ -775,11 +756,10 @@ terraform apply -var="inferentia_pool_enabled=true"
 
 ### Adding a new developer user
 
-1. Add to `devspaces_users` in `terraform.tfvars` and run `terraform apply`
-2. Add a new namespace + RBAC entry in `02-platform-config/namespaces.yaml` and `rbac.yaml`
-3. Add a Roo Code ConfigMap in `04-devspaces/roo-code-configmaps.yaml`
-4. Add a DevWorkspace in `04-devspaces/devworkspaces.yaml`
-5. Commit and push
+1. Add to `devspaces_users` in `terraform.tfvars` and run `terraform apply` (creates the HTPasswd user)
+2. Add the new user to `charts/pca-platform-config/values-rosa.yaml` (namespace + RBAC)
+3. Add a DevWorkspace entry to `charts/pca-devspaces/values-rosa.yaml`
+4. Commit and push — ArgoCD syncs automatically
 
 ---
 
@@ -800,10 +780,10 @@ echo -n 'hf_your_token' | \
     --namespace=ai-serving \
     --from-file=token=/dev/stdin \
     --dry-run=client -o yaml | \
-  ./scripts/seal-secret.sh /dev/stdin argocd/02-platform-config/hf-token-sealed.yaml
+  ./scripts/seal-secret.sh /dev/stdin charts/pca-platform-config/templates/hf-token-sealed.yaml
 
 # Commit the sealed secret (safe for Git)
-git add argocd/02-platform-config/hf-token-sealed.yaml
+git add charts/pca-platform-config/templates/hf-token-sealed.yaml
 git commit -m "Add sealed HuggingFace token"
 git push
 ```

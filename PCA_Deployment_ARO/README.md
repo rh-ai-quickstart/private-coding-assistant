@@ -375,54 +375,48 @@ curl -sk https://${GATEWAY_SVC}/v1/chat/completions \
 
 ## GitOps Structure
 
-ArgoCD manages the platform in five sync waves:
+ArgoCD manages the platform using the unified Helm charts at the repo root. Both ROSA and ARO use the same `charts/` directory; ARO-specific overrides are in `values-aro.yaml` within each chart.
 
 ```
-PCA_Deployment_ARO/
-├── terraform/                  # Azure infrastructure
-│   ├── main.tf                 # RG, VNet, subnets, ARO cluster, GPU MachineSet
-│   ├── gitops-bootstrap.tf     # OpenShift GitOps operator + App-of-Apps
-│   ├── variables.tf            # Input variables with defaults
-│   ├── versions.tf             # Provider versions
-│   ├── outputs.tf              # Credential retrieval commands
-│   └── terraform.tfvars.example
-├── argocd/
-│   ├── 00-app-of-apps.yaml            # Root ArgoCD application
-│   ├── 01-operators/                   # Wave 1: Operator subscriptions
-│   │   ├── subscriptions.yaml          #   RHOAI, Service Mesh, Serverless, GPU Op, DevSpaces
-│   │   ├── nvidia-cluster-policy.yaml  #   GPU Operator ClusterPolicy
-│   │   ├── leader-worker-set.yaml      #   LWS controller (llm-d dependency)
-│   │   ├── lws-operator-cr.yaml        #   LWS operator instance
-│   │   └── cert-manager.yaml           #   cert-manager (llm-d dependency)
-│   ├── 02-platform-config/             # Wave 2: Platform configuration
-│   │   ├── namespaces.yaml             #   ai-serving, dev1/2/3-devspaces
-│   │   ├── datasciencecluster.yaml     #   DSC with KServe Managed mode
-│   │   ├── checluster.yaml             #   DevSpaces CheCluster instance
-│   │   ├── hf-token-placeholder.yaml   #   HuggingFace token secret
-│   │   └── rbac.yaml                   #   RoleBindings for dev users
-│   ├── 03-ai-serving/                  # Wave 3: AI serving stack
-│   │   ├── llminferenceservice.yaml    #   HardwareProfile + ServingRuntime +
-│   │   │                               #   InferenceService (KServe RawDeployment)
-│   │   ├── llm-d-gateway.yaml          #   Gateway API Gateway + HTTPRoute
-│   │   ├── llm-d-epp.yaml             #   EPP Deployment + Envoy sidecar +
-│   │   │                               #   RBAC + ConfigMaps (scheduler config)
-│   │   ├── inference-routing.yaml      #   InferencePool + InferenceModel
-│   │   ├── pvcs.yaml                   #   100Gi model cache PVC (managed-csi)
-│   │   └── tls-secret-job.yaml         #   Self-signed TLS cert for gateway
-│   ├── 04-devspaces/                   # Wave 4: Developer workspaces
-│   │   ├── devworkspaces.yaml          #   DevWorkspace TEMPLATE (not ArgoCD-managed)
-│   │   ├── opencode-image-build.yaml   #   BuildConfig + RBAC for custom image
-│   │   ├── devspaces-dashboard-samples.yaml  #   Dashboard landing page samples
-│   │   ├── vscode-extensions-config.yaml #   VS Code extension recommendations (sidebar hint only)
-│   │   └── roo-code-configmaps.yaml    #   Roo Code provider config
-│   └── 05-benchmarks/                  # Wave 5: Performance benchmarks
-│       └── guidellm-sweep.yaml         #   GuideLLM sweep job
-└── scripts/
-    ├── create-gpu-machineset.sh        # Post-cluster H100 node provisioning
-    ├── deploy-full-stack.sh            # Full stack deployment script
-    ├── post-terraform-fullstack.sh     # Post-terraform automation
-    ├── setup-devspaces-users.sh        # HTPasswd IDP + DevWorkspace provisioning
-    └── validate.sh                     # Post-deployment validation
+private-coding-assistant/              ← repo root
+├── charts/                            # Unified Helm charts (ROSA + ARO)
+│   ├── pca-app-of-apps/               #   Root ArgoCD AppProject + child Applications
+│   ├── pca-operators/                 #   Wave 1: Operator Subscriptions
+│   │   ├── values.yaml
+│   │   └── values-aro.yaml            #   ARO overrides (NFD required, no Serverless)
+│   ├── pca-platform-config/           #   Wave 2: Namespace, RBAC, DSC, CheCluster
+│   │   ├── values.yaml
+│   │   ├── values-aro.yaml            #   ARO overrides (managed-csi storage class)
+│   │   ├── charts/pca-guardrails/     #   Optional: TrustyAI guardrails proxy
+│   │   └── charts/pca-mcp/           #   Optional: OpenShift MCP server
+│   ├── pca-ai-serving/                #   Wave 3: LLMInferenceService, llm-d, RHCL AI Gateway
+│   │   ├── values.yaml
+│   │   ├── values-aro.yaml            #   ARO overrides (model, storage, EPP disabled, …)
+│   │   └── charts/pca-observability/ #   Optional: Grafana + Langfuse/OTel Collector
+│   ├── pca-devspaces/                 #   Wave 4: DevWorkspaces + Roo/Continue/Cline + API keys
+│   │   ├── values.yaml
+│   │   └── values-aro.yaml
+│   └── pca-benchmarks/               #   Wave 5: GuideLLM sweep (enabled in values-aro.yaml)
+│       ├── values.yaml
+│       └── values-aro.yaml
+│
+└── PCA_Deployment_ARO/                ← You are here
+    ├── README.md
+    ├── Dockerfile.opencode             # Custom OpenCode image with pre-installed CLI
+    ├── devfile.yaml                    # DevSpaces factory URL devfile
+    ├── terraform/                      # Azure infrastructure provisioning
+    │   ├── main.tf                     #   RG, VNet, subnets, ARO cluster, GPU MachineSet
+    │   ├── gitops-bootstrap.tf         #   OpenShift GitOps operator + App-of-Apps bootstrap
+    │   ├── variables.tf                #   Input variables with defaults
+    │   ├── versions.tf                 #   Provider versions
+    │   ├── outputs.tf                  #   Credential retrieval commands
+    │   └── terraform.tfvars.example
+    └── scripts/
+        ├── create-gpu-machineset.sh    # Post-cluster H100 node provisioning
+        ├── deploy-full-stack.sh        # Full stack deployment script
+        ├── post-terraform-fullstack.sh # Post-terraform automation
+        ├── setup-devspaces-users.sh    # HTPasswd IDP + DevWorkspace provisioning
+        └── validate.sh                 # Post-deployment validation
 ```
 
 ---
@@ -456,7 +450,7 @@ and GPU (1x `nvidia.com/gpu`) resource bounds.
 | `--trust-remote-code` | Required for Qwen3.5-MoE architecture |
 | `--enable-prefix-caching` | KV cache reuse for shared prefixes (EPP affinity) |
 | `--enable-auto-tool-choice` | Allow model to decide when to use tools (required by OpenCode/Roo Code) |
-| `--tool-call-parser=hermes` | Parse Hermes-format tool calls from model output into OpenAI `tool_calls` |
+| `--tool-call-parser=qwen3_xml` | Parse Qwen3.x XML tool calls (`<tool_call>` tags) into OpenAI `tool_calls` |
 
 Environment variables handle non-root container constraints:
 
@@ -489,7 +483,8 @@ python3 -m vllm.entrypoints.openai.api_server \
   --trust-remote-code \
   --enable-prefix-caching \
   --enable-auto-tool-choice \
-  --tool-call-parser=hermes \
+  --tool-call-parser=qwen3_xml \
+  --reasoning-parser=qwen3 \
   --model=Qwen/Qwen3.6-35B-A3B-FP8 \
   --tensor-parallel-size=1 \
   --max-model-len=262144
@@ -784,12 +779,13 @@ Ensure RBAC includes `inferenceobjectives` and `leases`. Check that the
 **OpenCode "auto tool choice requires --enable-auto-tool-choice" error:**
 OpenCode sends `tool_choice: "auto"` for agentic features. vLLM rejects these
 requests unless both `--enable-auto-tool-choice` and `--tool-call-parser` are set
-in the ServingRuntime args. The `hermes` parser works for Qwen3.6 models. To fix:
+in the ServingRuntime args. Use `qwen3_xml` for Qwen3.x models. To fix:
 
 ```bash
 oc patch servingruntime vllm-cuda-v0190 -n ai-serving --type='json' -p='[
   {"op": "add", "path": "/spec/containers/0/args/-", "value": "--enable-auto-tool-choice"},
-  {"op": "add", "path": "/spec/containers/0/args/-", "value": "--tool-call-parser=hermes"}
+  {"op": "add", "path": "/spec/containers/0/args/-", "value": "--tool-call-parser=qwen3_xml"},
+  {"op": "add", "path": "/spec/containers/0/args/-", "value": "--reasoning-parser=qwen3"}
 ]'
 ```
 

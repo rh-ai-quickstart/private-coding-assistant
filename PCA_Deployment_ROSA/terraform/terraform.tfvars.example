@@ -49,4 +49,4 @@ huggingface_token = ""
 # GitOps: point to your fork of this repo
 gitops_repo_url      = "https://github.com/<your-org>/rosa-llm-driven-deployment.git"
 gitops_repo_revision = "main"
-gitops_repo_path     = "PCA_deployment/argocd"
+gitops_repo_path     = "charts/pca-app-of-apps"

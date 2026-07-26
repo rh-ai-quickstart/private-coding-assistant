@@ -364,7 +364,7 @@ The full `VLLM_ADDITIONAL_ARGS` for Qwen3-Coder-30B with tool calling and FP8 KV
 #### Patching an Existing Deployment
 
 ```bash
-oc patch llminferenceservice qwen3-coder-fp8 -n llm-d-multi-gpu --type=json -p '[
+oc patch llminferenceservice qwen3-coder-fp8 -n ai-serving --type=json -p '[
   {"op":"replace","path":"/spec/template/containers/0/env/0/value",
    "value":"--disable-uvicorn-access-log --max-model-len 32768 --gpu-memory-utilization 0.90 --enable-prefix-caching --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3 --kv-cache-dtype fp8"}
 ]'
@@ -375,7 +375,7 @@ oc patch llminferenceservice qwen3-coder-fp8 -n llm-d-multi-gpu --type=json -p '
 Test from inside the cluster (or from any pod in the same namespace):
 
 ```bash
-curl -sk https://qwen3-coder-fp8-kserve-workload-svc.llm-d-multi-gpu.svc.cluster.local:8000/v1/chat/completions \
+curl -sk https://qwen3-coder-fp8-kserve-workload-svc.ai-serving.svc.cluster.local:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
@@ -459,7 +459,7 @@ The `roo-code-provider-config` ConfigMap in each DevSpaces namespace must contai
     "llm-d-qwen3-coder": {
       "id": "llm-d-qwen3-coder",
       "apiProvider": "openai",
-      "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.llm-d-multi-gpu.svc.cluster.local/v1",
+      "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1",
       "openAiApiKey": "EMPTY",
       "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
       "openAiStreamingEnabled": false
@@ -512,20 +512,20 @@ When running a **single GPU replica**, the default Kubernetes `RollingUpdate` st
 1. **Manual rollout** (immediate): Delete the old pod and scale its ReplicaSet to 0 to free the GPU:
   ```bash
    # Identify old and new ReplicaSets
-   oc get rs -n llm-d-multi-gpu -l app.kubernetes.io/name=qwen3-coder-fp8
+   oc get rs -n ai-serving -l app.kubernetes.io/name=qwen3-coder-fp8
 
    # Delete the running pod from the OLD ReplicaSet
-   oc delete pod <old-pod-name> -n llm-d-multi-gpu --grace-period=0 --force
+   oc delete pod <old-pod-name> -n ai-serving --grace-period=0 --force
 
    # Scale down the old ReplicaSet
-   oc scale rs <old-rs-name> --replicas=0 -n llm-d-multi-gpu
+   oc scale rs <old-rs-name> --replicas=0 -n ai-serving
   ```
 2. **Scale to zero first** (controlled): Scale replicas to 0 in the LLMInferenceService, apply the config change, then scale back to 1:
   ```bash
-   oc patch llminferenceservice qwen3-coder-fp8 -n llm-d-multi-gpu \
+   oc patch llminferenceservice qwen3-coder-fp8 -n ai-serving \
      --type=merge -p '{"spec":{"replicas":0}}'
    # Wait for pod termination, then apply config changes, then:
-   oc patch llminferenceservice qwen3-coder-fp8 -n llm-d-multi-gpu \
+   oc patch llminferenceservice qwen3-coder-fp8 -n ai-serving \
      --type=merge -p '{"spec":{"replicas":1}}'
   ```
 3. **Multi-GPU pool** (production): Maintain 2+ GPU nodes so rolling updates can proceed normally. This is the recommended approach for production but increases cost.
@@ -3234,7 +3234,7 @@ data:
         "llm-d-qwen3-coder": {
           "id": "llm-d-qwen3-coder",
           "apiProvider": "openai",
-          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.llm-d-multi-gpu.svc.cluster.local/v1",
+          "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1",
           "openAiApiKey": "EMPTY",
           "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
           "openAiStreamingEnabled": false
@@ -3276,7 +3276,7 @@ data:
           "llm-d-qwen3-coder": {
             "id": "llm-d-qwen3-coder",
             "apiProvider": "openai",
-            "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.llm-d-multi-gpu.svc.cluster.local/v1",
+            "openAiBaseUrl": "https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1",
             "openAiApiKey": "EMPTY",
             "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
             "openAiStreamingEnabled": false
@@ -3662,17 +3662,17 @@ After patching the `LLMInferenceService`, a `RollingUpdate` creates a new pod th
 
 ```bash
 # 1. Apply the config change
-oc patch llminferenceservice qwen3-coder-fp8 -n llm-d-multi-gpu --type=json -p '[
+oc patch llminferenceservice qwen3-coder-fp8 -n ai-serving --type=json -p '[
   {"op":"replace","path":"/spec/template/containers/0/env/0/value",
    "value":"--disable-uvicorn-access-log --max-model-len 32768 --gpu-memory-utilization 0.90 --enable-prefix-caching --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3 --kv-cache-dtype fp8"}
 ]'
 
 # 2. Identify old and new ReplicaSets
-oc get rs -n llm-d-multi-gpu -l app.kubernetes.io/name=qwen3-coder-fp8
+oc get rs -n ai-serving -l app.kubernetes.io/name=qwen3-coder-fp8
 
 # 3. Scale down the OLD ReplicaSet and delete its pod to free the GPU
-oc scale rs <old-rs-name> --replicas=0 -n llm-d-multi-gpu
-oc delete pod <old-pod-name> -n llm-d-multi-gpu --grace-period=0 --force
+oc scale rs <old-rs-name> --replicas=0 -n ai-serving
+oc delete pod <old-pod-name> -n ai-serving --grace-period=0 --force
 
 # 4. The new pod will schedule onto the freed GPU and start loading the model
 #    Total startup time: ~5-6 min (model load + CUDA graph capture + warmup)
@@ -3682,10 +3682,10 @@ oc delete pod <old-pod-name> -n llm-d-multi-gpu --grace-period=0 --force
 
 ```bash
 # Confirm FP8 KV cache in vLLM startup logs
-oc logs -n llm-d-multi-gpu -l app.kubernetes.io/name=qwen3-coder-fp8 | grep -i "kv.cache\|cache_dtype"
+oc logs -n ai-serving -l app.kubernetes.io/name=qwen3-coder-fp8 | grep -i "kv.cache\|cache_dtype"
 
 # Check GPU blocks allocated (should approximately double vs BF16 baseline)
-curl -sk https://qwen3-coder-fp8-kserve-workload-svc.llm-d-multi-gpu.svc.cluster.local:8000/metrics \
+curl -sk https://qwen3-coder-fp8-kserve-workload-svc.ai-serving.svc.cluster.local:8000/metrics \
   | grep gpu_cache_usage
 ```
 
