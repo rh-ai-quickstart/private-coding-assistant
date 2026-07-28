@@ -1,21 +1,21 @@
 # Private AI Code Assistant on Red Hat OpenShift
 
-Deploy a private, self-hosted AI coding assistant on OpenShift so developers get AI-powered IDEs while inference stays on-cluster — no source code needs to leave your environment.
+Deploy a private self-hosted AI coding assistant on OpenShift so developers get AI-powered IDEs while no code leaves your environment
 
 ## Table of Contents
 
 1. [Detailed description](#detailed-description)
-   - [The challenge](#the-challenge)
-   - [Our solution](#our-solution)
-   - [Features](#features)
-   - [Solution stack](#solution-stack)
-   - [Architecture](#architecture)
+   - [Architecture diagrams](#architecture-diagrams)
 2. [Requirements](#requirements)
+   - [Minimum hardware requirements](#minimum-hardware-requirements)
+   - [Minimum software requirements](#minimum-software-requirements)
+   - [Required user permissions](#required-user-permissions)
 3. [Deploy](#deploy)
    - [Option 1: ROSA (AWS)](#option-1-rosa-aws)
    - [Option 2: ARO (Azure)](#option-2-aro-azure)
    - [Option 3: Existing OpenShift](#option-3-existing-openshift)
-   - [Verify](#verify)
+   - [Validating the deployment](#validating-the-deployment)
+   - [Delete](#delete)
 4. [Documentation](#documentation)
 5. [References](#references)
 6. [Tags](#tags)
@@ -54,24 +54,46 @@ This quickstart deploys:
 | Platform | Red Hat OpenShift AI, NVIDIA GPU Operator, NFD |
 | Delivery | Unified Helm charts in `charts/` (ArgoCD or `make`) |
 
-### Architecture
+### Architecture diagrams
 
 Developers → Dev Spaces → RHCL AI Gateway → llm-d → EPP → vLLM on NVIDIA GPU.
 
-![Inference traffic flow](docs/images/architecture-traffic-flow.svg)
+![Inference traffic flow from Dev Spaces through RHCL AI Gateway to llm-d and vLLM](docs/images/architecture-traffic-flow.svg)
 
-Full diagrams, chart waves, and request-path detail: **[docs/architecture.md](docs/architecture.md)**.
+Full diagrams: [docs/architecture.md](docs/architecture.md).
 
 ## Requirements
 
-| Area | Summary |
-|------|---------|
-| Software | OpenShift 4.18+, RHOAI 3.x, Dev Spaces, GPU Operator + NFD, `oc` / `helm` (plus Terraform + cloud CLIs for ROSA/ARO) |
-| Hardware | At least one NVIDIA GPU sized for your model (see [docs/benchmarks.md](docs/benchmarks.md)) |
-| Permissions | `cluster-admin` (or equivalent) for operators / GitOps; cloud admin for from-scratch ROSA/ARO |
-| Secrets | Hugging Face token for model download |
+### Minimum hardware requirements
 
-Details: **[docs/requirements.md](docs/requirements.md)**.
+- GPU: 1× NVIDIA GPU with enough VRAM for the model at FP8 (e.g. L40S 48 GB, A100 80 GB, or H100 NVL)
+- Storage: PVC for model cache, typically 50–100+ Gi
+- CPU / memory: enough for Dev Spaces workspaces plus platform operators (size for team concurrency)
+
+Details: [docs/requirements.md](docs/requirements.md), [docs/benchmarks.md](docs/benchmarks.md).
+
+### Minimum software requirements
+
+Pick **one** path.
+
+**All paths**
+- OpenShift 4.20+
+- Red Hat OpenShift AI 3.4 (3.3 minimum)
+- OpenShift Dev Spaces
+- NVIDIA GPU Operator + NFD
+- Hugging Face token
+- `oc` CLI
+
+**Existing OpenShift** — operators above already installed, plus RHCL, `helm` v3. See [deploy_existing_openshift/README.md](deploy_existing_openshift/README.md).
+
+**ROSA** — Terraform >= 1.4.6, AWS CLI, `rosa` CLI, ROSA entitlement. See [PCA_Deployment_ROSA/README.md](PCA_Deployment_ROSA/README.md).
+
+**ARO** — Terraform >= 1.4.6, Azure CLI, ARO + GPU quota. See [PCA_Deployment_ARO/README.md](PCA_Deployment_ARO/README.md).
+
+### Required user permissions
+
+- **ROSA / ARO:** Cloud admin to create the cluster, then OpenShift `cluster-admin` to install operators and sync GitOps.
+- **Existing OpenShift:** OpenShift `cluster-admin` to deploy AI serving, DevSpaces, and (optional) the demo IDP.
 
 ## Deploy
 
@@ -104,7 +126,7 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns>
 
 → **[deploy_existing_openshift/README.md](deploy_existing_openshift/README.md)**
 
-### Verify
+### Validating the deployment
 
 After deploy, run cluster smoke tests (not CI):
 
@@ -114,6 +136,19 @@ make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=<dev-ns>
 ```
 
 → **[tests/cluster-smoke/README.md](tests/cluster-smoke/README.md)**
+
+### Delete
+
+**Existing OpenShift** — remove with make:
+
+```bash
+make devspace-undeploy-existing-openshift DEV_NAMESPACE=<dev-ns>
+make ai-serving-undeploy-existing-openshift
+```
+
+**ARO** — follow [Destroying the Cluster](PCA_Deployment_ARO/README.md#destroying-the-cluster).
+
+**ROSA** — follow [Destroying the Cluster](PCA_Deployment_ROSA/README.md#destroying-the-cluster).
 
 ## Documentation
 
@@ -137,6 +172,8 @@ make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=<dev-ns>
 
 ## Tags
 
+- **Title:** Private AI Code Assistant on Red Hat OpenShift
+- **Description:** Deploy a private self-hosted AI coding assistant on OpenShift so developers get AI-powered IDEs while no code leaves your environment
+- **Industry:** Media and IT services
 - **Product:** OpenShift AI
 - **Use case:** AI coding assistant, private inference
-- **Business challenge:** Adopt and scale AI without sending code to public APIs

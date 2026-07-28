@@ -31,8 +31,9 @@ The end result is a ROSA HCP cluster running:
 6. [Configuration Reference](#configuration-reference)
 7. [Day-2 Operations](#day-2-operations)
 8. [Secrets Management for Production](#secrets-management-for-production)
-9. [Troubleshooting](#troubleshooting)
-10. [Component Versions](#component-versions)
+9. [Destroying the Cluster](#destroying-the-cluster)
+10. [Troubleshooting](#troubleshooting)
+11. [Component Versions](#component-versions)
 
 ---
 
@@ -795,6 +796,19 @@ git push
 1. Install External Secrets Operator via OperatorHub
 2. Store secrets in AWS Secrets Manager
 3. Create `ExternalSecret` resources that sync to Kubernetes Secrets
+
+---
+
+## Destroying the Cluster
+
+Remove the ROSA HCP cluster and AWS resources created by Terraform:
+
+```bash
+cd PCA_Deployment_ROSA/terraform
+terraform destroy
+```
+
+Confirm when prompted. This deletes the cluster, machine pools, GitOps bootstrap resources managed in state, and the VPC networking Terraform created. It can take a significant time (similar order of magnitude to create).
 
 ---
 

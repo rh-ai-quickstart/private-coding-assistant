@@ -6,12 +6,13 @@ Summary of what you need before deploying. Path-specific tool and quota details 
 
 | Requirement | Notes |
 |-------------|--------|
-| OpenShift | 4.18+ (ROSA/ARO guides list tested versions) |
-| Red Hat OpenShift AI (RHOAI) | 3.x — provides KServe / `LLMInferenceService` / llm-d pieces |
+| OpenShift | 4.20+ (required for Distributed Inference with llm-d GA) |
+| Red Hat OpenShift AI (RHOAI) | 3.4 recommended (chart defaults); 3.3 minimum for core llm-d GA |
 | OpenShift Dev Spaces | For the IDE workspaces |
 | NVIDIA GPU Operator + NFD | GPU node discovery and drivers |
-| CLI | `oc`, `helm` v3; ROSA/ARO also need Terraform and cloud CLIs (`aws`/`rosa` or `az`) |
+| CLI | `oc`, `helm` v3; ROSA/ARO also need Terraform >= 1.4.6 and cloud CLIs (`aws`/`rosa` or `az`) |
 | Hugging Face token | Model download (secret `hf-token` in the AI namespace) |
+| Existing OpenShift also | RHCL (Kuadrant) before enabling the AI Gateway — see [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md) |
 
 ## Minimum hardware
 
@@ -31,8 +32,8 @@ Exact SKUs and quotas:
 
 | Path | Typical access |
 |------|----------------|
-| ROSA / ARO from scratch | Cloud admin (VPC/cluster create) + OpenShift `cluster-admin` for operators / GitOps bootstrap |
-| Existing OpenShift | Cluster-admin (or equivalent) for platform config, AI serving, and Dev Spaces; RHCL must already be installable — see [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md) |
+| ROSA / ARO | Cloud admin to create the cluster, then OpenShift `cluster-admin` to install operators and sync GitOps |
+| Existing OpenShift | OpenShift `cluster-admin` to deploy AI serving, DevSpaces, and (optional) the demo IDP |
 
 ## Accounts and secrets
 
