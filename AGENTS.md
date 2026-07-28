@@ -2,6 +2,8 @@
 
 Deploy a private, self-hosted AI coding assistant on OpenShift so developers each get their own namespace with an AI-powered IDE — no code leaves the cluster.
 
+User-facing docs: [README.md](README.md) and [docs/](docs/).
+
 ## Inference request path (RHCL + llm-d)
 
 ```mermaid
@@ -75,6 +77,7 @@ Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OT
 ## Directory Structure
 
 ```
+docs/                         # User-facing guides (architecture, requirements, IDE, benchmarks, …)
 charts/                       # Unified Helm charts — single set for ROSA and ARO
 ├── pca-app-of-apps/          # Root ArgoCD AppProject + child Applications
 ├── pca-operators/            # Operator Subscriptions (RHOAI, GPU, DevSpaces, NFD, RHCL, …)

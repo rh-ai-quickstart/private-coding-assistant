@@ -653,7 +653,21 @@ GuideLLM sweep results for Qwen3.6-35B-A3B-FP8 on H100 NVL:
 | Code Review | 4,096 | 1,024 | 16,133 | 5.59 | 157 |
 | File Generation | 8,192 | 2,048 | 13,976 | 11.15 | 208 |
 
-Full results: [`testresults_h100.md`](../testresults_h100.md)
+Full results: [`testresults_h100.md`](testresults_h100.md) · A100 sweep: [`testresults.md`](testresults.md) · Summary: [`docs/benchmarks.md`](../docs/benchmarks.md)
+
+---
+
+## Key differences from ROSA
+
+| Aspect | ROSA (AWS) | ARO (Azure) |
+|--------|------------|-------------|
+| GPU VM | e.g. `g6e` (L40S) via RHCS machine pool | GPU MachineSet (e.g. H100 NVL / A100 family) after cluster create |
+| Storage class | `gp3-csi` | `managed-csi` |
+| Charts | `charts/` + `values-rosa.yaml` | Same `charts/` + `values-aro.yaml` |
+| Cloud values | Terraform sets `gitops.cloud=rosa` | Terraform sets `gitops.cloud=aro` |
+| NSG / network | AWS security groups | ARO-managed subnets (no customer NSG on master/worker) |
+
+Azure GPU choice depends on quota and model size (A100 80 GB vs H100 NVL 94 GB). Prefer a SKU with native FP8 and enough VRAM for your context window; see [docs/benchmarks.md](../docs/benchmarks.md).
 
 ---
 
