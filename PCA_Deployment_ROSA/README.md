@@ -754,6 +754,8 @@ Edit `charts/pca-ai-serving/values-rosa.yaml` → update `llmInferenceService.re
 terraform apply -var="inferentia_pool_enabled=true"
 ```
 
+The chart ships a Neuron ServingRuntime template at `charts/pca-ai-serving/templates/vllm-neuron-runtime-template.yaml`. If Inferentia pods fail to start networking on ROSA HCP, see [Inferentia / Neuron pods fail networking (OVN annotation race)](#inferentia--neuron-pods-fail-networking-ovn-annotation-race).
+
 ### Adding a new developer user
 
 1. Add to `devspaces_users` in `terraform.tfvars` and run `terraform apply` (creates the HTPasswd user)
@@ -828,6 +830,19 @@ oc get node <gpu-node> -o json | jq '.metadata.labels | with_entries(select(.key
 # Manually add the label if missing
 oc label node <gpu-node> feature.node.kubernetes.io/pci-10de.present=true
 ```
+
+### Inferentia / Neuron pods fail networking (OVN annotation race)
+
+On ROSA HCP with OVN-Kubernetes, multi-core Inferentia pods can fail to get a network if the AWS `neuron-scheduler` overwrites the `k8s.ovn.org/pod-networks` annotation during device allocation.
+
+**Symptoms:** Pod stays Pending or never becomes Ready; events or CNI logs show missing / invalid OVN pod-network annotation after Neuron scheduling.
+
+**Mitigations:**
+
+1. **MutatingAdmissionWebhook (verified workaround)** — Admit Neuron-scheduled pods in a way that **preserves** the OVN `k8s.ovn.org/pod-networks` annotation when the scheduler updates device annotations.
+2. **Neuron DRA (preferred long-term)** — Use the Neuron Dynamic Resource Allocation path so the classic `neuron-scheduler` annotation race is avoided when DRA is available in your Neuron / OpenShift stack.
+
+Neuron ServingRuntime template: `charts/pca-ai-serving/templates/vllm-neuron-runtime-template.yaml`. Prefer NVIDIA GPUs for MoE code models unless you specifically need Inferentia overflow capacity.
 
 ### Model pod stuck in Pending
 

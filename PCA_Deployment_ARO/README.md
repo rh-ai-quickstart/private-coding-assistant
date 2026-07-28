@@ -666,6 +666,8 @@ Full results: [`testresults_h100.md`](testresults_h100.md) · A100 sweep: [`test
 | Charts | `charts/` + `values-rosa.yaml` | Same `charts/` + `values-aro.yaml` |
 | Cloud values | Terraform sets `gitops.cloud=rosa` | Terraform sets `gitops.cloud=aro` |
 | NSG / network | AWS security groups | ARO-managed subnets (no customer NSG on master/worker) |
+| vLLM image | Chart / RHOAI default path for the ROSA overlay | Upstream vLLM (see [Why Upstream vLLM v0.19.0](#why-upstream-vllm-v0190)) |
+| Tool / reasoning parsers | Set in ROSA `values-rosa.yaml` / ServingRuntime for the chosen model | See [Model Tool Calling & Reasoning Configuration](#model-tool-calling--reasoning-configuration) (e.g. `qwen3_xml` + `qwen3` for Qwen3.6) |
 
 Azure GPU choice depends on quota and model size (A100 80 GB vs H100 NVL 94 GB). Prefer a SKU with native FP8 and enough VRAM for your context window; see [docs/benchmarks.md](../docs/benchmarks.md).
 

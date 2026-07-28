@@ -33,6 +33,8 @@ Shared system prompts and similar file context benefit from prefix-cache-aware r
 
 For MoE code models (e.g. Qwen3-Coder / Qwen3.6 MoE), prefer NVIDIA with FP8. Dense models may be more cost-competitive on Inferentia when prefix caching is available.
 
+Optional ROSA Inferentia pool: enable with Terraform `inferentia_pool_enabled=true`. If Neuron pods fail networking on OVN-Kubernetes, see [Inferentia / Neuron pods fail networking (OVN annotation race)](../PCA_Deployment_ROSA/README.md#inferentia--neuron-pods-fail-networking-ovn-annotation-race).
+
 ## RHCL front door
 
 IDE traffic should use **`pca-ai-gateway`**, not raw vLLM. Auth is API-key based per Dev Spaces namespace. The llm-d gateway is left unmanaged by OpenShift AI AuthPolicies that would conflict with RHCL (`opendatahub.io/managed=false` where applicable).
