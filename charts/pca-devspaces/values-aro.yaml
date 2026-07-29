@@ -10,6 +10,8 @@ devspaces:
   - namespace: "dev1-devspaces"
     name: "pca-workspace"
     user: "Dev1"
+    type: opencode
   - namespace: "dev2-devspaces"
     name: "pca-workspace"
     user: "Dev2"
+    type: opencode

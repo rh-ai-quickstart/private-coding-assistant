@@ -13,7 +13,7 @@
 #
 # Attribution: openAiHeaders X-PCA-* → Langfuse userId / team / devspace (when Langfuse enabled).
 {{- range $i, $devspace := .Values.devspaces }}
-{{- if ne ($devspace.type | default "continue") "opencode" }}
+{{- if ne ($devspace.type | default "opencode") "opencode" }}
 {{- $ns := $devspace.namespace | default $.Release.Namespace }}
 {{- $user := $devspace.user | default "unknown" }}
 {{- $team := $devspace.team | default "" }}

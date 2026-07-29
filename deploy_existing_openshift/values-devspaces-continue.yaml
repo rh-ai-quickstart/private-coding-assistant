@@ -1,0 +1,14 @@
+# Opt-in Continue/Roo/Cline DevWorkspace (che-code UDI image).
+# Deploy with: TYPE=continue make devspace-deploy-existing-openshift ...
+devspacesGlobalConfig:
+  enabled: true
+aiGateway:
+  enabled: true
+  escapeHatchToLlmd: false
+opencodeBuild:
+  enabled: false
+devspaces:
+  - name: code-workspace-1
+    user: dev-user1
+    type: continue
+    # team: optional — set per developer for Langfuse team attribution

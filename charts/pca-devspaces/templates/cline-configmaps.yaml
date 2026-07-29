@@ -2,7 +2,7 @@
 # Mounts into extension globalStorage settings + ~/.cline/data/settings (newer Cline shared config).
 # postStart in devworkspaces.yaml copies into the active path if the subpath mount races che-code init.
 {{- range $i, $devspace := .Values.devspaces }}
-{{- if ne ($devspace.type | default "continue") "opencode" }}
+{{- if ne ($devspace.type | default "opencode") "opencode" }}
 {{- $ns := $devspace.namespace | default $.Release.Namespace }}
 {{- $user := $devspace.user | default "unknown" }}
 {{- $team := $devspace.team | default "" }}

@@ -36,7 +36,7 @@ COMPONENT ?=
 PYTEST_ARGS ?=
 N ?= 4
 DEV_USER ?=
-TYPE ?= continue
+TYPE ?= opencode
 
 .PHONY: build shell run help smoke unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
 
@@ -76,10 +76,10 @@ ai-serving-undeploy-existing-openshift: ## Remove AI serving from OpenShift (AI_
 	helm uninstall $(AI_NAMESPACE)-platform-config --namespace $(AI_NAMESPACE) --ignore-not-found || true
 	oc delete namespace $(AI_NAMESPACE) --ignore-not-found
 
-devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAMESPACE=, TYPE=continue|opencode, DEV_USER= [opencode only], MCP_ENABLED=false)
+devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAMESPACE=, TYPE=opencode|continue [default opencode], DEV_USER= [required for opencode], MCP_ENABLED=false)
 	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi
 	@if [ "$(TYPE)" = "opencode" ] && [ -z "$(DEV_USER)" ]; then \
-		echo "ERROR: DEV_USER is required for TYPE=opencode. Pass DEV_USER=<username>"; exit 1; fi
+		echo "ERROR: DEV_USER is required for TYPE=opencode (default). Pass DEV_USER=<username> or TYPE=continue"; exit 1; fi
 	@if [ "$(TYPE)" = "opencode" ]; then \
 		oc create namespace $(DEV_NAMESPACE) --dry-run=client -o yaml | oc apply -f -; \
 		oc label namespace $(DEV_NAMESPACE) \
@@ -90,8 +90,9 @@ devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAM
 	fi
 	helm upgrade --install $(DEV_NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
 		--namespace $(DEV_NAMESPACE) --create-namespace \
-		$(if $(filter opencode,$(TYPE)),-f $(DEPLOY_VALUES_DIR)/values-devspaces-opencode.yaml,-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml) \
+		$(if $(filter continue,$(TYPE)),-f $(DEPLOY_VALUES_DIR)/values-devspaces-continue.yaml,-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml) \
 		--set aiServingNamespace=$(AI_NAMESPACE) \
+		$(if $(DEV_USER),--set devspaces[0].user=$(DEV_USER),) \
 		$(if $(filter true,$(MCP_ENABLED)),--set mcp.enabled=true,) \
 		$(HELM_ARGS)
 

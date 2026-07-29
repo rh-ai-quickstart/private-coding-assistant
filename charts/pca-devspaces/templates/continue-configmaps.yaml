@@ -1,7 +1,7 @@
 # Per-namespace Continue config with X-PCA-* attribution headers.
 # Mounts alongside (and overrides for identity) the global continue-config from openshift-devspaces.
 {{- range $i, $devspace := .Values.devspaces }}
-{{- if ne ($devspace.type | default "continue") "opencode" }}
+{{- if ne ($devspace.type | default "opencode") "opencode" }}
 {{- $ns := $devspace.namespace | default $.Release.Namespace }}
 {{- $user := $devspace.user | default "unknown" }}
 {{- $team := $devspace.team | default "" }}

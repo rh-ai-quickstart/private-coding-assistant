@@ -1,7 +1,7 @@
 # DevWorkspace definitions — one per entry in .Values.devspaces.
 #
-# type: continue (default) — base UDI image with Continue, Roo Code, Cline extensions.
-# type: opencode           — custom devspaces-opencode image with OpenCode Web UI on port 4096.
+# type: opencode (default) — custom devspaces-opencode image with OpenCode Web UI on port 4096.
+# type: continue           — base UDI image with Continue, Roo Code, Cline extensions.
 #
 # NOTE: DevWorkspaces are created with started: false. Users start their workspace
 # from the DevSpaces dashboard so the controller stamps the correct creator identity
@@ -21,7 +21,7 @@
 #   X-PCA-User / X-PCA-DevSpace / optional X-PCA-Team → Langfuse when enabled
 {{- range $i, $devspace := .Values.devspaces }}
 {{- $ns := $devspace.namespace | default $.Release.Namespace }}
-{{- if eq ($devspace.type | default "continue") "opencode" }}
+{{- if eq ($devspace.type | default "opencode") "opencode" }}
 ---
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace

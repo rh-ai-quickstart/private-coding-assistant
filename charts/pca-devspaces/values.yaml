@@ -1,7 +1,7 @@
 aiServingNamespace: ai-serving
 modelId: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
 opencodeBuild:
-  enabled: false
+  enabled: true
   opencodeVersion: "1.15.13"
 devspacesGlobalConfig:
   enabled: true
@@ -26,10 +26,13 @@ devspaces:
   - namespace: dev-user1-devspaces
     name: code-workspace-1
     user: dev-user1
+    type: opencode
     # team: optional — becomes Langfuse tag team=<value> via X-PCA-Team
   - namespace: dev-user2-devspaces
     name: code-workspace-2
     user: dev-user2
+    type: opencode
   - namespace: dev-user3-devspaces
     name: code-workspace-3
     user: dev-user3
+    type: opencode
