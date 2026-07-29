@@ -192,9 +192,8 @@ def test_continue_config_ai_gateway_api_key(
     require_dev_namespace: str, ai_namespace: str
 ) -> None:
     ns = require_dev_namespace
-    assert oc.resource_exists(
-        "configmap", "continue-config", namespace=ns
-    ), f"continue-config missing in {ns}"
+    if not oc.resource_exists("configmap", "continue-config", namespace=ns):
+        pytest.skip(f"continue-config missing in {ns} (OpenCode workspace)")
     yaml_text = oc.configmap_data("continue-config", ns).get("config.yaml") or ""
     _assert_ai_gateway_url_and_api_key(yaml_text, ai_namespace, "continue-config")
 
@@ -203,9 +202,8 @@ def test_roo_code_config_ai_gateway_api_key(
     require_dev_namespace: str, ai_namespace: str
 ) -> None:
     ns = require_dev_namespace
-    assert oc.resource_exists(
-        "configmap", "roo-code-provider-config", namespace=ns
-    ), f"roo-code-provider-config missing in {ns}"
+    if not oc.resource_exists("configmap", "roo-code-provider-config", namespace=ns):
+        pytest.skip(f"roo-code-provider-config missing in {ns} (OpenCode workspace)")
     joined = "\n".join(oc.configmap_data("roo-code-provider-config", ns).values())
     _assert_ai_gateway_url_and_api_key(
         joined, ai_namespace, "roo-code-provider-config"
