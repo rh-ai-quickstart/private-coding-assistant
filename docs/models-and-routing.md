@@ -10,7 +10,22 @@ NVIDIA models are deployed with KServe **`LLMInferenceService`** (or cloud-speci
 - HTTPRoute through the data-science / llm-d gateway
 - Optional **RHCL AI Gateway** (`pca-ai-gateway`) with AuthPolicy in front of llm-d
 
-Model ID, context length, and GPU sizing are set per cloud in `charts/pca-ai-serving/values-rosa.yaml` / `values-aro.yaml` (or `deploy_existing_openshift/values-ai-serving.yaml`).
+### Default model
+
+The default HuggingFace model is **`Qwen/Qwen3.6-35B-A3B-FP8`**. Leave `model.servedName` empty so the OpenAI API model name equals `model.id` (never point `servedName` at a different model).
+
+Qwen3.6 needs a new enough vLLM (`vllm.useCustomRuntime: true` and `vllm.image`, already set in the chart defaults).
+
+### Choosing a different model
+
+Set the same identifier in both places:
+
+| Chart | Field | Files |
+|-------|-------|--------|
+| `pca-ai-serving` | `model.id` | `charts/pca-ai-serving/values.yaml`, `values-rosa.yaml` / `values-aro.yaml`, or `deploy_existing_openshift/values-ai-serving.yaml` |
+| `pca-devspaces` | `modelId` | `charts/pca-devspaces/values.yaml` / cloud overlays, or `deploy_existing_openshift/values-devspaces*.yaml` |
+
+Context length and GPU sizing stay per cloud in those same values files. Pick any compatible model your organization accepts (including non-Chinese-origin weights when required by policy).
 
 ## llm-d scoring
 

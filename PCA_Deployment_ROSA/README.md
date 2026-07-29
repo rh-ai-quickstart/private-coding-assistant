@@ -3,7 +3,7 @@
 Fully reproducible deployment of an enterprise-grade private AI code assistant on Red Hat OpenShift (ROSA HCP), using **Terraform** for infrastructure provisioning and **ArgoCD (GitOps)** for all on-cluster components.
 
 The end result is a ROSA HCP cluster running:
-- **Qwen3-Coder-30B** served via KServe + llm-d with intelligent EPP routing
+- **Qwen/Qwen3.6-35B-A3B-FP8** served via KServe + llm-d with intelligent EPP routing
 - **OpenShift Dev Spaces** with pre-configured VS Code extensions (Roo Code, Continue, Cline) consuming the self-hosted model
 - All inference traffic stays **cluster-internal** (zero external egress)
 
@@ -650,8 +650,8 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 ### Wave 3 — AI Serving (`pca-ai-serving`)
 
 - **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts)
-- **LLMInferenceService** (`qwen3-coder`): `Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8` with vLLM args:
-  - `--tool-call-parser qwen3_coder --reasoning-parser qwen3`
+- **ServingRuntime + InferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` (custom vLLM runtime; API name matches `model.id`) with vLLM args:
+  - `--tool-call-parser qwen3_xml --reasoning-parser qwen3`
   - `--max-model-len 32768 --gpu-memory-utilization 0.90`
   - `--enable-prefix-caching --kv-cache-dtype fp8`
   - EPP scorer weights: queue=2, kv-cache=2, prefix-cache=3
@@ -680,7 +680,7 @@ Each extension connects to the self-hosted model endpoint. Here is exactly what 
 | Setting | Value |
 |---------|-------|
 | **Model Endpoint (Base URL)** | `https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1` |
-| **Model ID** | `Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8` |
+| **Model ID** | `Qwen/Qwen3.6-35B-A3B-FP8` |
 | **API Key** | `EMPTY` (no auth required — cluster-internal) |
 
 | Extension | Auto-Configured? | How | What the User Sees |

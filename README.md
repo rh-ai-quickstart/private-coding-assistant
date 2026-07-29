@@ -31,7 +31,7 @@ Teams want IDE-integrated AI coding help without sending proprietary source to p
 This quickstart deploys:
 
 - **OpenShift Dev Spaces** workspaces with OpenCode (Continue, Cline, Roo Code optional)
-- **On-cluster inference** with vLLM behind **llm-d** intelligent routing
+- **On-cluster inference** with vLLM behind **llm-d** intelligent routing — default model `Qwen/Qwen3.6-35B-A3B-FP8` (you can change it to any open-source model you want)
 - An optional **RHCL AI Gateway** front door with per-developer API keys
 - GitOps Helm charts (ROSA/ARO) or Helm-only install on an existing cluster
 
