@@ -48,6 +48,8 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=h
 ```
 
 > **OpenCode build:** `opencode-build` is cluster-singleton infrastructure owned by the first Helm release. The Makefile auto-detects whether it already exists and suppresses `opencodeBuild` for subsequent runs. If deploying manually with `helm upgrade --install`, pass `--set opencodeBuild.enabled=false` from the second developer onward.
+>
+> **Do not uninstall** the release that owns `opencode-build` while other OpenCode workspaces exist — doing so deletes the BuildConfig and ImageStream (the Namespace is kept), breaking image pulls for all running workspaces. Recovery: delete the empty namespace (`oc delete namespace opencode-build`), then re-run any opencode devspace deploy without `--set opencodeBuild.enabled=false` to recreate the full build infrastructure.
 
 ## Parameters
 

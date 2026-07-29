@@ -62,6 +62,7 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 		--namespace $(AI_NAMESPACE) --create-namespace \
 		-f $(DEPLOY_VALUES_DIR)/values-platform-config.yaml \
 		--set namespace=$(AI_NAMESPACE) \
+		--set pca-guardrails.namespace=$(AI_NAMESPACE) \
 		--set hfToken.raw=$(HF_TOKEN) \
 		$(MCP_FLAGS)
 	helm upgrade --install $(AI_NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
@@ -91,15 +92,15 @@ devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAM
 			che.eclipse.org/username=$(DEV_USER) --overwrite; \
 	fi
 	$(eval SKIP_OPENCODE_BUILD := $(if $(filter-out continue,$(TYPE)),\
-	  $(shell oc get namespace opencode-build --no-headers --ignore-not-found | grep -q . && echo true),))
+	  $(shell oc get buildconfig devspaces-opencode -n opencode-build --no-headers --ignore-not-found | grep -q . && echo true),))
 	helm upgrade --install $(DEV_NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
 		--namespace $(DEV_NAMESPACE) --create-namespace \
 		$(if $(filter continue,$(TYPE)),-f $(DEPLOY_VALUES_DIR)/values-devspaces-continue.yaml,-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml) \
 		--set aiServingNamespace=$(AI_NAMESPACE) \
 		--set devspaces[0].user=$(DEV_USER) \
-		$(if $(filter true,$(SKIP_OPENCODE_BUILD)),--set opencodeBuild.enabled=false,) \
 		$(if $(filter true,$(MCP_ENABLED)),--set mcp.enabled=true,) \
-		$(HELM_ARGS)
+		$(HELM_ARGS) \
+		$(if $(filter true,$(SKIP_OPENCODE_BUILD)),--set opencodeBuild.enabled=false,)
 
 devspace-undeploy-existing-openshift: ## Remove a devspace (DEV_NAMESPACE=)
 	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi

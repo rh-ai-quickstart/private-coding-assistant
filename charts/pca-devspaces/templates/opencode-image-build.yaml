@@ -23,6 +23,7 @@ metadata:
   namespace: opencode-build
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    helm.sh/resource-policy: keep
 ---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
@@ -31,6 +32,7 @@ metadata:
   namespace: opencode-build
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    helm.sh/resource-policy: keep
 spec:
   output:
     to:
@@ -71,6 +73,7 @@ metadata:
   namespace: opencode-build
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    helm.sh/resource-policy: keep
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -87,6 +90,7 @@ metadata:
   namespace: opencode-build
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    helm.sh/resource-policy: keep
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
