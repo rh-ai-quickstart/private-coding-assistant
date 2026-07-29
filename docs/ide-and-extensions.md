@@ -6,7 +6,7 @@ Developers use **OpenShift Dev Spaces**. AI extensions call the cluster-internal
 
 ### Web IDE (default)
 
-Open the Dev Spaces dashboard in a browser. A workspace pod runs VS Code for the Web (che-code) plus AI tooling. No desktop install required.
+Open the Dev Spaces dashboard in a browser. The default workspace runs **OpenCode** (custom `devspaces-opencode` image with Web UI on port 4096). No desktop install required.
 
 ![Dev Spaces AI assistants](images/devspaces-ai-code-assistants-architecture.png)
 
@@ -18,7 +18,7 @@ Desktop IDEs can attach to the workspace over an authenticated `oc` tunnel (SSHD
 
 ## Extension comparison
 
-Continue, Cline, and Roo Code are Apache 2.0, speak OpenAI-compatible APIs, and are installable on Open VSX (Dev Spaces che-code). The charts pre-wire them via ConfigMaps in `pca-devspaces`.
+**OpenCode** is the default IDE on ROSA, ARO, and existing OpenShift (custom Dev Spaces image + Web UI). Continue, Cline, and Roo Code remain available as an opt-in (`type: continue` / `TYPE=continue`) on che-code; they are Apache 2.0, speak OpenAI-compatible APIs, and are installable on Open VSX. The charts pre-wire them via ConfigMaps in `pca-devspaces` when that type is selected.
 
 | Capability | Continue | Cline | Roo Code |
 |------------|----------|-------|----------|
@@ -29,9 +29,7 @@ Continue, Cline, and Roo Code are Apache 2.0, speak OpenAI-compatible APIs, and 
 | Config delivery | `config.yaml` ConfigMap | Settings ConfigMap + one-time UI fields | `settings.json` + provider profiles ConfigMaps |
 | Self-hosted vLLM | `apiBase` + model | OpenAI-compatible base URL | Needs native `tool_calls` from the model |
 
-**Practical split:** Continue for autocomplete; Cline/Roo for agentic workflows. Deploy all three if you want developers to choose.
-
-OpenCode is also supported on ARO / existing-OpenShift paths via a custom Dev Spaces image — see [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md) and [PCA_Deployment_ARO/README.md](../PCA_Deployment_ARO/README.md).
+**Practical split:** OpenCode for the default agentic UX; Continue for autocomplete; Cline/Roo for agentic workflows on che-code. See [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md) and [PCA_Deployment_ARO/README.md](../PCA_Deployment_ARO/README.md).
 
 ## Gateway URL (in-cluster)
 

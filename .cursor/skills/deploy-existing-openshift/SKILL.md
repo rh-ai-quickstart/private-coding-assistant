@@ -100,26 +100,17 @@ oc get route pca-langfuse -n <NS>
    oc annotate configmap vscode-extensions-config -n openshift-devspaces meta.helm.sh/release-name=<DEV_NS>-devspaces meta.helm.sh/release-namespace=<DEV_NS> --overwrite
    oc label configmap vscode-extensions-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
    ```
-5. Run `make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS>`.
-   - For multi-developer: each dev passes their own `DEV_NAMESPACE`. The first deploy creates global ConfigMaps; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false`.
+5. Run `make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> DEV_USER=<username>`.
+   - Default IDE is OpenCode (`TYPE=opencode`). For Continue/Roo/Cline: `TYPE=continue`.
+   - For multi-developer: each dev passes their own `DEV_NAMESPACE` and `DEV_USER`. The first deploy creates global ConfigMaps; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false`.
    - Optional team attribution: `HELM_ARGS='--set devspaces[0].team=platform'` (sends `X-PCA-Team`).
-   - Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` (and optional `X-PCA-Team`) for Langfuse.
+   - Continue workspaces (`TYPE=continue`): Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` (and optional `X-PCA-Team`) for Langfuse.
    - With Langfuse enabled, `pca-observability.langfuse.ioCapture` defaults to `full` (vLLM middleware stores prompt/completion bodies asynchronously). Opt out: `--set pca-observability.langfuse.ioCapture=metadata`.
 
-### OpenCode Devspace (per developer, alternative to Continue/Roo/Cline)
+### OpenCode image build (first time)
 
-OpenCode is a separate workspace type using a custom image with the OpenCode CLI pre-installed and a Web UI on port 4096.
+OpenCode is the default workspace type. After the first OpenCode deploy, trigger the custom image build once:
 
-**Deploy (creates namespace, BuildConfig, and DevWorkspace):**
-```bash
-make devspace-deploy-existing-openshift \
-  DEV_NAMESPACE=<username>-devspaces \
-  AI_NAMESPACE=<ai-namespace> \
-  DEV_USER=<username> \
-  TYPE=opencode
-```
-
-**First time only — trigger the image build:**
 ```bash
 oc start-build devspaces-opencode -n opencode-build --follow
 ```
@@ -135,7 +126,7 @@ oc get secret opencode-web-password -n <username>-devspaces \
 ```bash
 # From the start (combine with Langfuse HELM_ARGS on ai-serving if needed)
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> MCP_ENABLED=true
+make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> DEV_USER=<username> MCP_ENABLED=true
 
 # Or toggle after deploy
 make mcp-enable AI_NAMESPACE=<AI_NAMESPACE> DEV_NAMESPACE=<DEV_NS>

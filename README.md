@@ -30,7 +30,7 @@ Teams want IDE-integrated AI coding help without sending proprietary source to p
 
 This quickstart deploys:
 
-- **OpenShift Dev Spaces** workspaces with Continue, Cline, Roo Code (and optionally OpenCode)
+- **OpenShift Dev Spaces** workspaces with OpenCode (Continue, Cline, Roo Code optional)
 - **On-cluster inference** with vLLM behind **llm-d** intelligent routing
 - An optional **RHCL AI Gateway** front door with per-developer API keys
 - GitOps Helm charts (ROSA/ARO) or Helm-only install on an existing cluster

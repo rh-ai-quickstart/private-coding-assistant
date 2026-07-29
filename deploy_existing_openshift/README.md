@@ -5,7 +5,7 @@ Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GP
 | Target | What it deploys |
 |--------|-----------------|
 | `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel; RHCL AI Gateway front door |
-| `make devspace-deploy-existing-openshift` | Per-developer DevWorkspace (Roo/Continue/Cline → RHCL → llm-d), plus global DevSpaces ConfigMaps |
+| `make devspace-deploy-existing-openshift` | Per-developer OpenCode DevWorkspace (→ RHCL → llm-d), plus global DevSpaces ConfigMaps; `TYPE=continue` for Continue/Roo/Cline |
 
 `ai-serving-deploy-existing-openshift` must run first. The first devspace deploy creates global ConfigMaps in `openshift-devspaces`; subsequent deploys should set `devspacesGlobalConfig.enabled=false`.
 
@@ -30,7 +30,9 @@ Each DevSpaces namespace gets an API key Secret (`pca-ai-gw-apikey`); the same k
 # 1. oc login to your cluster
 # 2. Set HF_TOKEN in .env or pass it directly
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
-make devspace-deploy-existing-openshift DEV_NAMESPACE=private-assistant-ai-serving
+make devspace-deploy-existing-openshift \
+  DEV_NAMESPACE=private-assistant-ai-serving \
+  DEV_USER=<username>
 ```
 
 ### Multi-developer setup (shared AI serving, separate devspaces)
@@ -39,9 +41,9 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=private-assistant-ai-servi
 # 1. Deploy AI serving once
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
 
-# 2. Each developer deploys their own workspace pointing to the shared AI serving
-make devspace-deploy-existing-openshift DEV_NAMESPACE=itay-devspaces
-make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces \
+# 2. Each developer deploys their own OpenCode workspace pointing to the shared AI serving
+make devspace-deploy-existing-openshift DEV_NAMESPACE=itay-devspaces DEV_USER=itay
+make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=hadar \
   HELM_ARGS='--set devspacesGlobalConfig.enabled=false'
 ```
 
@@ -51,6 +53,8 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces \
 |----------|---------|---------|-------|
 | `AI_NAMESPACE` | `private-assistant-ai-serving` | Both | AI serving namespace |
 | `DEV_NAMESPACE` | *(required)* | Devspace | Developer namespace |
+| `DEV_USER` | *(required for OpenCode)* | Devspace | OpenShift username for namespace annotation (`TYPE=opencode`, the default) |
+| `TYPE` | `opencode` | Devspace | `opencode` (default) or `continue` (Continue/Roo/Cline) |
 | `HF_TOKEN` | from `.env` (`HUGGINGFACE_TOKEN`) | AI serving | HuggingFace token |
 | `MCP_ENABLED` | `false` | Both | Enable `pca-mcp` + IDE MCP wiring |
 | `HELM_ARGS` | *(empty)* | Both | Extra `helm upgrade --install` flags |
@@ -118,7 +122,10 @@ make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
 This deploys the AI serving backend. Then deploy devspaces per developer:
 
 ```bash
-make devspace-deploy-existing-openshift DEV_NAMESPACE=dev-user1-devspaces AI_NAMESPACE=private-assistant-ai-serving
+make devspace-deploy-existing-openshift \
+  DEV_NAMESPACE=dev-user1-devspaces \
+  AI_NAMESPACE=private-assistant-ai-serving \
+  DEV_USER=dev-user1
 ```
 
 ---
@@ -153,7 +160,7 @@ oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init
 ```bash
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true \
   HELM_ARGS='--set pca-observability.langfuse.enabled=true'
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> MCP_ENABLED=true
+make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> DEV_USER=<username> MCP_ENABLED=true
 ```
 
 ---
@@ -168,7 +175,7 @@ Pass `MCP_ENABLED=true` to both the AI serving and devspace make targets:
 
 ```bash
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> MCP_ENABLED=true
+make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> DEV_USER=<username> MCP_ENABLED=true
 ```
 
 ### Enable MCP on an already-running deployment
@@ -197,9 +204,9 @@ See `charts/pca-platform-config/charts/pca-mcp/README.md` for how to add further
 
 ---
 
-## OpenCode Devspace
+## OpenCode Devspace (default)
 
-OpenCode is an AI coding agent with a Web UI and TUI. It runs in a dedicated DevSpaces workspace using a custom image (`devspaces-opencode`) that ships the OpenCode CLI pre-installed. The workspace exposes port 4096 as a public endpoint for the Web UI.
+OpenCode is the default AI coding agent (Web UI + TUI). It runs in a DevSpaces workspace using a custom image (`devspaces-opencode`) that ships the OpenCode CLI pre-installed. The workspace exposes port 4096 as a public endpoint for the Web UI.
 
 > **Known limitation — responses appear empty in OpenCode UI:**
 > `Qwen3-Coder-30B-A3B-Instruct-FP8` in thinking mode places the entire response (including the actual answer) inside `<think>` reasoning tokens. vLLM's `--reasoning-parser=qwen3` correctly extracts this to the `reasoning` field, leaving `content: null`. OpenCode reads `content` only, so the response area is blank — the answer is visible only by expanding the "Thought" section. This is a model behaviour issue caused by FP8 quantization degrading the reasoning/content split; the full-precision model produces correct output. Continue is unaffected (it surfaces reasoning tokens as visible output). Workaround options: (1) run a local response-transformation proxy that copies `reasoning` → `content` when `content` is null; (2) replace with full-precision model.
@@ -218,13 +225,14 @@ OpenCode is an AI coding agent with a Web UI and TUI. It runs in a dedicated Dev
 make devspace-deploy-existing-openshift \
   DEV_NAMESPACE=<username>-devspaces \
   AI_NAMESPACE=<ai-serving-namespace> \
-  DEV_USER=<username> \
-  TYPE=opencode
+  DEV_USER=<username>
 ```
+
+`TYPE` defaults to `opencode`. For Continue/Roo/Cline instead, pass `TYPE=continue` (uses `values-devspaces-continue.yaml`; `DEV_USER` not required).
 
 This target:
 - Creates the namespace with DevSpaces labels (idempotent — safe if it already exists)
-- Deploys `pca-devspaces` chart using `values-devspaces-opencode.yaml`, which also creates the `opencode-build` namespace and BuildConfig
+- Deploys `pca-devspaces` chart using `values-devspaces.yaml`, which also creates the `opencode-build` namespace and BuildConfig
 
 The DevWorkspace is created with `started: false`.
 
@@ -262,7 +270,7 @@ The TUI (`opencode`) is available in the workspace terminal — use **Terminal: 
 
 ### Local terminal (desktop OpenCode)
 
-To connect the local OpenCode desktop app to the cluster llm-d endpoint, configure `~/.config/opencode/opencode.jsonc` with the provider pointing to the external ELB URL. A reference config is at `deploy_existing_openshift/values-devspaces-opencode.yaml` — the external endpoint can be retrieved with:
+To connect the local OpenCode desktop app to the cluster llm-d endpoint, configure `~/.config/opencode/opencode.jsonc` with the provider pointing to the external ELB URL. A reference config is baked into the OpenCode image build (`opencodeBuild` in `values-devspaces.yaml`) — the external endpoint can be retrieved with:
 
 ```bash
 oc get llminferenceservice -n <ai-serving-namespace> -o jsonpath='{.items[0].status.url}'
