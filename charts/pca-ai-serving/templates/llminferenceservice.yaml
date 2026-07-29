@@ -1,5 +1,5 @@
 # LLMInferenceService — used when RHOAI bundled vLLM supports the model.
-# Set vllm.useCustomRuntime: true (values-aro.yaml) to skip this and use
+# Set vllm.useCustomRuntime: true (chart default for Qwen3.6) to skip this and use
 # ServingRuntime + InferenceService instead (e.g. Qwen3.6-35B needs vLLM >= 0.18).
 {{- if not .Values.vllm.useCustomRuntime }}
 {{- include "pca-ai-serving.langfuse.validate" . -}}

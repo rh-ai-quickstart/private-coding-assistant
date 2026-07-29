@@ -20,10 +20,14 @@ spec:
   predictor:
     minReplicas: 1
     maxReplicas: 4
+    nodeSelector:
+      {{ .Values.hardware.instanceTypeLabel }}: {{ .Values.hardware.gpuProduct }}
     tolerations:
       - key: nvidia.com/gpu
-        operator: Equal
-        value: "present"
+        operator: Exists
+        effect: NoSchedule
+      - key: g6e-gpu
+        operator: Exists
         effect: NoSchedule
     model:
       modelFormat:
@@ -34,6 +38,12 @@ spec:
         - --served-model-name={{ .Values.model.servedName | default .Values.model.id }}
         - --tensor-parallel-size={{ .Values.hardware.gpuCount }}
         - --max-model-len={{ .Values.vllm.maxModelLen }}
+        {{- if .Values.vllm.enforceEager }}
+        - --enforce-eager
+        {{- end }}
+        {{- if .Values.vllm.gpuMemoryUtilization }}
+        - --gpu-memory-utilization={{ .Values.vllm.gpuMemoryUtilization }}
+        {{- end }}
       resources:
         requests:
           cpu: {{ .Values.hardware.cpu.request | quote }}

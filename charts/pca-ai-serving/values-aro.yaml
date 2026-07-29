@@ -1,6 +1,6 @@
 model:
-  id: "Qwen/Qwen3.6-35B-A3B-FP8" # actual HF model loaded from disk/HF Hub
-  servedName: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8" # API name exposed by vLLM (aligned with ROSA smoke tests)
+  id: "Qwen/Qwen3.6-35B-A3B-FP8"
+  # servedName left empty (inherits "") so API name equals model.id
   name: "qwen3-coder" # service/pod label name (aligned with ROSA)
   poolName: "qwen3-coder-inference-pool"
   workloadServiceSuffix: "predictor"

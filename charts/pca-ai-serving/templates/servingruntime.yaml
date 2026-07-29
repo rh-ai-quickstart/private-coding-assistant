@@ -1,8 +1,7 @@
 {{- if .Values.vllm.useCustomRuntime }}
 # Custom ServingRuntime for upstream vLLM — used when RHOAI bundled vLLM does not
-# support the target model architecture (e.g. Qwen3.5-MoE requires vLLM >= 0.18).
-# ARO: vllm.useCustomRuntime: true, vllm.image: vllm/vllm-openai:v0.19.0
-# ROSA: useCustomRuntime: false — uses LLMInferenceService with RHOAI bundled vLLM.
+# support the target model architecture (e.g. Qwen3.6 needs vLLM >= 0.18).
+# Chart default: useCustomRuntime: true with vllm.image (ARO/ROSA/existing OpenShift).
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
@@ -43,6 +42,12 @@ spec:
         - --enable-auto-tool-choice
         - --tool-call-parser={{ .Values.vllm.toolCallParser }}
         - --reasoning-parser={{ .Values.vllm.reasoningParser }}
+        {{- if .Values.vllm.enforceEager }}
+        - --enforce-eager
+        {{- end }}
+        {{- if .Values.vllm.gpuMemoryUtilization }}
+        - --gpu-memory-utilization={{ .Values.vllm.gpuMemoryUtilization }}
+        {{- end }}
         {{- if not .Values.vllm.enableThinking }}
         - --chat-template-kwargs
         - '{"enable_thinking": false}'

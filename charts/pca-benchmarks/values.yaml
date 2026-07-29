@@ -1,4 +1,4 @@
 enabled: false
 model:
-  id: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+  id: "Qwen/Qwen3.6-35B-A3B-FP8"
 namespace: "ai-serving"

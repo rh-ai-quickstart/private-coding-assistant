@@ -51,8 +51,8 @@ spec:
         type: PathPrefix
         value: /
     backendRefs:
-    - name: {{ .Values.model.name }}-{{ .Values.model.workloadServiceSuffix | default "kserve-workload-svc" }}
-      port: {{ .Values.model.workloadServicePort | default 8000 }}
+    - name: {{ .Values.model.name }}-{{ .Values.model.workloadServiceSuffix | default "predictor" }}
+      port: {{ .Values.model.workloadServicePort | default 80 }}
     timeouts:
       request: "0s"
       backendRequest: "0s"

@@ -6,9 +6,14 @@ pca-observability:
     accessMode: namespace
 vllm:
   maxModelLen: 49152
+# Self-signed cert for llm-d / RHCL gateways (LLMInferenceService no longer creates kserve-self-signed-certs).
+tlsJob:
+  enabled: true
 # RHCL front door (requires RHCL operator already on cluster; chart creates Kuadrant CR).
 aiGateway:
   enabled: true
   escapeHatchToLlmd: false
+  tls:
+    secretName: llm-d-gateway-tls
   kuadrant:
     create: true
