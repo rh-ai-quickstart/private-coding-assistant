@@ -63,6 +63,30 @@ def test_devworkspace_exists(require_dev_namespace: str) -> None:
     assert items, f"no DevWorkspace in {ns}"
 
 
+def test_opencode_devworkspace_exists(require_dev_namespace: str) -> None:
+    """Default OpenCode path: assert an OpenCode DW CR (any phase). Skip on Continue."""
+    ns = require_dev_namespace
+    dw = oc.find_opencode_devworkspace(ns)
+    if dw is not None:
+        return
+    if oc.resource_exists("configmap", "continue-config", namespace=ns):
+        pytest.skip(f"Continue workspace in {ns} — no OpenCode DevWorkspace expected")
+    pytest.fail(f"no OpenCode DevWorkspace in {ns}")
+
+
+def test_opencode_web_password_secret(
+    require_opencode_devworkspace: dict, require_dev_namespace: str
+) -> None:
+    """OpenCode Web UI password Secret must exist and be non-empty (any DW phase)."""
+    del require_opencode_devworkspace
+    ns = require_dev_namespace
+    assert oc.resource_exists(
+        "secret", "opencode-web-password", namespace=ns
+    ), f"secret/opencode-web-password missing in {ns}"
+    password = oc.secret_data("opencode-web-password", "password", ns)
+    assert password.strip(), f"secret/opencode-web-password password is empty in {ns}"
+
+
 def test_harness_chat_with_attribution(
     require_dev_namespace: str,
     ai_namespace: str,

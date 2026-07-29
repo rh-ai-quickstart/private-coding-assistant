@@ -162,6 +162,14 @@ def is_opencode_devworkspace(devworkspace: dict[str, Any]) -> bool:
     return False
 
 
+def find_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
+    """Return an OpenCode DevWorkspace in namespace (any phase), or None."""
+    for item in list_devworkspaces(namespace):
+        if is_opencode_devworkspace(item):
+            return item
+    return None
+
+
 def find_running_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
     """Return a Running OpenCode DevWorkspace in namespace, or None."""
     for item in list_devworkspaces(namespace):

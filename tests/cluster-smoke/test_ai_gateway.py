@@ -259,13 +259,16 @@ def test_ide_harness_chat_via_ai_gateway(
 
 
 def test_opencode_devworkspace_ai_gateway_api_key(
-    require_opencode: dict,
+    require_opencode_devworkspace: dict,
     require_dev_namespace: str,
     ai_namespace: str,
 ) -> None:
-    """OpenCode DevWorkspace must point at RHCL with a non-EMPTY OPENAI_API_KEY."""
+    """OpenCode DW spec env must point at RHCL with a non-EMPTY OPENAI_API_KEY.
+
+    Runs on stopped workspaces (started: false) — reads CR spec, not a live pod.
+    """
     ns = require_dev_namespace
-    env = oc.devworkspace_env(require_opencode)
+    env = oc.devworkspace_env(require_opencode_devworkspace)
     base_url = env.get("OPENAI_BASE_URL") or env.get("VLLM_ENDPOINT") or ""
     api_key = env.get("OPENAI_API_KEY") or ""
     host = _ai_gateway_host(ai_namespace)
@@ -289,14 +292,17 @@ def test_opencode_devworkspace_ai_gateway_api_key(
 
 
 def test_opencode_chat_completions_with_api_key(
-    require_opencode: dict,
+    require_opencode_devworkspace: dict,
     require_dev_namespace: str,
     ai_namespace: str,
     ai_gateway_v1: str,
     model_id: str,
 ) -> None:
-    """OpenCode path: Secret key → Bearer → chat/completions → 200 + reply."""
-    del require_opencode  # presence gated by fixture
+    """OpenCode path: Secret key → Bearer → chat/completions → 200 + reply.
+
+    Gated on OpenCode DW CR existence (any phase); does not need a Running pod.
+    """
+    del require_opencode_devworkspace  # presence gated by fixture
     ns = require_dev_namespace
     api_key = oc.secret_data(
         urls.AI_GATEWAY_APIKEY_SECRET, urls.AI_GATEWAY_APIKEY_KEY, ns

@@ -125,12 +125,10 @@ def require_dev_namespace(dev_namespace: str | None) -> str:
 
 
 @pytest.fixture
-def require_opencode(require_dev_namespace: str) -> dict:
-    """Skip unless a Running OpenCode DevWorkspace exists in DEV_NAMESPACE."""
+def require_opencode_devworkspace(require_dev_namespace: str) -> dict:
+    """Skip unless an OpenCode DevWorkspace CR exists (any phase — fresh install OK)."""
     ns = require_dev_namespace
-    dw = oc.find_running_opencode_devworkspace(ns)
+    dw = oc.find_opencode_devworkspace(ns)
     if dw is None:
-        pytest.skip(
-            f"no Running OpenCode DevWorkspace in {ns} — skipping OpenCode tests"
-        )
+        pytest.skip(f"no OpenCode DevWorkspace in {ns} — skipping OpenCode tests")
     return dw
