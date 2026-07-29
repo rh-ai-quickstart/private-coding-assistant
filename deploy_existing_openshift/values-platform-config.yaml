@@ -22,7 +22,7 @@ devspaces:
 # Guardrails sub-chart config. Set guardrails.enabled: true in the parent to enable.
 # To add secret patterns, append regex to pca-guardrails.guardrails.detectors.secretsRegex.patterns.
 pca-guardrails:
-  namespace: hacohen-ai-coder
+  namespace: ai-serving
   guardrails:
     enforcement: block
     llmService:

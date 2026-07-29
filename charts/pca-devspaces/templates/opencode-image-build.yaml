@@ -14,6 +14,7 @@ metadata:
   name: opencode-build
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    helm.sh/resource-policy: keep
 ---
 apiVersion: image.openshift.io/v1
 kind: ImageStream

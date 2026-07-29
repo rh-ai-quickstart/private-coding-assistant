@@ -90,11 +90,14 @@ devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAM
 		oc annotate namespace $(DEV_NAMESPACE) \
 			che.eclipse.org/username=$(DEV_USER) --overwrite; \
 	fi
+	$(eval SKIP_OPENCODE_BUILD := $(if $(filter-out continue,$(TYPE)),\
+	  $(shell oc get namespace opencode-build --no-headers --ignore-not-found | grep -q . && echo true),))
 	helm upgrade --install $(DEV_NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
 		--namespace $(DEV_NAMESPACE) --create-namespace \
 		$(if $(filter continue,$(TYPE)),-f $(DEPLOY_VALUES_DIR)/values-devspaces-continue.yaml,-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml) \
 		--set aiServingNamespace=$(AI_NAMESPACE) \
 		--set devspaces[0].user=$(DEV_USER) \
+		$(if $(filter true,$(SKIP_OPENCODE_BUILD)),--set opencodeBuild.enabled=false,) \
 		$(if $(filter true,$(MCP_ENABLED)),--set mcp.enabled=true,) \
 		$(HELM_ARGS)
 

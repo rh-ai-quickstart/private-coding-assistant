@@ -47,6 +47,8 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=h
   HELM_ARGS='--set devspacesGlobalConfig.enabled=false'
 ```
 
+> **OpenCode build:** `opencode-build` is cluster-singleton infrastructure owned by the first Helm release. The Makefile auto-detects whether it already exists and suppresses `opencodeBuild` for subsequent runs. If deploying manually with `helm upgrade --install`, pass `--set opencodeBuild.enabled=false` from the second developer onward.
+
 ## Parameters
 
 | Variable | Default | Used by | Notes |
@@ -64,6 +66,7 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=h
 | Flag | When |
 |------|------|
 | `--set devspacesGlobalConfig.enabled=false` | 2nd+ developer (avoid Helm ownership of global ConfigMaps in `openshift-devspaces`) |
+| `--set opencodeBuild.enabled=false` | 2nd+ opencode developer — avoids Helm ownership conflict on the shared `opencode-build` namespace (Makefile detects this automatically) |
 | `--set pca-observability.langfuse.enabled=true` | Opt in Langfuse (+ OTel) with AI serving |
 | `--set guardrails.enabled=true --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080` | Route IDE chat through guardrails on a devspace |
 | `--set aiGateway.escapeHatchToLlmd=true` | Skip RHCL; IDEs call llm-d Gateway directly |
