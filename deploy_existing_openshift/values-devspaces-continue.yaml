@@ -1,5 +1,5 @@
 # Opt-in Continue/Roo/Cline DevWorkspace (che-code UDI image).
-# Deploy with: TYPE=continue make devspace-deploy-existing-openshift ...
+# Deploy with: TYPE=continue DEV_USER=<username> make devspace-deploy-existing-openshift ...
 devspacesGlobalConfig:
   enabled: true
 aiGateway:

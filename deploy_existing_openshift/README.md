@@ -53,7 +53,7 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=h
 |----------|---------|---------|-------|
 | `AI_NAMESPACE` | `private-assistant-ai-serving` | Both | AI serving namespace |
 | `DEV_NAMESPACE` | *(required)* | Devspace | Developer namespace |
-| `DEV_USER` | *(required for OpenCode)* | Devspace | OpenShift username for namespace annotation (`TYPE=opencode`, the default) |
+| `DEV_USER` | *(required)* | Devspace | OpenShift username — Langfuse `X-PCA-User` + namespace edit RBAC; also Che username annotation when `TYPE=opencode` |
 | `TYPE` | `opencode` | Devspace | `opencode` (default) or `continue` (Continue/Roo/Cline) |
 | `HF_TOKEN` | from `.env` (`HUGGINGFACE_TOKEN`) | AI serving | HuggingFace token |
 | `MCP_ENABLED` | `false` | Both | Enable `pca-mcp` + IDE MCP wiring |
@@ -228,7 +228,7 @@ make devspace-deploy-existing-openshift \
   DEV_USER=<username>
 ```
 
-`TYPE` defaults to `opencode`. For Continue/Roo/Cline instead, pass `TYPE=continue` (uses `values-devspaces-continue.yaml`; `DEV_USER` not required).
+`TYPE` defaults to `opencode`. For Continue/Roo/Cline instead, pass `TYPE=continue` (uses `values-devspaces-continue.yaml`). `DEV_USER` is required for both types.
 
 This target:
 - Creates the namespace with DevSpaces labels (idempotent — safe if it already exists)
