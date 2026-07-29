@@ -30,7 +30,7 @@ data:
           "apiProvider": "openai-compatible",
           "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
           "openAiCompatibleApiKey": {{ $apiKey | quote }},
-          "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
+          "openAiCompatibleModelId": {{ $.Values.modelId | quote }},
           "openAiHeaders": {
             "X-PCA-User": {{ $user | quote }},
             "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},
@@ -44,7 +44,7 @@ data:
       "apiProvider": "openai-compatible",
       "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
       "openAiCompatibleApiKey": {{ $apiKey | quote }},
-      "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
+      "openAiCompatibleModelId": {{ $.Values.modelId | quote }},
       "openAiHeaders": {
         "X-PCA-User": {{ $user | quote }},
         "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},
@@ -73,7 +73,7 @@ data:
           "apiProvider": "openai-compatible",
           "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
           "openAiCompatibleApiKey": {{ $apiKey | quote }},
-          "openAiCompatibleModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
+          "openAiCompatibleModelId": {{ $.Values.modelId | quote }},
           "openAiHeaders": {
             "X-PCA-User": {{ $user | quote }},
             "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},

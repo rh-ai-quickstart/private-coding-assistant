@@ -28,9 +28,9 @@ data:
     version: 1.0.0
     schema: v1
     models:
-      - name: Qwen3-Coder (llm-d)
+      - name: Private model (llm-d)
         provider: openai
-        model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+        model: {{ $.Values.modelId }}
         apiBase: {{ $baseUrl }}
         apiKey: {{ $apiKey }}
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
@@ -53,9 +53,9 @@ data:
         {{- end }}
     {{- end }}
     tabAutocompleteModel:
-      name: Qwen3-Coder Autocomplete (llm-d)
+      name: Private model Autocomplete (llm-d)
       provider: openai
-      model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+      model: {{ $.Values.modelId }}
       apiBase: {{ $baseUrl }}
       apiKey: {{ $apiKey }}
       requestOptions:

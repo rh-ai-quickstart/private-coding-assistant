@@ -1,5 +1,5 @@
 aiServingNamespace: ai-serving
-modelId: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+modelId: "Qwen/Qwen3.6-35B-A3B-FP8"
 opencodeBuild:
   enabled: true
   opencodeVersion: "1.15.13"

@@ -55,7 +55,7 @@ data:
           "apiProvider": "openai",
           "openAiBaseUrl": {{ $baseUrl | quote }},
           "openAiApiKey": {{ $apiKey | quote }},
-          "openAiModelId": "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8",
+          "openAiModelId": {{ $.Values.modelId | quote }},
           "openAiStreamingEnabled": false,
           "openAiHeaders": {
             "X-PCA-User": "{{ $user }}",
