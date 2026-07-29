@@ -26,8 +26,8 @@ pca-guardrails:
   guardrails:
     enforcement: block
     llmService:
-      host: qwen3-coder-kserve-workload-svc
-      port: 8000
+      host: qwen3-coder-predictor
+      port: 80
       tlsSecret: qwen3-coder-kserve-self-signed-certs
     replicas: 1
     gateway:

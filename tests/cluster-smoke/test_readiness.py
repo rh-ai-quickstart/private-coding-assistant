@@ -12,14 +12,26 @@ pytestmark = pytest.mark.readiness
 
 
 def test_llminferenceservice_ready(ai_namespace: str, oc_user: str) -> None:
+    """Ready when either LLMInferenceService or custom-runtime InferenceService is Ready."""
     del oc_user
-    assert oc.resource_exists(
+    if oc.resource_exists(
         "llminferenceservice", urls.LLMIS_NAME, namespace=ai_namespace
-    ), f"LLMInferenceService/{urls.LLMIS_NAME} missing in {ai_namespace}"
-    status = oc.condition_status(
-        "llminferenceservice", urls.LLMIS_NAME, "Ready", ai_namespace
+    ):
+        status = oc.condition_status(
+            "llminferenceservice", urls.LLMIS_NAME, "Ready", ai_namespace
+        )
+        assert status == "True", f"LLMInferenceService/{urls.LLMIS_NAME} Ready={status!r}"
+        return
+    assert oc.resource_exists(
+        "inferenceservice", urls.LLMIS_NAME, namespace=ai_namespace
+    ), (
+        f"neither LLMInferenceService nor InferenceService/{urls.LLMIS_NAME} "
+        f"in {ai_namespace}"
     )
-    assert status == "True", f"LLMInferenceService/{urls.LLMIS_NAME} Ready={status!r}"
+    status = oc.condition_status(
+        "inferenceservice", urls.LLMIS_NAME, "Ready", ai_namespace
+    )
+    assert status == "True", f"InferenceService/{urls.LLMIS_NAME} Ready={status!r}"
 
 
 def test_gateway_accepted(ai_namespace: str) -> None:
@@ -57,33 +69,30 @@ def test_model_cache_pvc_bound(ai_namespace: str) -> None:
 
 
 def test_predictor_pods_running(ai_namespace: str) -> None:
-    # LLMInferenceService workload pods (not classic InferenceService label).
-    result = oc.run_oc(
-        "get",
-        "pods",
-        "-n",
-        ai_namespace,
-        "-l",
+    # Prefer InferenceService predictor pods; fall back to LLMInferenceService labels.
+    label_sets = [
+        f"serving.kserve.io/inferenceservice={urls.LLMIS_NAME}",
         f"app.kubernetes.io/name={urls.LLMIS_NAME},app.kubernetes.io/component=llminferenceservice-workload",
-        "-o",
-        "json",
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    items = json.loads(result.stdout).get("items") or []
-    if not items:
+        f"app.kubernetes.io/name={urls.LLMIS_NAME}",
+    ]
+    items: list = []
+    for label in label_sets:
         result = oc.run_oc(
             "get",
             "pods",
             "-n",
             ai_namespace,
             "-l",
-            f"app.kubernetes.io/name={urls.LLMIS_NAME}",
+            label,
             "-o",
             "json",
             check=False,
         )
+        if result.returncode != 0:
+            continue
         items = json.loads(result.stdout).get("items") or []
+        if items:
+            break
     assert items, f"no workload pods for {urls.LLMIS_NAME} in {ai_namespace}"
     not_ready = []
     for pod in items:

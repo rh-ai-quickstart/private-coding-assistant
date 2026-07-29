@@ -1,6 +1,6 @@
 """Cluster-internal and route URL builders."""
 
-DEFAULT_MODEL_ID = "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+DEFAULT_MODEL_ID = "Qwen/Qwen3.6-35B-A3B-FP8"
 LLMIS_NAME = "qwen3-coder"
 GATEWAY_NAME = "llm-d-gateway"
 AI_GATEWAY_NAME = "pca-ai-gateway"
@@ -9,7 +9,7 @@ AI_GATEWAY_AUTH_POLICY = "pca-ai-gateway-apikey"
 AI_GATEWAY_APIKEY_SECRET = "pca-ai-gw-apikey"
 AI_GATEWAY_APIKEY_KEY = "api_key"
 GATEWAY_CLASS = "data-science-gateway-class"
-WORKLOAD_SVC = "qwen3-coder-kserve-workload-svc"
+WORKLOAD_SVC = "qwen3-coder-predictor"
 PVC_NAME = "model-cache"
 GRAFANA_NAME = "pca-grafana"
 LANGFUSE_ROUTE = "pca-langfuse"
@@ -43,7 +43,8 @@ def ai_gateway_v1(namespace: str) -> str:
 
 
 def workload_base(namespace: str) -> str:
-    return f"https://{WORKLOAD_SVC}.{namespace}.svc.cluster.local:8000"
+    # InferenceService predictor Service is plain HTTP on port 80.
+    return f"http://{WORKLOAD_SVC}.{namespace}.svc.cluster.local:80"
 
 
 def grafana_svc(namespace: str) -> str:
