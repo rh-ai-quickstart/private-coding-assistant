@@ -44,7 +44,7 @@ The end result is a ROSA HCP cluster running:
 │  Terraform (Phase 1 — Run once)                                  │
 │  ├── AWS VPC, Subnets, NAT Gateway                               │
 │  ├── ROSA HCP Cluster (STS/OIDC)                                 │
-│  ├── Machine Pools (workers, GPU L40S, opt. Inferentia)          │
+│  ├── Machine Pools (workers, GPU H100, opt. Inferentia)          │
 │  ├── HTPasswd IDP + Developer Users                              │
 │  └── OpenShift GitOps Operator + App-of-Apps bootstrap           │
 ├──────────────────────────────────────────────────────────────────┤
@@ -104,7 +104,7 @@ You need the following tools installed on your local machine before starting.
 | 6 | `kubeseal` | latest (optional) | Sealed Secrets for production |
 
 **Accounts required:**
-- **AWS account** with permissions to create VPC, IAM roles, and EC2 instances (including `g6e.2xlarge` GPU instances)
+- **AWS account** with permissions to create VPC, IAM roles, and EC2 instances (including `p5.4xlarge` GPU instances)
 - **Red Hat account** with ROSA entitlement (https://console.redhat.com)
 - **HuggingFace account** with an API token for model downloads (https://huggingface.co/settings/tokens)
 
@@ -298,7 +298,7 @@ default_worker_max_replicas  = 6
 
 # GPU pool
 gpu_pool_enabled  = true
-gpu_instance_type = "g6e.2xlarge"
+gpu_instance_type = "p5.4xlarge"
 gpu_pool_replicas = 1
 
 # Inferentia pool (set to true if you have inf2 quota)
@@ -650,9 +650,9 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 ### Wave 3 — AI Serving (`pca-ai-serving`)
 
 - **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts)
-- **ServingRuntime + InferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` (custom vLLM runtime; API name matches `model.id`) with vLLM args:
+- **ServingRuntime + InferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` with custom vLLM v0.19.0 runtime:
   - `--tool-call-parser qwen3_xml --reasoning-parser qwen3`
-  - `--max-model-len 32768 --gpu-memory-utilization 0.90`
+  - `--max-model-len 262144 --gpu-memory-utilization 0.90`
   - `--enable-prefix-caching --kv-cache-dtype fp8`
   - EPP scorer weights: queue=2, kv-cache=2, prefix-cache=3
 - **llm-d Gateway + HTTPRoute**: cluster-internal llm-d Gateway with EPP routing
@@ -680,7 +680,7 @@ Each extension connects to the self-hosted model endpoint. Here is exactly what 
 | Setting | Value |
 |---------|-------|
 | **Model Endpoint (Base URL)** | `https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1` |
-| **Model ID** | `Qwen/Qwen3.6-35B-A3B-FP8` |
+| **Model ID** | `Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8` (served name alias for `Qwen/Qwen3.6-35B-A3B-FP8`) |
 | **API Key** | `EMPTY` (no auth required — cluster-internal) |
 
 | Extension | Auto-Configured? | How | What the User Sees |
@@ -706,7 +706,7 @@ Each extension connects to the self-hosted model endpoint. Here is exactly what 
 | `default_worker_min_replicas` | `3` | Min workers (autoscaling) |
 | `default_worker_max_replicas` | `6` | Max workers (autoscaling) |
 | `gpu_pool_enabled` | `true` | Create GPU machine pool |
-| `gpu_instance_type` | `g6e.2xlarge` | GPU instance type (NVIDIA L40S) |
+| `gpu_instance_type` | `p5.4xlarge` | GPU instance type (NVIDIA H100) |
 | `gpu_pool_replicas` | `1` | Number of GPU nodes |
 | `inferentia_pool_enabled` | `false` | Create Inferentia machine pool |
 | `inferentia_instance_type` | `inf2.24xlarge` | Inferentia instance type |
@@ -716,11 +716,11 @@ Each extension connects to the self-hosted model endpoint. Here is exactly what 
 
 | vLLM Argument | Value | Purpose |
 |---------------|-------|---------|
-| `--max-model-len` | `32768` | Context window (tokens) |
+| `--max-model-len` | `262144` | Context window (tokens) |
 | `--gpu-memory-utilization` | `0.90` | GPU memory fraction |
 | `--enable-prefix-caching` | — | KV-cache reuse across requests |
 | `--enable-auto-tool-choice` | — | Tool/function calling support |
-| `--tool-call-parser` | `qwen3_coder` | Tool call format parser |
+| `--tool-call-parser` | `qwen3_xml` | Tool call format parser |
 | `--reasoning-parser` | `qwen3` | Reasoning extraction |
 | `--kv-cache-dtype` | `fp8` | Memory-efficient KV-cache |
 
@@ -736,8 +736,36 @@ cd terraform
 terraform apply -var="gpu_pool_replicas=2"
 
 # Via ROSA CLI (immediate, not persisted in Terraform state)
-rosa edit machinepool gpu-l40s --cluster=rosa-pca --replicas=2
+rosa edit machinepool gpu-h100 --cluster=rosa-pca --replicas=2
 ```
+
+### Multi-GPU alternative (g6e.12xlarge, 4x L40S)
+
+For teams that prefer L40S GPUs or cannot get H100 quota, the model runs on
+`g6e.12xlarge` (4x NVIDIA L40S, 192 GB total GPU memory) with tensor parallelism.
+
+**Terraform overrides** (`terraform.tfvars`):
+
+```hcl
+gpu_instance_type = "g6e.12xlarge"
+gpu_pool_name     = "gpu-l40s-4x"
+```
+
+**Helm overrides** (add to `charts/pca-ai-serving/values-rosa.yaml`):
+
+```yaml
+hardware:
+  gpuProduct: "g6e.12xlarge"
+  gpuCount: 4
+  cpu:
+    request: "8"
+    limit: "16"
+  memory:
+    request: 80Gi
+    limit: 120Gi
+```
+
+vLLM automatically uses `--tensor-parallel-size=4` (derived from `hardware.gpuCount`).
 
 ### Scaling model replicas
 
@@ -817,7 +845,7 @@ Confirm when prompted. This deletes the cluster, machine pools, GitOps bootstrap
 ### Terraform apply fails on ROSA cluster creation
 
 - Verify your OCM token is valid: `rosa login --token="${RHCS_TOKEN}" && rosa whoami`
-- Check AWS quotas: GPU instances (`g6e.2xlarge`) require a service limit increase in many accounts
+- Check AWS quotas: GPU instances (`p5.4xlarge`) require a service limit increase in many accounts
 - Ensure the AWS account has ROSA enabled: `rosa verify quota --region=us-east-2`
 
 ### ArgoCD application stuck in "OutOfSync" or "Progressing"

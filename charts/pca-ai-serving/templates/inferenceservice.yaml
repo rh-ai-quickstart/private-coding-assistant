@@ -1,7 +1,6 @@
 {{- if .Values.vllm.useCustomRuntime }}
 # InferenceService using custom ServingRuntime — paired with servingruntime.yaml.
-# Used when LLMInferenceService + RHOAI bundled vLLM cannot serve the target model.
-# Set vllm.useCustomRuntime: true and vllm.image in values-aro.yaml.
+# Default for all clouds. Set vllm.useCustomRuntime: false to fall back to LLMInferenceService.
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:

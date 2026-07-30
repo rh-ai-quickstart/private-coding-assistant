@@ -1,7 +1,6 @@
 {{- if .Values.vllm.useCustomRuntime }}
-# Custom ServingRuntime for upstream vLLM — used when RHOAI bundled vLLM does not
-# support the target model architecture (e.g. Qwen3.6 needs vLLM >= 0.18).
-# Chart default: useCustomRuntime: true with vllm.image (ARO/ROSA/existing OpenShift).
+# Custom ServingRuntime for upstream vLLM — default for all clouds.
+# Set vllm.useCustomRuntime: false to fall back to LLMInferenceService with RHOAI bundled vLLM.
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:

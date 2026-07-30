@@ -150,8 +150,8 @@ prometheus:
   # accessMode=namespace so Grafana can query those metrics without cluster RBAC.
   gpuMetricsNamespace: nvidia-gpu-operator
 cost:
-  # PLACEHOLDER — illustrative L40S on-demand from sizing doc; not billing truth
-  gpuHourlyUsd: 1.86
+  # PLACEHOLDER — illustrative H100 on-demand from sizing doc; not billing truth
+  gpuHourlyUsd: 4.50
   gpuHourlyUsdIsPlaceholder: true
 persistence:
   storageClass: ""

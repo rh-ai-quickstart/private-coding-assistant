@@ -156,7 +156,7 @@ oc get secret pca-grafana-admin -n $AI_NAMESPACE -o jsonpath='{.data.admin-passw
 oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init-user-password}' | base64 -d; echo
 ```
 
-**GPU $/hr PLACEHOLDER:** `cost.gpuHourlyUsd: 1.86` is illustrative L40S on-demand — **not** billing truth. Override per cluster and set `cost.gpuHourlyUsdIsPlaceholder: false`.
+**GPU $/hr PLACEHOLDER:** `cost.gpuHourlyUsd: 4.50` is illustrative H100 on-demand — **not** billing truth. Override per cluster and set `cost.gpuHourlyUsdIsPlaceholder: false`.
 
 **Attribution:** Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` / optional `X-PCA-Team` (from `devspaces[].team`). Full prompt/completion bodies go to Langfuse when `ioCapture=full`. See `charts/pca-ai-serving/charts/pca-observability/README.md`.
 

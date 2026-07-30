@@ -2,7 +2,7 @@ namespace: ai-serving
 clusterResources: true
 model:
   id: "Qwen/Qwen3.6-35B-A3B-FP8"
-  servedName: "" # empty = use model.id as the vLLM --served-model-name
+  servedName: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8" # backward-compat API alias — IDEs / smoke tests still send this name
   name: "qwen3-coder"
   poolName: "qwen3-coder-inference-pool"
   # InferenceService (useCustomRuntime) creates <name>-predictor:80.
@@ -10,7 +10,7 @@ model:
   workloadServiceSuffix: "predictor"
   workloadServicePort: 80
 vllm:
-  maxModelLen: 32768
+  maxModelLen: 262144
   toolCallParser: "qwen3_xml"
   reasoningParser: "qwen3"
   image: "vllm/vllm-openai:v0.19.0"
@@ -23,9 +23,8 @@ vllm:
     HOME: "/tmp"
     DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
     VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
-  # Set true when RHOAI bundled vLLM doesn't support the model architecture.
-  # Renders ServingRuntime + InferenceService instead of LLMInferenceService.
-  # Requires vllm.image to be set. Qwen3.6 needs vLLM >= 0.18.
+  # Renders ServingRuntime + InferenceService with the custom vllm.image.
+  # Set false to fall back to LLMInferenceService with RHOAI bundled vLLM.
   useCustomRuntime: true
   # Set false to disable Qwen3 thinking mode (adds --chat-template-kwargs).
   # Use false when the model's thinking blocks exceed test max_tokens budgets.
@@ -35,15 +34,15 @@ vllm:
   # Optional vLLM --gpu-memory-utilization (empty = vLLM default).
   gpuMemoryUtilization: ""
 hardware:
-  gpuProduct: "g6e.2xlarge"
+  gpuProduct: "p5.4xlarge"
   instanceTypeLabel: "node.kubernetes.io/instance-type"
   gpuCount: 1
   cpu:
-    request: "2"
-    limit: "4"
+    request: "8"
+    limit: "16"
   memory:
-    request: 16Gi
-    limit: 48Gi
+    request: 80Gi
+    limit: 120Gi
 storage:
   storageClass: "gp3-csi"
   modelCacheSize: 100Gi
@@ -107,8 +106,8 @@ pca-observability:
     # ROSA full provision: cluster. Existing OpenShift override: namespace.
     accessMode: cluster
   cost:
-    # PLACEHOLDER — illustrative L40S on-demand from sizing doc; not billing truth
-    gpuHourlyUsd: 1.86
+    # PLACEHOLDER — illustrative H100 on-demand from sizing doc; not billing truth
+    gpuHourlyUsd: 4.50
     gpuHourlyUsdIsPlaceholder: true
   persistence:
     storageClass: ""

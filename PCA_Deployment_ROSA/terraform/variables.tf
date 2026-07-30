@@ -138,7 +138,7 @@ variable "default_worker_max_replicas" {
 }
 
 # ──────────────────────────────────────────────
-# GPU Machine Pool (NVIDIA L40S)
+# GPU Machine Pool (NVIDIA H100)
 # ──────────────────────────────────────────────
 variable "gpu_pool_enabled" {
   description = "Enable GPU machine pool"
@@ -149,7 +149,13 @@ variable "gpu_pool_enabled" {
 variable "gpu_instance_type" {
   description = "Instance type for GPU nodes"
   type        = string
-  default     = "g6e.2xlarge"
+  default     = "p5.4xlarge"
+}
+
+variable "gpu_pool_name" {
+  description = "Machine pool name for GPU nodes (changing this recreates the pool)"
+  type        = string
+  default     = "gpu-h100"
 }
 
 variable "gpu_pool_replicas" {

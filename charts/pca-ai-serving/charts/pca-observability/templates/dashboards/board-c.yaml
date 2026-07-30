@@ -83,7 +83,7 @@ data:
         {
           "type": "stat",
           "title": "PLACEHOLDER — GPU $/hr context (override per cluster)",
-          "description": "Illustrative L40S on-demand from sizing doc — NOT billing truth. Set cost.gpuHourlyUsd / cost.gpuHourlyUsdIsPlaceholder in values.",
+          "description": "Illustrative H100 on-demand from sizing doc — NOT billing truth. Set cost.gpuHourlyUsd / cost.gpuHourlyUsdIsPlaceholder in values.",
           "gridPos": { "h": 4, "w": 12, "x": 0, "y": 16 },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
           "targets": [

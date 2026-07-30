@@ -75,7 +75,7 @@ Optional values overrides (`grafana.adminPassword`, `langfuse.credentials.salt`,
 
 ## GPU cost PLACEHOLDER
 
-`cost.gpuHourlyUsd: 1.86` is an **illustrative** L40S on-demand figure from the sizing doc — **not** billing truth.
+`cost.gpuHourlyUsd: 4.50` is an **illustrative** H100 on-demand figure from the sizing doc — **not** billing truth.
 
 - `cost.gpuHourlyUsdIsPlaceholder: true` (default)
 - Panel titles include **PLACEHOLDER — override per cluster**

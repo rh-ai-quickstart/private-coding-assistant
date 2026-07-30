@@ -166,11 +166,11 @@ resource "rhcs_cluster_wait" "wait" {
 # Machine Pools
 # ════════════════════════════════════════════════
 
-# GPU Machine Pool (NVIDIA L40S — g6e.2xlarge)
+# GPU Machine Pool (NVIDIA H100 — p5.4xlarge)
 resource "rhcs_hcp_machine_pool" "gpu" {
   count   = var.gpu_pool_enabled ? 1 : 0
   cluster = rhcs_cluster_rosa_hcp.cluster.id
-  name    = "gpu-l40s"
+  name    = var.gpu_pool_name
 
   subnet_id = local.private_subnet_ids[0]
   auto_repair = true

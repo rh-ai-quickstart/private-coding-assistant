@@ -26,9 +26,9 @@ default_worker_autoscaling   = true
 default_worker_min_replicas  = 3
 default_worker_max_replicas  = 6
 
-# GPU pool (NVIDIA L40S)
+# GPU pool (NVIDIA H100)
 gpu_pool_enabled  = true
-gpu_instance_type = "g6e.2xlarge"
+gpu_instance_type = "p5.4xlarge"
 gpu_pool_replicas = 1
 
 # Inferentia pool (disabled by default)

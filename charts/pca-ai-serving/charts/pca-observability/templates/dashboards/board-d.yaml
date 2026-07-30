@@ -58,7 +58,7 @@ data:
         {
           "type": "stat",
           "title": "PLACEHOLDER — GPU $/hr (not billing truth)",
-          "description": "Illustrative L40S on-demand from sizing doc. Set cost.gpuHourlyUsdIsPlaceholder: false when overridden with real rates.",
+          "description": "Illustrative H100 on-demand from sizing doc. Set cost.gpuHourlyUsdIsPlaceholder: false when overridden with real rates.",
           "gridPos": { "h": 4, "w": 8, "x": 0, "y": 12 },
           "targets": [
             {
