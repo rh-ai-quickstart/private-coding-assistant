@@ -5,9 +5,9 @@ Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GP
 | Target | What it deploys |
 |--------|-----------------|
 | `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel; RHCL AI Gateway front door |
-| `make devspace-deploy-existing-openshift` | Per-developer OpenCode DevWorkspace (→ RHCL → llm-d), plus global DevSpaces ConfigMaps; `TYPE=continue` for Continue/Roo/Cline |
+| `make devspace-deploy-existing-openshift` | OpenCode DevWorkspaces as `dev-userN` in `dev-userN-devspaces` (`N=<count>` or single `DEV_USER=`); `TYPE=continue` for Continue/Roo/Cline |
 
-`ai-serving-deploy-existing-openshift` must run first. The first devspace deploy creates global ConfigMaps in `openshift-devspaces`; subsequent deploys should set `devspacesGlobalConfig.enabled=false`.
+`ai-serving-deploy-existing-openshift` must run first. With `N=`, the first user owns global ConfigMaps in `openshift-devspaces`; later users get `devspacesGlobalConfig.enabled=false` automatically. Do **not** use `private-assistant-*` as a DevSpace namespace (that prefix is only for AI serving).
 
 ### Prerequisite: Red Hat Connectivity Link (RHCL)
 
@@ -24,27 +24,26 @@ IDE traffic defaults to:
 
 Each DevSpaces namespace gets an API key Secret (`pca-ai-gw-apikey`); the same key is mirrored into the AI serving namespace for AuthPolicy validation (`pca-ai-gw-apikey-<devNamespace>`). Break-glass: `--set aiGateway.escapeHatchToLlmd=true` points IDEs at llm-d directly (no API key).
 
-### Single-developer setup (everything in one namespace)
+### Demo DevSpaces (`dev-user1..N`)
 
 ```bash
 # 1. oc login to your cluster
 # 2. Set HF_TOKEN in .env or pass it directly
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
-make devspace-deploy-existing-openshift \
-  DEV_NAMESPACE=private-assistant-ai-serving \
-  DEV_USER=<username>
+
+# 3. Deploy N OpenCode workspaces (syncs values-platform-config instances + Helm)
+make devspace-deploy-existing-openshift N=2
+
+# 4. Apply HTPasswd logins (passwords Dev1@PCA2026!, Dev2@PCA2026!, …)
+make setup-idp
 ```
 
-### Multi-developer setup (shared AI serving, separate devspaces)
+Log in to Dev Spaces via **pca-htpasswd** as `dev-user1` / `Dev1@PCA2026!`. Namespace is always `dev-user1-devspaces`.
+
+Single user (namespace is always `<user>-devspaces`):
 
 ```bash
-# 1. Deploy AI serving once
-make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
-
-# 2. Each developer deploys their own OpenCode workspace pointing to the shared AI serving
-make devspace-deploy-existing-openshift DEV_NAMESPACE=itay-devspaces DEV_USER=itay
-make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=hadar \
-  HELM_ARGS='--set devspacesGlobalConfig.enabled=false'
+make devspace-deploy-existing-openshift DEV_USER=dev-user2
 ```
 
 > **OpenCode build:** `opencode-build` is cluster-singleton infrastructure owned by the first Helm release. The Makefile auto-detects whether it already exists and suppresses `opencodeBuild` for subsequent runs. If deploying manually with `helm upgrade --install`, pass `--set opencodeBuild.enabled=false` from the second developer onward.
@@ -55,9 +54,9 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=h
 
 | Variable | Default | Used by | Notes |
 |----------|---------|---------|-------|
-| `AI_NAMESPACE` | `private-assistant-ai-serving` | Both | AI serving namespace |
-| `DEV_NAMESPACE` | *(required)* | Devspace | Developer namespace |
-| `DEV_USER` | *(required)* | Devspace | OpenShift username — Langfuse `X-PCA-User` + namespace edit RBAC; also Che username annotation when `TYPE=opencode` |
+| `AI_NAMESPACE` | `private-assistant-ai-serving` | Both | AI serving namespace (not a DevSpace NS) |
+| `N` | *(empty)* | Devspace | When set, deploy `dev-user1..N` in `dev-userN-devspaces` and sync `values-platform-config.yaml` instances (passwords `DevN@PCA2026!`) |
+| `DEV_USER` | *(required if N unset)* | Devspace | OpenShift username; namespace is always `<DEV_USER>-devspaces` |
 | `TYPE` | `opencode` | Devspace | `opencode` (default) or `continue` (Continue/Roo/Cline) |
 | `HF_TOKEN` | from `.env` (`HUGGINGFACE_TOKEN`) | AI serving | HuggingFace token |
 | `MCP_ENABLED` | `false` | Both | Enable `pca-mcp` + IDE MCP wiring |
@@ -79,9 +78,9 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=hadar-devspaces DEV_USER=h
 | Target | Purpose |
 |--------|---------|
 | `make setup-idp` | HTPasswd IDP from `values-platform-config.yaml` |
-| `make mcp-enable` / `make mcp-disable` | Toggle MCP on an already-deployed stack (`AI_NAMESPACE=`, `DEV_NAMESPACE=`) |
+| `make mcp-enable` / `make mcp-disable` | Toggle MCP (`AI_NAMESPACE=`, optional `DEV_USER=`) |
 | `make ai-serving-undeploy-existing-openshift` | Remove AI serving + delete `AI_NAMESPACE` |
-| `make devspace-undeploy-existing-openshift` | Remove one devspace (`DEV_NAMESPACE=` required) |
+| `make devspace-undeploy-existing-openshift` | Remove one DevSpace (`DEV_USER=` required) |
 
 ## Authentication and Identity Provider Configuration
 
@@ -91,47 +90,20 @@ For demo and test environments, the quickstart provides an HTPasswd identity pro
 
 **Prerequisites:** `oc` (logged in as cluster-admin), `yq`, `htpasswd` (from `httpd-tools`)
 
-**Step 1 — Configure users** in `values-platform-config.yaml`:
+**Step 1 — Choose how many demo users** and sync + deploy. Committed `devspaces.instances` in `values-platform-config.yaml` is a **placeholder**; `N=` replaces it with `dev-user1..N` and passwords `DevN@PCA2026!`:
 
-```yaml
-devspaces:
-  instances:
-    - namespace: dev-user1-devspaces
-      name: code-workspace-1
-      user: dev-user1
-      password: "Dev1@PCA2026!"
-    - namespace: dev-user2-devspaces
-      name: code-workspace-2
-      user: dev-user2
-      password: "Dev2@PCA2026!"
-    - namespace: dev-user3-devspaces
-      name: code-workspace-3
-      user: dev-user3
-      password: "Dev3@PCA2026!"
+```bash
+make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
+make devspace-deploy-existing-openshift N=3
 ```
 
-**Step 2 — Run the IDP setup script:**
+**Step 2 — Apply HTPasswd** from the rewritten values list:
 
 ```bash
 make setup-idp
 ```
 
-This additively patches the OAuth CR (existing identity providers are preserved) and verifies user login.
-
-**Step 3 — Deploy the platform and AI serving stack:**
-
-```bash
-make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
-```
-
-This deploys the AI serving backend. Then deploy devspaces per developer:
-
-```bash
-make devspace-deploy-existing-openshift \
-  DEV_NAMESPACE=dev-user1-devspaces \
-  AI_NAMESPACE=private-assistant-ai-serving \
-  DEV_USER=dev-user1
-```
+This additively patches the OAuth CR (existing identity providers are preserved) and verifies user login. Re-run after changing `N`. Do not run `setup-idp` against the committed PLACEHOLDER entry.
 
 ---
 
@@ -165,7 +137,7 @@ oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init
 ```bash
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true \
   HELM_ARGS='--set pca-observability.langfuse.enabled=true'
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> DEV_USER=<username> MCP_ENABLED=true
+make devspace-deploy-existing-openshift N=2 MCP_ENABLED=true
 ```
 
 ---
@@ -180,13 +152,13 @@ Pass `MCP_ENABLED=true` to both the AI serving and devspace make targets:
 
 ```bash
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns> DEV_USER=<username> MCP_ENABLED=true
+make devspace-deploy-existing-openshift N=2 MCP_ENABLED=true
 ```
 
 ### Enable MCP on an already-running deployment
 
 ```bash
-make mcp-enable AI_NAMESPACE=<ai-ns> DEV_NAMESPACE=<dev-ns>
+make mcp-enable AI_NAMESPACE=<ai-ns> DEV_USER=dev-user1
 ```
 
 Then ask the developer to reload Continue in the IDE (`Ctrl+Shift+P` → `Developer: Reload Window`). The `openshift-ai-mcp` server will appear in the MCP panel.
@@ -200,7 +172,7 @@ oc get pods -n <ai-ns> | grep openshift-mcp   # should show 1/1 Running
 ### Disable MCP
 
 ```bash
-make mcp-disable AI_NAMESPACE=<ai-ns> DEV_NAMESPACE=<dev-ns>
+make mcp-disable AI_NAMESPACE=<ai-ns> DEV_USER=dev-user1
 ```
 
 ### Adding more data sources
@@ -218,26 +190,26 @@ OpenCode is the default AI coding agent (Web UI + TUI). It runs in a DevSpaces w
 
 ### Prerequisites
 
-1. The target user must exist (`oc get user <username>`)
-2. The user must have logged into the DevSpaces dashboard at least once to trigger namespace auto-provisioning:
+1. HTPasswd users exist (`make setup-idp` after `N=` sync, or operator-supplied users)
+2. Log in to the DevSpaces dashboard as that user (e.g. `dev-user1` via **pca-htpasswd**):
    ```
    https://devspaces.apps.<cluster-domain>/
    ```
 
-### Step 1 — Deploy the OpenCode devspace
+### Step 1 — Deploy OpenCode DevSpaces
 
 ```bash
-make devspace-deploy-existing-openshift \
-  DEV_NAMESPACE=<username>-devspaces \
-  AI_NAMESPACE=<ai-serving-namespace> \
-  DEV_USER=<username>
+make devspace-deploy-existing-openshift N=2
+# or one user:
+make devspace-deploy-existing-openshift DEV_USER=dev-user1
 ```
 
-`TYPE` defaults to `opencode`. For Continue/Roo/Cline instead, pass `TYPE=continue` (uses `values-devspaces-continue.yaml`). `DEV_USER` is required for both types.
+`TYPE` defaults to `opencode`. For Continue/Roo/Cline instead, pass `TYPE=continue` (uses `values-devspaces-continue.yaml`).
 
 This target:
-- Creates the namespace with DevSpaces labels (idempotent — safe if it already exists)
-- Deploys `pca-devspaces` chart using `values-devspaces.yaml`, which also creates the `opencode-build` namespace and BuildConfig
+- Uses namespaces `dev-userN-devspaces` only (rejects `private-assistant-*`)
+- Creates the namespace with DevSpaces labels (idempotent)
+- Deploys `pca-devspaces` (first user may create `opencode-build`)
 
 The DevWorkspace is created with `started: false`.
 

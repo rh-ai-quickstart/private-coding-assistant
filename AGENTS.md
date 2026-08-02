@@ -57,7 +57,7 @@ Terraform provisions the cluster; GitOps (`pca-app-of-apps`) syncs the five char
 
 No infrastructure provisioning. Deploys onto a cluster that already has RHOAI, GPU operator, and DevSpaces installed. Uses the unified `charts/` via `make ai-serving-deploy-existing-openshift` (once) and `make devspace-deploy-existing-openshift` (one or more developers).
 
-Deploy AI serving first, then each DevSpace into its own `DEV_NAMESPACE` (or the AI ns for a single-dev setup). The first DevSpace release owns the global ConfigMaps in `openshift-devspaces`; later ones must pass `HELM_ARGS='--set devspacesGlobalConfig.enabled=false'` or Helm conflicts.
+Deploy AI serving first, then DevSpaces with `make devspace-deploy-existing-openshift N=<n>` (or `DEV_USER=dev-user1`). Namespace is always `<user>-devspaces`. The first DevSpace release owns global ConfigMaps in `openshift-devspaces`; later users get that disabled automatically.
 
 Details: [deploy_existing_openshift/README.md](deploy_existing_openshift/README.md).
 
@@ -67,12 +67,13 @@ After the stack is deployed, verify components against the live cluster (not CI)
 
 ```bash
 make smoke                                              # full suite
-make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=dev1-devspaces   # ROSA/ARO
+make smoke AI_NAMESPACE=ai-serving DEV_USER=dev-user1    # ROSA/ARO (ns = dev-user1-devspaces)
 make smoke COMPONENT=vllm                               # one marker
-make smoke COMPONENT=ai_gateway DEV_NAMESPACE=<dev-ns>  # RHCL front door + API keys
+make smoke COMPONENT=ai_gateway DEV_USER=dev-user1      # RHCL front door + API keys
+make smoke N_PARALLEL=1                                 # serial pytest-xdist
 ```
 
-Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OTel / Guardrails / DevSpaces / AI Gateway checks auto-skip when those resources are absent. Set `DEV_NAMESPACE` for DevSpaces and AI Gateway key/config tests.
+Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OTel / Guardrails / DevSpaces / AI Gateway checks auto-skip when those resources are absent. Set `DEV_USER` for DevSpaces / AI Gateway key tests. `N=` is only for DevSpace deploy count; smoke parallelism is `N_PARALLEL`.
 
 ## Directory Structure
 

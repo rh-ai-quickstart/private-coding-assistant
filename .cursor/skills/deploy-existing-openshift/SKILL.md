@@ -12,7 +12,7 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
 1. **HF_TOKEN** — the Makefile reads `HUGGINGFACE_TOKEN` from `.env` automatically. Do NOT read or display `.env` contents (it contains secrets). Just run the make target; if the token is missing, the Makefile will error with a clear message — only then ask the user to provide one.
 2. **Cluster access** — run `oc whoami` directly on the host (not inside the container). If it fails, ask the user to log in.
 3. **AI serving namespace** — always use `private-assistant-ai-serving` (the default). Do not ask.
-4. **DevSpace namespace** — ask the user for a suffix. The namespace will be `private-assistant-<suffix>` (e.g. if the user says "itay", the namespace is `private-assistant-itay`).
+4. **DevSpaces count (N)** — ask how many demo DevSpaces to create (positive integer). Do **not** invent custom namespaces or `private-assistant-<name>` DevSpace namespaces. Users are always `dev-user1..N` in namespaces `dev-userN-devspaces`. Demo passwords are `DevN@PCA2026!`.
 5. **RHCL (AI Gateway)** — existing OpenShift does not install the RHCL *operator* via make. Confirm `oc get crd authpolicies.kuadrant.io`. The ai-serving chart creates a `Kuadrant` CR in `kuadrant-system` when `aiGateway.kuadrant.create=true` (the default for existing OCP). IDE traffic defaults to `pca-ai-gateway` with per-DevSpaces API keys. llm-d Gateway is annotated `opendatahub.io/managed=false` so ODH does not attach conflicting AuthPolicies.
 
    **If `kuadrant-system` is already owned by another Helm release** (shared cluster), the install will fail with an ownership conflict. Detect with:
@@ -91,46 +91,51 @@ oc get route pca-langfuse -n <NS>
 
 **GPU $/hr PLACEHOLDER:** default `1.86` is illustrative — not billing truth. Override `pca-observability.cost.gpuHourlyUsd` and set `gpuHourlyUsdIsPlaceholder=false` when you have real rates.
 
-### DevSpace (per developer)
+### DevSpaces (N demo users)
 
-4. If the global ConfigMaps (`continue-config`, `vscode-extensions-config`) already exist in `openshift-devspaces`, adopt them for the first devspace release:
+4. Ask for **N** (how many DevSpaces). Do not ask for custom namespace suffixes.
+5. Sync HTPasswd + deploy workspaces:
+   ```bash
+   make devspace-deploy-existing-openshift N=<n>   # writes values + deploys dev-user1..N
+   make setup-idp                                   # applies DevN@PCA2026! into pca-htpasswd
    ```
-   oc annotate configmap continue-config -n openshift-devspaces meta.helm.sh/release-name=<DEV_NS>-devspaces meta.helm.sh/release-namespace=<DEV_NS> --overwrite
-   oc label configmap continue-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
-   oc annotate configmap vscode-extensions-config -n openshift-devspaces meta.helm.sh/release-name=<DEV_NS>-devspaces meta.helm.sh/release-namespace=<DEV_NS> --overwrite
-   oc label configmap vscode-extensions-config -n openshift-devspaces app.kubernetes.io/managed-by=Helm --overwrite
+   Order may be reversed if users already exist; after changing `N`, always re-run `make setup-idp`.
+6. Tell the user to log in via **pca-htpasswd** as `dev-user1` / `Dev1@PCA2026!` (etc.), open the Dev Spaces dashboard, start `code-workspace-1`, then open the **opencode-web** endpoint (port 4096). Basic Auth user `opencode`; password from:
+   ```bash
+   oc get secret opencode-web-password -n dev-user1-devspaces \
+     -o jsonpath='{.data.password}' | base64 -d
    ```
-5. Run `make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> DEV_USER=<username>`.
-   - Default IDE is OpenCode (`TYPE=opencode`). For Continue/Roo/Cline: `TYPE=continue`.
-   - For multi-developer: each dev passes their own `DEV_NAMESPACE` and `DEV_USER`. The first deploy creates global ConfigMaps; subsequent deploys should add `--set devspacesGlobalConfig.enabled=false`.
-   - Optional team attribution: `HELM_ARGS='--set devspaces[0].team=platform'` (sends `X-PCA-Team`).
-   - Continue workspaces (`TYPE=continue`): Roo + Continue + Cline send `X-PCA-User` / `X-PCA-DevSpace` (and optional `X-PCA-Team`) for Langfuse.
-   - With Langfuse enabled, `pca-observability.langfuse.ioCapture` defaults to `full` (vLLM middleware stores prompt/completion bodies asynchronously). Opt out: `--set pca-observability.langfuse.ioCapture=metadata`.
+
+Single-user redeploy (same convention):
+```bash
+make devspace-deploy-existing-openshift DEV_USER=dev-user2
+# → namespace defaults to dev-user2-devspaces
+```
+
+`private-assistant-*` is **rejected** as a DevSpace namespace (AI serving NS is unrelated).
+
+Optional:
+- Default IDE is OpenCode (`TYPE=opencode`). For Continue/Roo/Cline: `TYPE=continue`.
+- Optional team attribution: `HELM_ARGS='--set devspaces[0].team=platform'` (sends `X-PCA-Team`).
+- With Langfuse enabled, `pca-observability.langfuse.ioCapture` defaults to `full`. Opt out: `--set pca-observability.langfuse.ioCapture=metadata`.
 
 ### OpenCode image build (first time)
 
-OpenCode is the default workspace type. After the first OpenCode deploy, trigger the custom image build once:
+After the first OpenCode deploy, trigger the custom image build once if needed:
 
 ```bash
 oc start-build devspaces-opencode -n opencode-build --follow
 ```
 
-The user starts the workspace from the DevSpaces dashboard. The Web UI is password-protected (HTTP Basic Auth, username: `opencode`). Retrieve the password:
-```bash
-oc get secret opencode-web-password -n <username>-devspaces \
-  -o jsonpath='{.data.password}' | base64 -d
-```
-
 ### MCP (optional)
 
 ```bash
-# From the start (combine with Langfuse HELM_ARGS on ai-serving if needed)
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> DEV_USER=<username> MCP_ENABLED=true
+make devspace-deploy-existing-openshift N=<n> MCP_ENABLED=true
 
 # Or toggle after deploy
-make mcp-enable AI_NAMESPACE=<AI_NAMESPACE> DEV_NAMESPACE=<DEV_NS>
-make mcp-disable AI_NAMESPACE=<AI_NAMESPACE> DEV_NAMESPACE=<DEV_NS>
+make mcp-enable AI_NAMESPACE=<AI_NAMESPACE> DEV_USER=dev-user1
+make mcp-disable AI_NAMESPACE=<AI_NAMESPACE> DEV_USER=dev-user1
 ```
 
 > Gateway CRDs (`mcp.kuadrant.io`) are not widely available — `MCP_ENABLED` always sets `pca-mcp.gateway.enabled=false`.
@@ -145,9 +150,9 @@ Guardrails deploy automatically with `ai-serving-deploy-existing-openshift` when
 Guardrails pods: `pca-guardrails-*` (2/2), `prompt-injection-detector-*` (1/1), `guardrails-proxy-*` (1/1).
 The proxy forwards `X-PCA-*` identity headers to the orchestrator/LLM.
 
-To route IDE chat through guardrails, pass `guardrails.enabled=true` and the proxy endpoint when deploying devspaces:
+To route IDE chat through guardrails when deploying DevSpaces:
 ```
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> \
+make devspace-deploy-existing-openshift N=<n> \
   HELM_ARGS='--set guardrails.enabled=true --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080'
 ```
 Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails needed).
@@ -155,8 +160,8 @@ Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails
 ## Teardown
 
 ```bash
-# Remove a developer's devspace
-make devspace-undeploy-existing-openshift DEV_NAMESPACE=<DEV_NS>
+# Remove one developer's DevSpace
+make devspace-undeploy-existing-openshift DEV_USER=dev-user1
 
 # Remove the AI serving stack (removes namespace)
 make ai-serving-undeploy-existing-openshift
