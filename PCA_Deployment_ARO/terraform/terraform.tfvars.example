@@ -36,12 +36,13 @@ master_vm_size = "Standard_D8s_v5"
 gpu_vm_size       = "Standard_NC40ads_H100_v5"
 gpu_node_replicas = 1
 
-# Users
+# Users — HTPasswd DevSpaces logins. List length = how many users (no N/count var).
+# Each username gets namespace <username>-devspaces in Helm/GitOps charts.
+# Passwords are operator-supplied; Terraform does not generate them.
 cluster_admin_password = ""
 devspaces_users = [
   { username = "dev-user1", password = "ChangeMe123!" },
   { username = "dev-user2", password = "ChangeMe456!" },
-  { username = "dev-user3", password = "ChangeMe789!" },
 ]
 
 # Secrets

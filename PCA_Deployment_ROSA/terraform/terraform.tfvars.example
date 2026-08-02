@@ -36,7 +36,9 @@ inferentia_pool_enabled  = false
 inferentia_instance_type = "inf2.24xlarge"
 inferentia_pool_replicas = 1
 
-# Users
+# Users — HTPasswd DevSpaces logins. List length = how many users (no N/count var).
+# Each username gets namespace <username>-devspaces in Helm/GitOps charts.
+# Passwords are operator-supplied; Terraform does not generate them.
 cluster_admin_password = ""
 devspaces_users = [
   { username = "dev-user1", password = "ChangeMe1234!!" },

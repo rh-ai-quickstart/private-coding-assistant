@@ -307,7 +307,9 @@ inferentia_pool_enabled = false
 # REQUIRED — choose a strong password
 cluster_admin_password = "YourStr0ngP@ssw0rd!"
 
-# REQUIRED — set passwords for developer users
+# REQUIRED — DevSpaces HTPasswd users (list length = how many users; no N/count var).
+# Set passwords yourself; Terraform does not generate them.
+# Pair with Helm entries for namespace <username>-devspaces.
 devspaces_users = [
   { username = "dev-user1", password = "DevPass123!" },
   { username = "dev-user2", password = "DevPass456!" },
@@ -759,9 +761,11 @@ The chart ships a Neuron ServingRuntime template at `charts/pca-ai-serving/templ
 
 ### Adding a new developer user
 
+There is no Terraform `N` parameter — append another `{ username, password }` object to the list.
+
 1. Add to `devspaces_users` in `terraform.tfvars` and run `terraform apply` (creates the HTPasswd user)
-2. Add the new user to `charts/pca-platform-config/values-rosa.yaml` (namespace + RBAC)
-3. Add a DevWorkspace entry to `charts/pca-devspaces/values-rosa.yaml`
+2. Add the new user to `charts/pca-platform-config/values-rosa.yaml` (namespace `<username>-devspaces` + RBAC)
+3. Add a DevWorkspace entry to `charts/pca-devspaces/values-rosa.yaml` (same namespace / user)
 4. Commit and push — ArgoCD syncs automatically
 
 ---

@@ -177,15 +177,15 @@ variable "master_vm_size" {
 # DevSpaces Users
 # ──────────────────────────────────────────────
 variable "devspaces_users" {
-  description = "List of DevSpaces users to create via HTPasswd IDP"
+  description = "HTPasswd DevSpaces users (username + password). List length is how many users — there is no separate count/N variable. Passwords must be set by the operator (not generated). Prefer usernames like dev-user1 with Helm namespace <username>-devspaces."
   type = list(object({
     username = string
     password = string
   }))
   sensitive = true
   default = [
-    { username = "Dev1", password = "" },
-    { username = "Dev2", password = "" }
+    { username = "dev-user1", password = "" },
+    { username = "dev-user2", password = "" }
   ]
 }
 
