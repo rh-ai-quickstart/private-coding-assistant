@@ -6,6 +6,11 @@
 #   DEV_USER=dev-user2  → single deploy in dev-user2-devspaces
 #
 # Namespace is always <DEV_USER>-devspaces (no DEV_NAMESPACE override).
+#
+# Model: N = number of user namespaces / Helm releases (not len(devspaces[])).
+# Each release installs one DevWorkspace (values-*.yaml is a single-entry list,
+# always overridden at devspaces[0]). Isolation is by namespace; the CR name stays
+# code-workspace-1 in every ns.
 
 set -euo pipefail
 
@@ -28,14 +33,15 @@ sync_platform_instances() {
 	local tmp
 	tmp=$(mktemp)
 	echo '[]' >"$tmp"
-	local i user ns name pass
+	# Platform instances feed IDP (user/password/namespace). "name" is unused by
+	# templates; keep code-workspace-1 to match the per-ns DevWorkspace CR.
+	local i user ns pass
 	for i in $(seq 1 "$count"); do
 		user="dev-user${i}"
 		ns="${user}-devspaces"
-		name="code-workspace-${i}"
 		pass="Dev${i}@PCA2026!"
 		yq -i \
-			". += [{\"namespace\": \"${ns}\", \"name\": \"${name}\", \"user\": \"${user}\", \"password\": \"${pass}\"}]" \
+			". += [{\"namespace\": \"${ns}\", \"name\": \"code-workspace-1\", \"user\": \"${user}\", \"password\": \"${pass}\"}]" \
 			"$tmp"
 	done
 	# Replace the committed PLACEHOLDER list entirely.
@@ -44,6 +50,8 @@ sync_platform_instances() {
 	echo "==> Overwrote placeholder instances in ${VALUES_PLATFORM} with ${count} user(s) (Dev1@PCA2026! .. Dev${count}@PCA2026!)"
 }
 
+# One DevWorkspace per user namespace (separate Helm release). values-*.yaml has a
+# single-entry list, so the user override is always devspaces[0] — not an index by N.
 deploy_one() {
 	local user="$1"
 	local ns="${user}-devspaces"
@@ -99,6 +107,8 @@ deploy_one() {
 	echo "==> Deployed DevSpace for ${user} in ${ns}"
 }
 
+# N scales namespaces/releases (dev-user1..N), each with one code-workspace-1 — not
+# a multi-entry devspaces[] array in a single release.
 if [ -n "$N" ]; then
 	if ! [[ $N =~ ^[1-9][0-9]*$ ]]; then
 		echo "ERROR: N must be a positive integer (got '${N}')" >&2

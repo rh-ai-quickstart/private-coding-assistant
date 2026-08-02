@@ -12,7 +12,7 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
 1. **HF_TOKEN** — the Makefile reads `HUGGINGFACE_TOKEN` from `.env` automatically. Do NOT read or display `.env` contents (it contains secrets). Just run the make target; if the token is missing, the Makefile will error with a clear message — only then ask the user to provide one.
 2. **Cluster access** — run `oc whoami` directly on the host (not inside the container). If it fails, ask the user to log in.
 3. **AI serving namespace** — always use `private-assistant-ai-serving` (the default). Do not ask.
-4. **DevSpaces count (N)** — ask how many demo DevSpaces to create (positive integer). Do **not** invent custom namespaces or `private-assistant-<name>` DevSpace namespaces. Users are always `dev-user1..N` in namespaces `dev-userN-devspaces`. Demo passwords are `DevN@PCA2026!`.
+4. **DevSpaces count (N)** — ask how many demo DevSpaces to create (positive integer). Do **not** invent custom namespaces or `private-assistant-<name>` DevSpace namespaces. Users are always `dev-user1..N` in namespaces `dev-userN-devspaces` (N separate Helm releases; each ns has one DevWorkspace `code-workspace-1`, not `devspaces[0..N-1]` in one release). Demo passwords are `DevN@PCA2026!`.
 5. **RHCL (AI Gateway)** — existing OpenShift does not install the RHCL *operator* via make. Confirm `oc get crd authpolicies.kuadrant.io`. The ai-serving chart creates a `Kuadrant` CR in `kuadrant-system` when `aiGateway.kuadrant.create=true` (the default for existing OCP). IDE traffic defaults to `pca-ai-gateway` with per-DevSpaces API keys. llm-d Gateway is annotated `opendatahub.io/managed=false` so ODH does not attach conflicting AuthPolicies.
 
    **If `kuadrant-system` is already owned by another Helm release** (shared cluster), the install will fail with an ownership conflict. Detect with:
@@ -111,8 +111,6 @@ Single-user redeploy (same convention):
 make devspace-deploy-existing-openshift DEV_USER=dev-user2
 # → namespace defaults to dev-user2-devspaces
 ```
-
-`private-assistant-*` is **rejected** as a DevSpace namespace (AI serving NS is unrelated).
 
 Optional:
 - Default IDE is OpenCode (`TYPE=opencode`). For Continue/Roo/Cline: `TYPE=continue`.

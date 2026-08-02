@@ -7,7 +7,7 @@ Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GP
 | `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel; RHCL AI Gateway front door |
 | `make devspace-deploy-existing-openshift` | OpenCode DevWorkspaces as `dev-userN` in `dev-userN-devspaces` (`N=<count>` or single `DEV_USER=`); `TYPE=continue` for Continue/Roo/Cline |
 
-`ai-serving-deploy-existing-openshift` must run first. With `N=`, the first user owns global ConfigMaps in `openshift-devspaces`; later users get `devspacesGlobalConfig.enabled=false` automatically. Do **not** use `private-assistant-*` as a DevSpace namespace (that prefix is only for AI serving).
+`ai-serving-deploy-existing-openshift` must run first. With `N=`, the first user owns global ConfigMaps in `openshift-devspaces`; later users get `devspacesGlobalConfig.enabled=false` automatically. `N` creates N namespaces (`dev-userN-devspaces`), each with one DevWorkspace named `code-workspace-1` (separate Helm release per user — not one release with N workspaces). Do **not** use `private-assistant-*` as a DevSpace namespace (that prefix is only for AI serving).
 
 ### Prerequisite: Red Hat Connectivity Link (RHCL)
 
@@ -207,9 +207,9 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user1
 `TYPE` defaults to `opencode`. For Continue/Roo/Cline instead, pass `TYPE=continue` (uses `values-devspaces-continue.yaml`).
 
 This target:
-- Uses namespaces `dev-userN-devspaces` only (rejects `private-assistant-*`)
+- Uses namespaces `dev-userN-devspaces` only
 - Creates the namespace with DevSpaces labels (idempotent)
-- Deploys `pca-devspaces` (first user may create `opencode-build`)
+- Deploys `pca-devspaces` once per user (one `code-workspace-1` per ns; first user may create `opencode-build`)
 
 The DevWorkspace is created with `started: false`.
 

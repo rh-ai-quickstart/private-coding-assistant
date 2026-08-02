@@ -119,9 +119,9 @@ Cluster already has RHOAI, GPU Operator, and Dev Spaces. Install RHCL first, the
 # AI serving once
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx
 
-# Each developer workspace
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<dev-ns>
-# 2nd+ developers: HELM_ARGS='--set devspacesGlobalConfig.enabled=false'
+# DevSpaces: N users (dev-user1..N) or a single DEV_USER
+make devspace-deploy-existing-openshift N=<n>
+# or: make devspace-deploy-existing-openshift DEV_USER=dev-user1
 ```
 
 → **[deploy_existing_openshift/README.md](deploy_existing_openshift/README.md)**
@@ -132,7 +132,7 @@ After deploy, run cluster smoke tests (not CI):
 
 ```bash
 make smoke
-make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=<dev-ns>
+make smoke AI_NAMESPACE=ai-serving DEV_USER=dev-user1
 ```
 
 → **[tests/cluster-smoke/README.md](tests/cluster-smoke/README.md)**
@@ -142,7 +142,7 @@ make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=<dev-ns>
 **Existing OpenShift** — remove with make:
 
 ```bash
-make devspace-undeploy-existing-openshift DEV_NAMESPACE=<dev-ns>
+make devspace-undeploy-existing-openshift DEV_USER=dev-user1
 make ai-serving-undeploy-existing-openshift
 ```
 
