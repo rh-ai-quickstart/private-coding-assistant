@@ -6,19 +6,17 @@ clusterConfig:
   enabled: false
 devspaces:
   enabled: false
+  # instances: PLACEHOLDER — replaced entirely by
+  #   make devspace-deploy-existing-openshift N=<count>
+  # which calls sync_platform_instances() in:
+  #   deploy_existing_openshift/scripts/devspace-deploy.sh
+  # (dev-user1..N, passwords DevN@PCA2026!). Then run make setup-idp.
+  # Do not commit real demo user lists here; N= is the source of truth.
   instances:
-    - namespace: dev-user1-devspaces
-      name: code-workspace-1
-      user: dev-user1
-      password: "Dev1@PCA2026!"
-    - namespace: dev-user2-devspaces
-      name: code-workspace-2
-      user: dev-user2
-      password: "Dev2@PCA2026!"
-    - namespace: dev-user3-devspaces
-      name: code-workspace-3
-      user: dev-user3
-      password: "Dev3@PCA2026!"
+    - namespace: PLACEHOLDER-overwritten-by-N
+      name: PLACEHOLDER
+      user: PLACEHOLDER
+      password: PLACEHOLDER-run-make-devspace-deploy-N-then-setup-idp
 # Guardrails sub-chart config. Set guardrails.enabled: true in the parent to enable.
 # To add secret patterns, append regex to pca-guardrails.guardrails.detectors.secretsRegex.patterns.
 pca-guardrails:

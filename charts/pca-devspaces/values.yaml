@@ -22,6 +22,8 @@ mcp:
   serverUrl: ""
 dashboardSamples:
   enabled: false
+# Demo users: namespace = <user>-devspaces. List length is not a hard cap (GitOps/ROSA
+# use this pattern; existing OpenShift can mint 1..N via make … N=).
 devspaces:
   - namespace: dev-user1-devspaces
     name: code-workspace-1

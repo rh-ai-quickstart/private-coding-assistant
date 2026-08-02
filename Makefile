@@ -34,9 +34,15 @@ RUN_FLAGS := --rm \
 
 COMPONENT ?=
 PYTEST_ARGS ?=
-N ?= 4
+# N: DevSpace user count for devspace-deploy-existing-openshift (not used by smoke).
+N ?=
+# Smoke pytest-xdist workers (default 4).
+N_PARALLEL ?= 4
 DEV_USER ?=
 TYPE ?= opencode
+DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
+# Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
+DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
 
 .PHONY: build shell run help smoke unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
 
@@ -77,64 +83,48 @@ ai-serving-undeploy-existing-openshift: ## Remove AI serving from OpenShift (AI_
 	helm uninstall $(AI_NAMESPACE)-platform-config --namespace $(AI_NAMESPACE) --ignore-not-found || true
 	oc delete namespace $(AI_NAMESPACE) --ignore-not-found
 
-devspace-deploy-existing-openshift: ## Deploy a devspace (DEV_NAMESPACE=, AI_NAMESPACE=, TYPE=opencode|continue [default opencode], DEV_USER= required, MCP_ENABLED=false)
-	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi
-	@if [ "$(TYPE)" != "opencode" ] && [ "$(TYPE)" != "continue" ]; then \
-		echo "ERROR: TYPE must be opencode or continue (got '$(TYPE)')"; exit 1; fi
-	@if [ -z "$(DEV_USER)" ]; then \
-		echo "ERROR: DEV_USER is required. Pass DEV_USER=<username>"; exit 1; fi
-	@if [ "$(TYPE)" = "opencode" ]; then \
-		oc create namespace $(DEV_NAMESPACE) --dry-run=client -o yaml | oc apply -f -; \
-		oc label namespace $(DEV_NAMESPACE) \
-			app.kubernetes.io/component=workspaces-namespace \
-			app.kubernetes.io/part-of=che.eclipse.org --overwrite; \
-		oc annotate namespace $(DEV_NAMESPACE) \
-			che.eclipse.org/username=$(DEV_USER) --overwrite; \
-	fi
-	$(eval SKIP_OPENCODE_BUILD := $(if $(filter-out continue,$(TYPE)),\
-	  $(shell oc get buildconfig devspaces-opencode -n opencode-build --no-headers --ignore-not-found | grep -q . && echo true),))
-	helm upgrade --install $(DEV_NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
-		--namespace $(DEV_NAMESPACE) --create-namespace \
-		$(if $(filter continue,$(TYPE)),-f $(DEPLOY_VALUES_DIR)/values-devspaces-continue.yaml,-f $(DEPLOY_VALUES_DIR)/values-devspaces.yaml) \
-		--set aiServingNamespace=$(AI_NAMESPACE) \
-		--set devspaces[0].user=$(DEV_USER) \
-		$(if $(filter true,$(MCP_ENABLED)),--set mcp.enabled=true,) \
-		$(HELM_ARGS) \
-		$(if $(filter true,$(SKIP_OPENCODE_BUILD)),--set opencodeBuild.enabled=false,)
+devspace-deploy-existing-openshift: ## Deploy DevSpaces: N=<count> (dev-user1..N) or DEV_USER=<username> (ns = <user>-devspaces)
+	@N="$(N)" DEV_USER="$(DEV_USER)" \
+		AI_NAMESPACE="$(AI_NAMESPACE)" TYPE="$(TYPE)" MCP_ENABLED="$(MCP_ENABLED)" \
+		HELM_ARGS="$(HELM_ARGS)" CHARTS_DIR="$(CHARTS_DIR)" DEPLOY_VALUES_DIR="$(DEPLOY_VALUES_DIR)" \
+		$(DEPLOY_SCRIPTS_DIR)/devspace-deploy.sh
 
-devspace-undeploy-existing-openshift: ## Remove a devspace (DEV_NAMESPACE=)
-	@if [ -z "$(DEV_NAMESPACE)" ]; then echo "ERROR: DEV_NAMESPACE is required. Pass DEV_NAMESPACE=<name>"; exit 1; fi
-	helm uninstall $(DEV_NAMESPACE)-devspaces --namespace $(DEV_NAMESPACE) --ignore-not-found || true
+devspace-undeploy-existing-openshift: ## Remove a DevSpace (DEV_USER= required → <user>-devspaces)
+	@if [ -z "$(DEV_USER)" ]; then echo "ERROR: Pass DEV_USER=<username>"; exit 1; fi; \
+	ns="$(DEV_USER)-devspaces"; \
+	helm uninstall $$ns-devspaces --namespace $$ns --ignore-not-found || true
 
 setup-idp: ## Configure HTPasswd IDP on existing cluster (reads users from values)
 	$(SCRIPTS_DIR)/setup-idp.sh $(DEPLOY_VALUES_DIR)/values-platform-config.yaml
 
-mcp-enable: ## Enable MCP server on an already-deployed stack (AI_NAMESPACE=, DEV_NAMESPACE=)
+mcp-enable: ## Enable MCP on stack (AI_NAMESPACE=, optional DEV_USER= for that DevSpace release)
 	helm upgrade $(AI_NAMESPACE)-platform-config $(CHARTS_DIR)/pca-platform-config \
 		--namespace $(AI_NAMESPACE) --reuse-values \
 		--set mcp.enabled=true \
 		--set pca-mcp.gateway.enabled=false \
 		--set pca-mcp.namespace=$(AI_NAMESPACE)
-	@if [ -n "$(DEV_NAMESPACE)" ]; then \
-		helm upgrade $(DEV_NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
-			--namespace $(DEV_NAMESPACE) --reuse-values \
+	@if [ -n "$(DEV_USER)" ]; then \
+		ns="$(DEV_USER)-devspaces"; \
+		helm upgrade $$ns-devspaces $(CHARTS_DIR)/pca-devspaces \
+			--namespace $$ns --reuse-values \
 			--set mcp.enabled=true; \
 	fi
 
-mcp-disable: ## Disable MCP server on an already-deployed stack (AI_NAMESPACE=, DEV_NAMESPACE=)
+mcp-disable: ## Disable MCP on stack (AI_NAMESPACE=, optional DEV_USER= for that DevSpace release)
 	helm upgrade $(AI_NAMESPACE)-platform-config $(CHARTS_DIR)/pca-platform-config \
 		--namespace $(AI_NAMESPACE) --reuse-values \
 		--set mcp.enabled=false
-	@if [ -n "$(DEV_NAMESPACE)" ]; then \
-		helm upgrade $(DEV_NAMESPACE)-devspaces $(CHARTS_DIR)/pca-devspaces \
-			--namespace $(DEV_NAMESPACE) --reuse-values \
+	@if [ -n "$(DEV_USER)" ]; then \
+		ns="$(DEV_USER)-devspaces"; \
+		helm upgrade $$ns-devspaces $(CHARTS_DIR)/pca-devspaces \
+			--namespace $$ns --reuse-values \
 			--set mcp.enabled=false; \
 	fi
 
-smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_NAMESPACE=, COMPONENT=, N=, PYTEST_ARGS=) running in parallel 
+smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_USER=, COMPONENT=, N_PARALLEL= xdist workers)
 	$(MAKE) -C tests/cluster-smoke smoke \
 		AI_NAMESPACE=$(AI_NAMESPACE) DEV_NAMESPACE=$(DEV_NAMESPACE) \
-		COMPONENT=$(COMPONENT) N=$(N) PYTEST_ARGS='$(PYTEST_ARGS)'
+		COMPONENT=$(COMPONENT) N_PARALLEL=$(N_PARALLEL) PYTEST_ARGS='$(PYTEST_ARGS)'
 
 unit: ## Local unit tests (PYTEST_ARGS=)
 	python -m pytest tests/unit -v $(PYTEST_ARGS)
