@@ -24,23 +24,23 @@ make smoke COMPONENT=vllm
 make smoke COMPONENT=grafana
 make smoke COMPONENT=langfuse
 make smoke COMPONENT=otel
-make smoke COMPONENT=devspaces DEV_NAMESPACE=private-assistant-itay
-make smoke COMPONENT=langfuse DEV_NAMESPACE=private-assistant-itay   # includes DevSpace→Langfuse I/O test when DEV_NAMESPACE set
+make smoke COMPONENT=devspaces DEV_USER=dev-user1
+make smoke COMPONENT=langfuse DEV_USER=dev-user1
 make smoke COMPONENT=guardrails
-make smoke COMPONENT=ai_gateway DEV_NAMESPACE=private-assistant-itay
+make smoke COMPONENT=ai_gateway DEV_USER=dev-user1
 make smoke COMPONENT=readiness
 
 # Free-form pytest filter
 make smoke PYTEST_ARGS='-k "grafana or readiness"'
 
-# Parallelism (default N=4); serial:
-make smoke N=1
+# Parallelism (default N_PARALLEL=4 xdist workers); serial:
+make smoke N_PARALLEL=1
 ```
 
 Or from this directory:
 
 ```bash
-make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=dev1-devspaces
+make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=dev-user1-devspaces
 ```
 
 ## Environment
@@ -48,10 +48,13 @@ make smoke AI_NAMESPACE=ai-serving DEV_NAMESPACE=dev1-devspaces
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AI_NAMESPACE` | `private-assistant-ai-serving` | AI serving / observability namespace |
+| `DEV_USER` | _(empty)_ | Root Makefile maps to `DEV_NAMESPACE=<user>-devspaces` |
 | `DEV_NAMESPACE` | _(empty)_ | DevSpaces namespace; DevSpaces tests skip if unset |
 | `COMPONENT` | _(empty)_ | Pytest marker: `readiness`, `vllm`, `grafana`, `langfuse`, `otel`, `devspaces`, `guardrails`, `ai_gateway` |
-| `N` | `4` | pytest-xdist workers (`-n`); use `N=1` for serial |
+| `N_PARALLEL` | `4` | pytest-xdist workers (`-n`); use `N_PARALLEL=1` for serial |
 | `PYTEST_ARGS` | _(empty)_ | Extra args passed to pytest |
+
+`N=` is only for `make devspace-deploy-existing-openshift` (DevSpace user count), not for smoke.
 
 Optional components (Langfuse, OTel, Guardrails, DevSpaces) **auto-skip** when resources are absent.
 

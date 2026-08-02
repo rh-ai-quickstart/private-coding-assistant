@@ -2,7 +2,7 @@ AI_NAMESPACE ?= private-assistant-ai-serving
 DEV_NAMESPACE ?=
 COMPONENT ?=
 PYTEST_ARGS ?=
-N ?= 4
+N_PARALLEL ?= 4
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python
@@ -15,10 +15,10 @@ MARKER_ARGS := $(if $(COMPONENT),-m $(COMPONENT),)
 
 help: ## Show smoke-test help
 	@echo "Usage:"
-	@echo "  make smoke AI_NAMESPACE=<ns> [DEV_NAMESPACE=<ns>] [COMPONENT=<marker>] [N=4] [PYTEST_ARGS='...']"
+	@echo "  make smoke AI_NAMESPACE=<ns> [DEV_USER=<user> → <user>-devspaces] [COMPONENT=<marker>] [N_PARALLEL=4] [PYTEST_ARGS='...']"
 	@echo ""
 	@echo "Markers: readiness vllm grafana langfuse otel devspaces guardrails ai_gateway"
-	@echo "Parallelism: N=4 by default (pytest-xdist). Use N=1 for serial."
+	@echo "Parallelism: N_PARALLEL=4 by default (pytest-xdist). Use N_PARALLEL=1 for serial."
 	@echo "Example: make smoke COMPONENT=vllm AI_NAMESPACE=ai-serving"
 
 venv: $(PYTHON)
@@ -31,4 +31,4 @@ $(PYTHON): pyproject.toml
 smoke: venv ## Run cluster smoke tests (requires oc login)
 	@command -v oc >/dev/null || { echo "ERROR: oc not found in PATH"; exit 1; }
 	AI_NAMESPACE=$(AI_NAMESPACE) DEV_NAMESPACE=$(DEV_NAMESPACE) \
-		$(PYTEST) -v --tb=short -n $(N) $(MARKER_ARGS) $(PYTEST_ARGS)
+		$(PYTEST) -v --tb=short -n $(N_PARALLEL) $(MARKER_ARGS) $(PYTEST_ARGS)

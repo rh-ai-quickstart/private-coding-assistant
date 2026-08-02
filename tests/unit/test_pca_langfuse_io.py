@@ -11,7 +11,6 @@ import pytest
 
 _MODULE_PATH = (
     Path(__file__).resolve().parents[2]
-    / "PCA_Deployment_ROSA"
     / "charts"
     / "pca-ai-serving"
     / "files"
