@@ -631,7 +631,7 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 |----------|---------|-----------|
 | Red Hat OpenShift AI (RHOAI) | stable | redhat-ods-operator |
 | OpenShift Service Mesh | stable | openshift-operators |
-| NVIDIA GPU Operator | v24.9 | nvidia-gpu-operator |
+| NVIDIA GPU Operator | v26.3 | nvidia-gpu-operator |
 | Node Feature Discovery (NFD) | stable | openshift-nfd |
 | OpenShift Dev Spaces | stable | openshift-devspaces |
 | OpenShift Serverless | stable | openshift-serverless |
@@ -905,7 +905,7 @@ oc get gateway,httproute -n ai-serving
 | llm-d EPP | 0.4 | Managed by RHOAI |
 | vLLM | 0.13.0+rhai11 | RHOAI runtime image |
 | Service Mesh | 3.2+ | OperatorHub (stable) |
-| NVIDIA GPU Operator | 26.3 | OperatorHub (v24.9) |
+| NVIDIA GPU Operator | 26.3 | OperatorHub (v26.3) |
 | Dev Spaces | 3.27 | OperatorHub (stable) |
 | cert-manager | 1.18+ | llm-d-playbook kustomize |
 | LeaderWorkerSet | 1.0 | llm-d-playbook kustomize |

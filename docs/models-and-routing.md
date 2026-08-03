@@ -50,7 +50,7 @@ Shared system prompts and similar file context benefit from prefix-cache-aware r
 
 For MoE code models (e.g. Qwen3-Coder / Qwen3.6 MoE), prefer NVIDIA with FP8. Dense models may be more cost-competitive on Inferentia when prefix caching is available.
 
-Step-by-step guide: [models-and-hardware.md](models-and-hardware.md)
+Hardware how-to: [models-and-hardware.md — Changing the hardware](models-and-hardware.md#changing-the-hardware)
 
 Optional ROSA Inferentia pool: enable with Terraform `inferentia_pool_enabled=true`. If Neuron pods fail networking on OVN-Kubernetes, see [Inferentia / Neuron pods fail networking (OVN annotation race)](../PCA_Deployment_ROSA/README.md#inferentia--neuron-pods-fail-networking-ovn-annotation-race).
 

@@ -39,12 +39,22 @@ The base `charts/pca-ai-serving/values.yaml` sets the default; cloud overlays an
 | `vllm.useCustomRuntime: true` | Deploys a ServingRuntime + InferenceService instead of LLMInferenceService |
 | `vllm.image` | Upstream vLLM image tag that supports the model architecture (e.g. `vllm/vllm-openai:v0.19.0` for Qwen3.6) |
 
-**Model-specific parsers (set to empty string if the model does not use them):**
+**Model-specific parsers:**
 
 | Field | Example values |
 |-------|---------------|
 | `vllm.toolCallParser` | `qwen3_xml`, `llama3_json`, `hermes` |
-| `vllm.reasoningParser` | `qwen3` (only for thinking-mode models) |
+| `vllm.reasoningParser` | `qwen3` (only for thinking-mode models; set to `""` only if you also patch the chart template to drop `--reasoning-parser`) |
+
+> **Note:** The chart templates emit `--enable-auto-tool-choice`, `--tool-call-parser`, and `--reasoning-parser` unconditionally. Do not set these to an empty string — vLLM will fail to start with a blank flag value. If the target model does not support tool calling or reasoning mode, you need to remove those args from `templates/servingruntime.yaml` or `templates/llminferenceservice.yaml` rather than leaving the values empty.
+
+**Context length and VRAM tuning:**
+
+| Field | Notes |
+|-------|-------|
+| `vllm.maxModelLen` | Set per deployment path: ROSA `32768`, existing-OpenShift `49152`, ARO `262144` (H100 NVL 94 GB). Reduce if the model OOMs on load. |
+| `vllm.enforceEager` | Set `true` on tight 48 GB cards (e.g. L40S) to skip CUDA graph capture and recover several GB of VRAM at the cost of throughput. |
+| `vllm.gpuMemoryUtilization` | Optional fraction (e.g. `"0.90"`); leave empty to use vLLM's default. Lower if KV cache allocation fails at startup. |
 
 ### VRAM rule of thumb
 
@@ -66,7 +76,7 @@ Detailed sizing: [GPU Sizing Considerations](../assets/GPU_Sizing_Considerations
 | GPU | VRAM | Typical instance | Notes |
 |-----|------|-----------------|-------|
 | NVIDIA L40S | 48 GB | `g6e.2xlarge` (ROSA/AWS) | MoE FP8 models up to ~35 B; good price/VRAM ratio |
-| NVIDIA A100 80 GB | 80 GB | `g5.48xlarge` (ROSA/AWS) | 70 B FP8; standard data-center card |
+| NVIDIA A100 80 GB | 80 GB | `p4de.24xlarge` (ROSA/AWS) | 70 B FP8; standard data-center card |
 | NVIDIA H100 NVL 94 GB | 94 GB | `Standard_NC40ads_H100_v5` (ARO/Azure) | Default for ARO; highest throughput for code generation |
 
 ### ROSA (AWS) — changing the GPU instance type
@@ -93,17 +103,28 @@ Edit `PCA_Deployment_ARO/terraform/terraform.tfvars`:
 gpu_vm_size = "Standard_NC40ads_H100_v5"   # change to target VM family
 ```
 
-Also update the node selector in `charts/pca-ai-serving/values-aro.yaml`:
+Also update the node selector in `charts/pca-ai-serving/values-aro.yaml`. On ARO the GPU Operator labels nodes with the GPU product name, not the VM size:
 
 ```yaml
 hardware:
-  gpuProduct: "Standard_NC40ads_H100_v5"
-  instanceTypeLabel: "node.kubernetes.io/instance-type"
+  gpuProduct: "NVIDIA-H100-NVL"
+  instanceTypeLabel: "nvidia.com/gpu.product"
 ```
 
 ### Existing OpenShift — changing hardware
 
-GPU nodes are provisioned outside this repo. Ensure nodes are labeled and the GPU Operator has detected them. Verify the model fits the available VRAM before deploying, then update `hardware.gpuProduct` in `deploy_existing_openshift/values-ai-serving.yaml` to match your node label.
+GPU nodes are provisioned outside this repo. Ensure nodes are labeled and the GPU Operator has detected them. Verify the model fits the available VRAM before deploying.
+
+The `hardware:` block is not in `deploy_existing_openshift/values-ai-serving.yaml` — it inherits from the base chart (`charts/pca-ai-serving/values.yaml`). Override it by adding a `hardware:` section to `deploy_existing_openshift/values-ai-serving.yaml`:
+
+```yaml
+hardware:
+  gpuProduct: "NVIDIA-A100-SXM4-80GB"   # match the label on your GPU nodes
+  instanceTypeLabel: "nvidia.com/gpu.product"
+  gpuCount: 1
+```
+
+Run `oc get node -o json | jq '.items[].metadata.labels | with_entries(select(.key | startswith("nvidia")))' ` on a GPU node to find the exact `nvidia.com/gpu.product` value.
 
 ### AWS Inferentia2 (ROSA only, optional)
 
