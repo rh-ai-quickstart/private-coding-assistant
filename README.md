@@ -158,6 +158,7 @@ make ai-serving-undeploy-existing-openshift
 | [docs/requirements.md](docs/requirements.md) | Hardware, software, permissions |
 | [docs/ide-and-extensions.md](docs/ide-and-extensions.md) | Dev Spaces, Continue / Cline / Roo |
 | [docs/models-and-routing.md](docs/models-and-routing.md) | vLLM, llm-d, RHCL |
+| [docs/models-and-hardware.md](docs/models-and-hardware.md) | Changing models and accelerators |
 | [docs/benchmarks.md](docs/benchmarks.md) | Performance highlights + links |
 | [docs/customization.md](docs/customization.md) | Prompts, rules, MCP, quality gates |
 | [AGENTS.md](AGENTS.md) | Maintainer chart / wave map |

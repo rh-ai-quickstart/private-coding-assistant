@@ -4,7 +4,7 @@ operators:
   rhoai:
     channel: stable-3.4
   nvidiaGpu:
-    channel: v25.3
+    channel: v26.3
   nfd:
     enabled: true
   serviceMesh:

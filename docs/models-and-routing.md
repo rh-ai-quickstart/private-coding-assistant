@@ -27,6 +27,8 @@ Set the same identifier in both places:
 
 Context length and GPU sizing stay per cloud in those same values files. Pick any compatible model your organization accepts (including non-Chinese-origin weights when required by policy).
 
+Step-by-step guide: [models-and-hardware.md](models-and-hardware.md)
+
 ## llm-d scoring
 
 The EPP typically weights:
@@ -47,6 +49,8 @@ Shared system prompts and similar file context benefit from prefix-cache-aware r
 | AWS Inferentia2 (optional / lab) | Possible overflow capacity on ROSA; MoE prefix caching limited on Neuron; extra scheduler complexity |
 
 For MoE code models (e.g. Qwen3-Coder / Qwen3.6 MoE), prefer NVIDIA with FP8. Dense models may be more cost-competitive on Inferentia when prefix caching is available.
+
+Step-by-step guide: [models-and-hardware.md](models-and-hardware.md)
 
 Optional ROSA Inferentia pool: enable with Terraform `inferentia_pool_enabled=true`. If Neuron pods fail networking on OVN-Kubernetes, see [Inferentia / Neuron pods fail networking (OVN annotation race)](../PCA_Deployment_ROSA/README.md#inferentia--neuron-pods-fail-networking-ovn-annotation-race).
 
