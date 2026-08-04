@@ -86,7 +86,14 @@ spec:
                         'npm': '@ai-sdk/openai-compatible',
                         'name': 'Private AI Gateway (llm-d)',
                         'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
-                        'models': {os.environ['VLLM_MODEL_ID']: {'name': os.environ['VLLM_MODEL_ID']}}
+                        # tokens.total / tokens.output must align with pca-ai-serving.
+                        'models': {os.environ['VLLM_MODEL_ID']: {
+                            'name': os.environ['VLLM_MODEL_ID'],
+                            'limit': {
+                                'context': {{ include "pca-devspaces.tokens.total" $ }},
+                                'output': {{ include "pca-devspaces.tokens.output" $ }},
+                            },
+                        }}
                     }
                 },
                 'model': 'vllm/' + os.environ['VLLM_MODEL_ID']

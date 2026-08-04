@@ -31,6 +31,7 @@ data:
           "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
           "openAiCompatibleApiKey": {{ $apiKey | quote }},
           "openAiCompatibleModelId": {{ $.Values.modelId | quote }},
+          "modelMaxTokens": {{ include "pca-devspaces.tokens.output" $ }},
           "openAiHeaders": {
             "X-PCA-User": {{ $user | quote }},
             "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},
@@ -45,6 +46,7 @@ data:
       "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
       "openAiCompatibleApiKey": {{ $apiKey | quote }},
       "openAiCompatibleModelId": {{ $.Values.modelId | quote }},
+      "modelMaxTokens": {{ include "pca-devspaces.tokens.output" $ }},
       "openAiHeaders": {
         "X-PCA-User": {{ $user | quote }},
         "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},
@@ -74,6 +76,7 @@ data:
           "openAiCompatibleBaseUrl": {{ $baseUrl | quote }},
           "openAiCompatibleApiKey": {{ $apiKey | quote }},
           "openAiCompatibleModelId": {{ $.Values.modelId | quote }},
+          "modelMaxTokens": {{ include "pca-devspaces.tokens.output" $ }},
           "openAiHeaders": {
             "X-PCA-User": {{ $user | quote }},
             "X-PCA-DevSpace": {{ $ns | quote }}{{ if $team }},

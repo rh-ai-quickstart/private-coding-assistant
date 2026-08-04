@@ -73,3 +73,22 @@ false
 EMPTY
 {{- end -}}
 {{- end -}}
+
+{{/*
+  Token budgets — keep aligned with pca-ai-serving tokens.*.
+*/}}
+{{- define "pca-devspaces.tokens.total" -}}
+{{- if and .Values.tokens .Values.tokens.total -}}
+{{- .Values.tokens.total -}}
+{{- else -}}
+32000
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-devspaces.tokens.output" -}}
+{{- if and .Values.tokens .Values.tokens.output -}}
+{{- .Values.tokens.output -}}
+{{- else -}}
+8192
+{{- end -}}
+{{- end -}}

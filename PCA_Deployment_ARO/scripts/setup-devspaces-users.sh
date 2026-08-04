@@ -324,7 +324,11 @@ spec:
                         'npm': '@ai-sdk/openai-compatible',
                         'name': 'Private AI Gateway (llm-d)',
                         'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
-                        'models': {os.environ['VLLM_MODEL_ID']: {'name': os.environ['VLLM_MODEL_ID']}}
+                        'models': {os.environ['VLLM_MODEL_ID']: {
+                            'name': os.environ['VLLM_MODEL_ID'],
+                            # Align with charts tokens.total / tokens.output (32000 / 8192).
+                            'limit': {'context': 32000, 'output': 8192},
+                        }}
                     }
                 },
                 'model': 'vllm/' + os.environ['VLLM_MODEL_ID']

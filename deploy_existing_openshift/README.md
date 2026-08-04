@@ -79,7 +79,8 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 |--------|---------|
 | `make setup-idp` | HTPasswd IDP from `values-platform-config.yaml` |
 | `make mcp-enable` / `make mcp-disable` | Toggle MCP (`AI_NAMESPACE=`, optional `DEV_USER=`) |
-| `make ai-serving-undeploy-existing-openshift` | Remove AI serving + delete `AI_NAMESPACE` |
+| `make ai-serving-undeploy-existing-openshift` | Remove AI serving Helm releases; **keeps** `AI_NAMESPACE` + `model-cache` PVC |
+| `make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1` | Full wipe (deletes namespace/PVC → cold start next deploy) |
 | `make devspace-undeploy-existing-openshift` | Remove one DevSpace (`DEV_USER=` required) |
 
 ## Authentication and Identity Provider Configuration
@@ -262,7 +263,9 @@ Also create `~/.local/share/opencode/auth.json`:
 
 ### vLLM context window
 
-The default `--max-model-len=32768` is insufficient — OpenCode requests 32000 output tokens by default, leaving no room for the prompt. `values-ai-serving.yaml` sets `vllm.maxModelLen: 49152`. If you redeploy AI serving without this override, OpenCode will enter a session compaction loop.
+OpenCode needs headroom under `--max-model-len` for prompt + completion. All PCA paths set `tokens.total: 32000` (vLLM `--max-model-len`) and `tokens.output: 8192` (OpenCode/IDE completion cap). Keep `pca-ai-serving` and `pca-devspaces` `tokens.*` in sync. If you lower `tokens.total` without lowering OpenCode `limit.output`, chat requests can fail with max_tokens errors.
+
+**Warm model path (avoid multi‑minute cold starts):** Prefer `make ai-serving-deploy-existing-openshift` (upgrade in place) over undeploy. Keep `minReplicas: 1` — do not scale the predictor to 0. Default undeploy only uninstalls Helm releases and **keeps** the namespace + `model-cache` PVC; use `DELETE_NAMESPACE=1` only when you intend a full wipe. `HF_HUB_OFFLINE` is `1` so restarts read weights from the PVC (no Hugging Face). The PVC is also annotated `helm.sh/resource-policy: keep` so `helm uninstall` alone does not delete it. For a brand-new empty PVC, temporarily set `HF_HUB_OFFLINE=0` (or preload the PVC), then set it back to `1`.
 
 ---
 

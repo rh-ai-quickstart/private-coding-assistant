@@ -71,7 +71,7 @@
       <text x="95" y="20" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">vLLM  &#x2014;  CUDA</text>
       <text x="95" y="36" text-anchor="middle" fill="#7a6aaa" font-size="10">Qwen3-Coder-30B</text>
       <text x="95" y="50" text-anchor="middle" fill="#7a6aaa" font-size="10">FP8 &#xB7; TP=1</text>
-      <text x="95" y="64" text-anchor="middle" fill="#5a4a8a" font-size="10">ctx=32768</text>
+      <text x="95" y="64" text-anchor="middle" fill="#5a4a8a" font-size="10">ctx=16384</text>
     </g>
     <!-- vLLM Neuron -->
     <g transform="translate(220, 408)">

@@ -44,7 +44,7 @@ DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
 # Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
 DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
 
-.PHONY: build shell run help smoke unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
+.PHONY: build shell run help smoke e2e unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -78,10 +78,16 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 		--set pca-observability.namespace=$(AI_NAMESPACE) \
 		$(HELM_ARGS)
 
-ai-serving-undeploy-existing-openshift: ## Remove AI serving from OpenShift (AI_NAMESPACE=)
+# Default: helm uninstall only — keeps AI_NAMESPACE + model-cache PVC (warm restart path).
+# Full wipe (cold start next deploy): DELETE_NAMESPACE=1
+ai-serving-undeploy-existing-openshift: ## Remove AI serving Helm releases; keep ns/PVC unless DELETE_NAMESPACE=1
 	helm uninstall $(AI_NAMESPACE)-ai-serving --namespace $(AI_NAMESPACE) --ignore-not-found || true
 	helm uninstall $(AI_NAMESPACE)-platform-config --namespace $(AI_NAMESPACE) --ignore-not-found || true
-	oc delete namespace $(AI_NAMESPACE) --ignore-not-found
+	@if [ "$(DELETE_NAMESPACE)" = "1" ]; then \
+		oc delete namespace $(AI_NAMESPACE) --ignore-not-found; \
+	else \
+		echo "Kept namespace $(AI_NAMESPACE) and model-cache PVC (warm path). Full wipe: make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1"; \
+	fi
 
 devspace-deploy-existing-openshift: ## Deploy DevSpaces: N=<count> (dev-user1..N) or DEV_USER=<username> (ns = <user>-devspaces)
 	@N="$(N)" DEV_USER="$(DEV_USER)" \
@@ -128,3 +134,10 @@ smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_USER=, COMPONENT=, N_PARALLEL=
 
 unit: ## Local unit tests (PYTEST_ARGS=)
 	python -m pytest tests/unit -v $(PYTEST_ARGS)
+
+e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
+	@if [ -z "$(DEV_USER)" ] && [ -z "$(DEV_NAMESPACE)" ]; then \
+		echo "ERROR: Pass DEV_USER=<username> (or DEV_NAMESPACE=)"; exit 1; \
+	fi
+	$(MAKE) -C tests/e2e e2e \
+		DEV_USER=$(DEV_USER) DEV_NAMESPACE=$(DEV_NAMESPACE) PYTEST_ARGS='$(PYTEST_ARGS)'

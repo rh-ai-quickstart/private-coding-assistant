@@ -1,6 +1,9 @@
 # Values override for pca-devspaces when deploying on an existing OpenShift cluster.
 # Single OpenCode devspace — namespace defaults to Release.Namespace (passed via --namespace).
 # Opt into Continue/Roo/Cline with TYPE=continue (values-devspaces-continue.yaml).
+tokens:
+  total: 32000
+  output: 8192
 devspacesGlobalConfig:
   enabled: true
 # IDE traffic defaults to RHCL AI Gateway (pca-ai-gateway). Per-DevSpace API keys

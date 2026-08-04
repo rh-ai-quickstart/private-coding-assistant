@@ -654,7 +654,7 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 - **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts)
 - **ServingRuntime + InferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` (custom vLLM runtime; API name matches `model.id`) with vLLM args:
   - `--tool-call-parser qwen3_xml --reasoning-parser qwen3`
-  - `--max-model-len 32768 --gpu-memory-utilization 0.90`
+  - `--max-model-len 32000 --gpu-memory-utilization 0.90`
   - `--enable-prefix-caching --kv-cache-dtype fp8`
   - EPP scorer weights: queue=2, kv-cache=2, prefix-cache=3
 - **llm-d Gateway + HTTPRoute**: cluster-internal llm-d Gateway with EPP routing
@@ -718,7 +718,7 @@ Each extension connects to the self-hosted model endpoint. Here is exactly what 
 
 | vLLM Argument | Value | Purpose |
 |---------------|-------|---------|
-| `--max-model-len` | `32768` | Context window (tokens) |
+| `--max-model-len` | `32000` (`tokens.total`) | Context window (tokens) |
 | `--gpu-memory-utilization` | `0.90` | GPU memory fraction |
 | `--enable-prefix-caching` | — | KV-cache reuse across requests |
 | `--enable-auto-tool-choice` | — | Tool/function calling support |

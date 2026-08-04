@@ -57,6 +57,7 @@ data:
           "openAiApiKey": {{ $apiKey | quote }},
           "openAiModelId": {{ $.Values.modelId | quote }},
           "openAiStreamingEnabled": false,
+          "modelMaxTokens": {{ include "pca-devspaces.tokens.output" $ }},
           "openAiHeaders": {
             "X-PCA-User": "{{ $user }}",
             "X-PCA-DevSpace": "{{ $ns }}"{{ if $team }},

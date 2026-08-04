@@ -4,8 +4,22 @@ clusterResources: false
 pca-observability:
   prometheus:
     accessMode: namespace
+tokens:
+  total: 32000
+  output: 8192
 vllm:
-  maxModelLen: 49152
+  # L40S 48GB: skip CUDA graphs so KV profiling fits after ~34GiB MoE weights.
+  # Override to false on 80GB+ GPUs if you want max throughput.
+  enforceEager: true
+  extraEnv:
+    HF_HOME: "/model-cache"
+    # Warm PVC: do not re-download from Hugging Face on restart.
+    HF_HUB_OFFLINE: "1"
+    TRITON_CACHE_DIR: "/model-cache/triton-cache"
+    XDG_CACHE_HOME: "/model-cache/xdg-cache"
+    HOME: "/tmp"
+    DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
+    VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
 # Self-signed cert for llm-d / RHCL gateways (LLMInferenceService no longer creates kserve-self-signed-certs).
 tlsJob:
   enabled: true

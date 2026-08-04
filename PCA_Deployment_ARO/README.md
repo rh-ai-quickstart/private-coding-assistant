@@ -457,6 +457,7 @@ Environment variables handle non-root container constraints:
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `HF_HOME` | `/model-cache` | HuggingFace cache on PVC |
+| `HF_HUB_OFFLINE` | `1` | Use PVC cache only on restart (set `0` only for first download into an empty PVC) |
 | `TRITON_CACHE_DIR` | `/model-cache/triton-cache` | Triton MoE kernel cache on PVC |
 | `XDG_CACHE_HOME` | `/model-cache/xdg-cache` | General cache on PVC |
 | `HOME` | `/tmp` | Writable home for non-root user |
@@ -469,7 +470,7 @@ Environment variables handle non-root container constraints:
 
 - **Mode**: KServe RawDeployment (no Knative/Serverless dependency)
 - **Runtime**: `vllm-cuda-v0190`
-- **Model args**: `--model=Qwen/Qwen3.6-35B-A3B-FP8 --tensor-parallel-size=1 --max-model-len=262144`
+- **Model args**: `--model=Qwen/Qwen3.6-35B-A3B-FP8 --tensor-parallel-size=1 --max-model-len=32000`
 - **Resources per replica**: 8-16 CPU, 80-120Gi RAM, 1x NVIDIA GPU
 - **Toleration**: `nvidia.com/gpu=present:NoSchedule`
 - **Scaling**: `minReplicas: 1`, `maxReplicas: 4` (increase for more GPU nodes)
@@ -487,7 +488,7 @@ python3 -m vllm.entrypoints.openai.api_server \
   --reasoning-parser=qwen3 \
   --model=Qwen/Qwen3.6-35B-A3B-FP8 \
   --tensor-parallel-size=1 \
-  --max-model-len=262144
+  --max-model-len=32000
 ```
 
 > **Tool calling is required** for OpenCode's agentic features. Without

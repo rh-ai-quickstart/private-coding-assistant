@@ -33,6 +33,7 @@ data:
         model: {{ $.Values.modelId }}
         apiBase: {{ $baseUrl }}
         apiKey: {{ $apiKey }}
+        contextLength: {{ include "pca-devspaces.tokens.total" $ }}
         systemMessage: "You are a helpful coding assistant. Respond using natural language and code blocks only. Never use XML tool-call syntax such as <tool_call>, <function=...>, or <parameter=...> in your responses."
         requestOptions:
           verifySsl: false
@@ -58,6 +59,7 @@ data:
       model: {{ $.Values.modelId }}
       apiBase: {{ $baseUrl }}
       apiKey: {{ $apiKey }}
+      contextLength: {{ include "pca-devspaces.tokens.total" $ }}
       requestOptions:
         verifySsl: false
         headers:

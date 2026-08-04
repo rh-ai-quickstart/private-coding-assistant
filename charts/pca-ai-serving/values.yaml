@@ -9,15 +9,23 @@ model:
   # LLMInferenceService path uses kserve-workload-svc:8000 — keep these paired with useCustomRuntime.
   workloadServiceSuffix: "predictor"
   workloadServicePort: 80
+# Shared token budgets (vLLM --max-model-len + IDE/OpenCode completion caps).
+# Keep OpenCode/Continue limits in pca-devspaces aligned with these values.
+tokens:
+  total: 32000 # context window / --max-model-len
+  output: 8192 # max completion tokens (must be < total)
 vllm:
-  maxModelLen: 32768
+  # Deprecated alias: templates prefer tokens.total. Kept for --set compatibility.
+  maxModelLen: ""
   toolCallParser: "qwen3_xml"
   reasoningParser: "qwen3"
   image: "vllm/vllm-openai:v0.19.0"
   # Writable cache dirs for non-root containers (custom runtime / upstream vLLM image).
   extraEnv:
     HF_HOME: "/model-cache"
-    HF_HUB_OFFLINE: "0"
+    # "1" = use PVC cache only (fast restarts). First bootstrap with an empty PVC:
+    # temporarily set "0" (or preload the PVC), then flip back to "1".
+    HF_HUB_OFFLINE: "1"
     TRITON_CACHE_DIR: "/model-cache/triton-cache"
     XDG_CACHE_HOME: "/model-cache/xdg-cache"
     HOME: "/tmp"

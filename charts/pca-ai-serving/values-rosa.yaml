@@ -2,8 +2,10 @@ model:
   id: "Qwen/Qwen3.6-35B-A3B-FP8"
   name: "qwen3-coder"
   poolName: "qwen3-coder-inference-pool"
+tokens:
+  total: 32000
+  output: 8192
 vllm:
-  maxModelLen: 32768
   reasoningParser: "qwen3"
 hardware:
   gpuProduct: "g6e.2xlarge"

@@ -1,10 +1,15 @@
+{{- $ns := .Values.namespace }}
+{{- $existing := lookup "v1" "PersistentVolumeClaim" $ns "model-cache" }}
+{{- if not $existing }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: model-cache
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $ns }}
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    # Keep model weights across helm uninstall / release recreation.
+    helm.sh/resource-policy: keep
 spec:
   accessModes:
     - ReadWriteOnce
@@ -12,3 +17,4 @@ spec:
   resources:
     requests:
       storage: {{ .Values.storage.modelCacheSize }}
+{{- end }}

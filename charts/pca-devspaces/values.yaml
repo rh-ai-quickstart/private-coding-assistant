@@ -1,5 +1,9 @@
 aiServingNamespace: ai-serving
 modelId: "Qwen/Qwen3.6-35B-A3B-FP8"
+# Align with pca-ai-serving tokens.* (vLLM --max-model-len + OpenCode/IDE completion).
+tokens:
+  total: 32000 # OpenCode limit.context / Continue contextLength
+  output: 8192 # OpenCode limit.output (must be < total)
 opencodeBuild:
   enabled: true
   opencodeVersion: "1.15.13"

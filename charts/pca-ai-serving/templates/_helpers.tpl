@@ -23,3 +23,25 @@ Fail if deprecated top-level langfuse.enabled is set without the subchart flag.
 {{- fail "langfuse.enabled is deprecated; set pca-observability.langfuse.enabled=true instead" -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Token budgets: tokens.total / tokens.output.
+vllm.maxModelLen remains a deprecated override for --max-model-len.
+*/}}
+{{- define "pca-ai-serving.tokens.total" -}}
+{{- if and .Values.tokens .Values.tokens.total -}}
+{{- .Values.tokens.total -}}
+{{- else if .Values.vllm.maxModelLen -}}
+{{- .Values.vllm.maxModelLen -}}
+{{- else -}}
+32000
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.tokens.output" -}}
+{{- if and .Values.tokens .Values.tokens.output -}}
+{{- .Values.tokens.output -}}
+{{- else -}}
+8192
+{{- end -}}
+{{- end -}}
