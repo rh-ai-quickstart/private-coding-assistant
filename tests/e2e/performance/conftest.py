@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from pca_e2e import oc
 from pca_perf import config as perf_config
 from pca_perf.metrics import StageResult, format_report
-from pca_perf.users import api_key_for_namespace, require_opencode_users
+from pca_perf.users import require_opencode_users
 
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
-        "markers", "performance: scalability / load ladder (gateway + OpenCode)"
+        "markers", "performance: scalability / load ladder (OpenCode)"
     )
 
 
@@ -48,36 +46,12 @@ def ai_ns(oc_user: str) -> str:
 
 
 @pytest.fixture(scope="session")
-def model_id(ai_ns: str) -> str:
-    env = os.environ.get("MODEL_ID", "").strip()
-    if env:
-        return env
-    if oc.resource_exists(
-        "llminferenceservice", perf_config.LLMIS_NAME, namespace=ai_ns
-    ):
-        name = oc.get_jsonpath(
-            "llminferenceservice",
-            perf_config.LLMIS_NAME,
-            "{.spec.model.name}",
-            namespace=ai_ns,
-        )
-        if name:
-            return name
-    return perf_config.DEFAULT_MODEL_ID
-
-
-@pytest.fixture(scope="session")
 def perf_namespaces(n_list: list[int]) -> list[str]:
     max_n = max(n_list)
     try:
         return require_opencode_users(max_n)
     except oc.OcError as exc:
         pytest.fail(str(exc))
-
-
-@pytest.fixture(scope="session")
-def gateway_api_key(perf_namespaces: list[str]) -> str:
-    return api_key_for_namespace(perf_namespaces[0])
 
 
 @pytest.fixture(scope="session")

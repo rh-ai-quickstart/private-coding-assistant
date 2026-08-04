@@ -1,4 +1,4 @@
-"""Generation-window metrics + report table."""
+"""OpenCode ladder metrics + report table."""
 
 from __future__ import annotations
 
@@ -7,63 +7,43 @@ from dataclasses import dataclass, field
 
 @dataclass
 class WorkerResult:
-    """One concurrent worker's generation window."""
+    """One concurrent OpenCode worker."""
 
     ok: bool
-    tokens: int = 0
     generation_secs: float = 0.0
     gen_start: float | None = None
     gen_end: float | None = None
-    ttft_secs: float | None = None
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
+    worker_start: float | None = None  # includes setup (clone, DW, session)
+    worker_end: float | None = None
+    completion_tokens: int = 0
+    llm_calls: int = 0
     error: str | None = None
 
     @property
-    def total_generation_s(self) -> float:
-        if not self.ok or self.generation_secs <= 0:
-            return 0.0
-        return self.tokens / self.generation_secs
+    def req_output_tok_s(self) -> float | None:
+        if not self.ok or self.generation_secs <= 0 or self.completion_tokens <= 0:
+            return None
+        return self.completion_tokens / self.generation_secs
 
 
 @dataclass
 class StageResult:
-    name: str
     n: int
     ok: int
     failed: int
-    total_tokens: int
-    generation_secs: float  # sum of per-worker generation windows
-    wall_secs: float = 0.0  # max(gen_end) - min(gen_start) over ok workers
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    p50_gen_secs: float | None = None
-    p95_gen_secs: float | None = None
-    ttft_p50_secs: float | None = None
-    ttft_p95_secs: float | None = None
-    gpu_util_pct: float | None = None  # peak util sampled during the stage
+    makespan_secs: float = 0.0
+    gen_span_secs: float = 0.0
+    overhead_secs: float = 0.0
+    output_tokens: int = 0
+    avg_output_tokens: float = 0.0
+    e2e_output_tok_s: float = 0.0
+    avg_req_output_tok_s: float | None = None
+    p50_req_output_tok_s: float | None = None
+    p95_req_output_tok_s: float | None = None
+    llm_calls: int = 0
+    avg_llm_calls: float = 0.0
+    gpu_util_pct: float | None = None
     errors: list[str] = field(default_factory=list)
-
-    @property
-    def total_generation_s(self) -> float:
-        """Busy-time average: sum(tokens) / sum(generation_secs)."""
-        if self.generation_secs <= 0:
-            return 0.0
-        return self.total_tokens / self.generation_secs
-
-    @property
-    def vllm_tok_s(self) -> float:
-        """System throughput under concurrency: sum(tokens) / wall_secs."""
-        if self.wall_secs <= 0:
-            return 0.0
-        return self.total_tokens / self.wall_secs
-
-    @property
-    def parallel_efficiency(self) -> float | None:
-        """sum(generation_secs) / (N * wall_secs). 1.0 = perfect overlap."""
-        if self.ok <= 0 or self.wall_secs <= 0:
-            return None
-        return self.generation_secs / (self.ok * self.wall_secs)
 
 
 def _percentile(values: list[float], pct: float) -> float | None:
@@ -79,8 +59,13 @@ def _percentile(values: list[float], pct: float) -> float | None:
     return xs[lo] + (xs[hi] - xs[lo]) * frac
 
 
+def _mean(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
 def stage_from_workers(
-    name: str,
     n: int,
     workers: list[WorkerResult],
     *,
@@ -89,33 +74,48 @@ def stage_from_workers(
     ok_workers = [w for w in workers if w.ok]
     ok = len(ok_workers)
     failed = sum(1 for w in workers if not w.ok)
-    total_tokens = sum(w.tokens for w in ok_workers)
-    generation_secs = sum(w.generation_secs for w in ok_workers)
-    prompt_tokens = sum(w.prompt_tokens or 0 for w in ok_workers)
-    completion_tokens = sum(w.completion_tokens or 0 for w in ok_workers)
-    starts = [w.gen_start for w in ok_workers if w.gen_start is not None]
-    ends = [w.gen_end for w in ok_workers if w.gen_end is not None]
-    if starts and ends:
-        wall_secs = max(max(ends) - min(starts), 1e-6)
+    output_tokens = sum(w.completion_tokens for w in ok_workers)
+    llm_calls = sum(w.llm_calls for w in ok_workers)
+
+    gen_starts = [w.gen_start for w in ok_workers if w.gen_start is not None]
+    gen_ends = [w.gen_end for w in ok_workers if w.gen_end is not None]
+    if gen_starts and gen_ends:
+        gen_span_secs = max(max(gen_ends) - min(gen_starts), 1e-6)
     else:
-        wall_secs = 0.0
-    gen_vals = [w.generation_secs for w in ok_workers if w.generation_secs > 0]
-    ttft_vals = [w.ttft_secs for w in ok_workers if w.ttft_secs is not None]
+        gen_span_secs = 0.0
+
+    worker_starts = [
+        w.worker_start for w in ok_workers if w.worker_start is not None
+    ]
+    worker_ends = [w.worker_end for w in ok_workers if w.worker_end is not None]
+    if worker_starts and worker_ends:
+        makespan_secs = max(max(worker_ends) - min(worker_starts), 1e-6)
+    else:
+        makespan_secs = 0.0
+    overhead_secs = max(makespan_secs - gen_span_secs, 0.0)
+
+    rates = [
+        r
+        for w in ok_workers
+        if (r := w.req_output_tok_s) is not None
+    ]
+    e2e = (output_tokens / makespan_secs) if makespan_secs > 0 else 0.0
     errors = [w.error for w in workers if w.error]
     return StageResult(
-        name=name,
         n=n,
         ok=ok,
         failed=failed,
-        total_tokens=total_tokens,
-        generation_secs=generation_secs,
-        wall_secs=wall_secs,
-        prompt_tokens=prompt_tokens,
-        completion_tokens=completion_tokens,
-        p50_gen_secs=_percentile(gen_vals, 50),
-        p95_gen_secs=_percentile(gen_vals, 95),
-        ttft_p50_secs=_percentile(ttft_vals, 50),
-        ttft_p95_secs=_percentile(ttft_vals, 95),
+        makespan_secs=makespan_secs,
+        gen_span_secs=gen_span_secs,
+        overhead_secs=overhead_secs,
+        output_tokens=output_tokens,
+        avg_output_tokens=(output_tokens / ok) if ok else 0.0,
+        e2e_output_tok_s=e2e,
+        avg_req_output_tok_s=_mean(rates),
+        p50_req_output_tok_s=_percentile(rates, 50),
+        p95_req_output_tok_s=_percentile(rates, 95),
+        llm_calls=llm_calls,
+        avg_llm_calls=(llm_calls / ok) if ok else 0.0,
         gpu_util_pct=gpu_util_pct,
         errors=errors,
     )
@@ -129,20 +129,20 @@ def _fmt(value: float | None, digits: int = 1) -> str:
 
 def format_report(rows: list[StageResult]) -> str:
     headers = (
-        "N",
-        "stage",
-        "ok/fail",
-        "vllm tok/s",
-        "total_generation/s",
-        "wall secs",
-        "gen secs",
-        "p50 gen",
-        "p95 gen",
-        "TTFT p50",
-        "tokens",
-        "prompt",
-        "compl",
-        "GPU peak %",
+        "concurrent users (N)",
+        "succeeded / failed",
+        "end-to-end output tokens/sec (incl. setup)",
+        "avg per-user output tokens/sec (generation only)",
+        "p50 per-user output tokens/sec (generation only)",
+        "p95 per-user output tokens/sec (generation only)",
+        "total stage time (sec)",
+        "active generation window (sec)",
+        "non-generation overhead (sec)",
+        "total output tokens",
+        "avg output tokens per user",
+        "total LLM model calls",
+        "avg LLM model calls per user",
+        "peak GPU utilization (%)",
     )
     lines = [
         "Performance ladder results",
@@ -157,38 +157,26 @@ def format_report(rows: list[StageResult]) -> str:
             " | ".join(
                 [
                     str(r.n),
-                    r.name,
                     f"{r.ok}/{r.failed}",
-                    f"{r.vllm_tok_s:.1f}",
-                    f"{r.total_generation_s:.1f}",
-                    f"{r.wall_secs:.1f}",
-                    f"{r.generation_secs:.1f}",
-                    _fmt(r.p50_gen_secs),
-                    _fmt(r.p95_gen_secs),
-                    _fmt(r.ttft_p50_secs),
-                    str(r.total_tokens),
-                    str(r.prompt_tokens),
-                    str(r.completion_tokens),
+                    f"{r.e2e_output_tok_s:.1f}",
+                    _fmt(r.avg_req_output_tok_s),
+                    _fmt(r.p50_req_output_tok_s),
+                    _fmt(r.p95_req_output_tok_s),
+                    f"{r.makespan_secs:.1f}",
+                    f"{r.gen_span_secs:.1f}",
+                    f"{r.overhead_secs:.1f}",
+                    str(r.output_tokens),
+                    f"{r.avg_output_tokens:.1f}",
+                    str(r.llm_calls),
+                    f"{r.avg_llm_calls:.1f}",
                     gpu,
                 ]
             )
         )
-    footers: list[str] = []
-    for r in rows:
-        eff = r.parallel_efficiency
-        if eff is None:
-            continue
-        ttft_p95 = _fmt(r.ttft_p95_secs)
-        footers.append(
-            f"  [{r.name} N={r.n}] parallel efficiency={eff:.2f}"
-            f" (TTFT p95={ttft_p95})"
-        )
-    if footers:
-        lines.extend(["", "Stage notes:", *footers])
     err_lines: list[str] = []
     for r in rows:
         for err in r.errors[:3]:
-            err_lines.append(f"  [{r.name} N={r.n}] {err}")
+            err_lines.append(f"  [N={r.n}] {err}")
     if err_lines:
         lines.extend(["", "Sample errors:", *err_lines])
     return "\n".join(lines)

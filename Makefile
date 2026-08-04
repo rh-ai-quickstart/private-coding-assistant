@@ -144,6 +144,6 @@ e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
 	$(MAKE) -C tests/e2e e2e \
 		DEV_USER=$(DEV_USER) DEV_NAMESPACE=$(DEV_NAMESPACE) PYTEST_ARGS='$(PYTEST_ARGS)'
 
-performance: ## Scalability ladder (N_LIST=1,2,4; AI_NAMESPACE=; needs pre-deployed OpenCode users)
+performance: ## OpenCode scalability ladder (N_LIST=1,2,4; AI_NAMESPACE=; needs pre-deployed OpenCode users)
 	$(MAKE) -C tests/e2e performance \
 		AI_NAMESPACE=$(AI_NAMESPACE) N_LIST=$(N_LIST) PYTEST_ARGS='$(PYTEST_ARGS)'

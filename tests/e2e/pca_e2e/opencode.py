@@ -86,6 +86,43 @@ def message_text(message_body: dict[str, Any]) -> str:
     return "\n".join(chunks).strip()
 
 
+def _assistant_output_tokens(message: dict[str, Any]) -> int:
+    """Return output tokens if this looks like an assistant/model completion.
+
+    Returns 0 for non-assistant messages or when output tokens are missing/zero.
+    """
+    info = message.get("info") if isinstance(message.get("info"), dict) else {}
+    role = str(
+        info.get("role")
+        or message.get("role")
+        or info.get("type")
+        or message.get("type")
+        or ""
+    ).lower()
+    if role not in {"assistant", "model", "ai"}:
+        return 0
+    for blob in (
+        info.get("tokens"),
+        info.get("usage"),
+        message.get("tokens"),
+        message.get("usage"),
+    ):
+        if not isinstance(blob, dict):
+            continue
+        try:
+            out = int(
+                blob.get("output")
+                or blob.get("completion_tokens")
+                or blob.get("output_tokens")
+                or 0
+            )
+        except (TypeError, ValueError):
+            continue
+        if out > 0:
+            return out
+    return 0
+
+
 def resolve_model_ids(namespace: str, pod: str) -> tuple[str, str]:
     """Return (provider_id, model_id) from pod env / opencode.json."""
     result = oc.exec_in_pod(
@@ -240,6 +277,34 @@ class OpenCodeClient:
 
     def session_diff(self, session_id: str) -> Any:
         return self._request("GET", f"/session/{session_id}/diff", timeout=60.0)
+
+    def list_session_messages(self, session_id: str) -> list[dict[str, Any]]:
+        """Return session messages (best-effort across OpenCode response shapes)."""
+        body = self._request(
+            "GET", f"/session/{session_id}/message", timeout=60.0
+        )
+        if isinstance(body, list):
+            return [m for m in body if isinstance(m, dict)]
+        if isinstance(body, dict):
+            for key in ("data", "messages", "items"):
+                items = body.get(key)
+                if isinstance(items, list):
+                    return [m for m in items if isinstance(m, dict)]
+        return []
+
+    def count_llm_calls(self, session_id: str) -> tuple[int, int]:
+        """Count assistant/model steps with output tokens > 0.
+
+        Returns (llm_calls, sum_output_tokens) for those steps.
+        """
+        calls = 0
+        output_tokens = 0
+        for msg in self.list_session_messages(session_id):
+            out = _assistant_output_tokens(msg)
+            if out > 0:
+                calls += 1
+                output_tokens += out
+        return calls, output_tokens
 
     def run_turn_with_generation_timing(
         self,

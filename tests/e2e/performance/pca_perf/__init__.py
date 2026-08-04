@@ -1,1 +1,1 @@
-"""PCA scalability / performance helpers (gateway + OpenCode load)."""
+"""PCA scalability / performance helpers (OpenCode load)."""

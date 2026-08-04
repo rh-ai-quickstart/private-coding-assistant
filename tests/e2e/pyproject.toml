@@ -12,7 +12,7 @@ dependencies = [
 markers = [
   "opencode: OpenCode Web / agent e2e cases (needs Running DevWorkspace)",
   "opencode_calculator: OpenCode calculator power clone/chat e2e",
-  "performance: scalability ladder (gateway + OpenCode); use make performance",
+  "performance: OpenCode scalability ladder; use make performance",
 ]
 testpaths = ["."]
 pythonpath = [".", "performance"]

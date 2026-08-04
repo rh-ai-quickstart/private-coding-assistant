@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
@@ -64,8 +65,9 @@ test -d {REPO_DIR}
 def _run_one_user(user_index: int) -> WorkerResult:
     ns = user_namespace(user_index)
     timeout = opencode_timeout_secs()
+    worker_start = time.perf_counter()
     try:
-        # --- setup (NOT timed) ---
+        # --- setup (counted in overhead / makespan, not in generation_secs) ---
         dw = oc.find_opencode_devworkspace(ns)
         if dw is None:
             return WorkerResult(ok=False, error=f"{ns}: no OpenCode DevWorkspace")
@@ -103,15 +105,22 @@ def _run_one_user(user_index: int) -> WorkerResult:
                         timeout=timeout,
                     )
                 )
-                prompt_tokens, completion_tokens, tokens = usage_token_parts(resp)
+                llm_calls, output_from_steps = client.count_llm_calls(sid)
+                _, completion_from_resp, _ = usage_token_parts(resp)
+                completion_tokens = output_from_steps or completion_from_resp
+                if llm_calls == 0 and completion_tokens > 0:
+                    # Fallback when message list shape is unexpected but usage exists.
+                    llm_calls = 1
+                worker_end = time.perf_counter()
                 return WorkerResult(
                     ok=True,
-                    tokens=tokens,
                     generation_secs=generation_secs,
                     gen_start=gen_start,
                     gen_end=gen_end,
-                    prompt_tokens=prompt_tokens or None,
-                    completion_tokens=completion_tokens or None,
+                    worker_start=worker_start,
+                    worker_end=worker_end,
+                    completion_tokens=completion_tokens,
+                    llm_calls=llm_calls,
                 )
     except Exception as exc:  # noqa: BLE001 — aggregate into stage result
         log.exception("OpenCode user %s failed", user_index)
@@ -128,4 +137,4 @@ def run_opencode_stage(*, ai_namespace: str, n: int):
             for fut in as_completed(futures):
                 workers.append(fut.result())
         peak_gpu = sampler.peak_util_pct
-    return stage_from_workers("opencode", n, workers, gpu_util_pct=peak_gpu)
+    return stage_from_workers(n, workers, gpu_util_pct=peak_gpu)

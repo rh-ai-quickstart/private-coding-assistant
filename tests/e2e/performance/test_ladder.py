@@ -1,10 +1,9 @@
-"""Scalability ladder: for each N, gateway concurrency then OpenCode users."""
+"""Scalability ladder: for each N, concurrent OpenCode users."""
 
 from __future__ import annotations
 
 import pytest
 
-from pca_perf.gateway import run_gateway_stage
 from pca_perf.metrics import StageResult, format_report
 from pca_perf.opencode_run import run_opencode_stage
 
@@ -14,26 +13,16 @@ pytestmark = pytest.mark.performance
 def test_performance_ladder(
     perf_n: int,
     ai_ns: str,
-    model_id: str,
-    gateway_api_key: str,
     perf_namespaces: list[str],
     results_sink: list[StageResult],
 ) -> None:
-    """Run gateway load + OpenCode load at concurrency N.
+    """Run OpenCode load at concurrency N.
 
-    Metrics use generation-only timing (total_generation/s). OpenCode only
-    creates MODEL_REGISTRY_TODO.md (load probe). Missing DevSpaces fail at setup.
+    Metrics: e2e/req output tok/s, makespan, gen span, overhead, LLM calls.
+    OpenCode only creates MODEL_REGISTRY_TODO.md (load probe). Missing
+    DevSpaces fail at setup.
     """
     del perf_namespaces  # validated by fixture; opencode_run uses dev-user1..N
-
-    gateway = run_gateway_stage(
-        ai_namespace=ai_ns,
-        api_key=gateway_api_key,
-        model_id=model_id,
-        n=perf_n,
-    )
-    results_sink.append(gateway)
-    print(f"\n{format_report([gateway])}\n", flush=True)
 
     opencode = run_opencode_stage(ai_namespace=ai_ns, n=perf_n)
     results_sink.append(opencode)
@@ -45,9 +34,4 @@ def test_performance_ladder(
         pytest.fail(
             f"OpenCode stage N={perf_n}: all {opencode.failed} users failed. "
             f"Errors: {opencode.errors[:5]}"
-        )
-    if gateway.ok == 0 and gateway.failed > 0:
-        pytest.fail(
-            f"Gateway stage N={perf_n}: all {gateway.failed} requests failed. "
-            f"Errors: {gateway.errors[:5]}"
         )
