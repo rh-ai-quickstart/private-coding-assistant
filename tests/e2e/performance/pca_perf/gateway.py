@@ -17,8 +17,8 @@ from pca_perf.config import (
     gateway_max_tokens,
 )
 from pca_perf.forward import PortForward
-from pca_perf.gpu import gpu_utilization_percent
-from pca_perf.metrics import WorkerResult, stage_from_workers, usage_total_tokens
+from pca_perf.gpu import GpuSampler
+from pca_perf.metrics import WorkerResult, stage_from_workers, usage_token_parts
 
 log = logging.getLogger(__name__)
 
@@ -54,8 +54,11 @@ def _one_chat(
             timeout=httpx.Timeout(timeout, connect=30.0),
         ) as client:
             gen_start: float | None = None
+            prompt_tokens = 0
+            completion_tokens = 0
             tokens = 0
             saw_content = False
+            t_send = time.perf_counter()
             with client.stream(
                 "POST",
                 "/v1/chat/completions",
@@ -93,7 +96,11 @@ def _one_chat(
                         saw_content = True
                     usage = chunk.get("usage")
                     if isinstance(usage, dict):
-                        tokens = usage_total_tokens({"usage": usage}) or tokens
+                        p, c, total = usage_token_parts({"usage": usage})
+                        if p or c or total:
+                            prompt_tokens = p or prompt_tokens
+                            completion_tokens = c or completion_tokens
+                            tokens = total or tokens
             gen_end = time.perf_counter()
             if not saw_content or gen_start is None:
                 return WorkerResult(
@@ -101,8 +108,16 @@ def _one_chat(
                     error="stream finished with no content chunks (no generation window)",
                 )
             generation_secs = max(gen_end - gen_start, 1e-6)
+            ttft_secs = max(gen_start - t_send, 0.0)
             return WorkerResult(
-                ok=True, tokens=tokens, generation_secs=generation_secs
+                ok=True,
+                tokens=tokens,
+                generation_secs=generation_secs,
+                gen_start=gen_start,
+                gen_end=gen_end,
+                ttft_secs=ttft_secs,
+                prompt_tokens=prompt_tokens or None,
+                completion_tokens=completion_tokens or None,
             )
     except Exception as exc:  # noqa: BLE001 — aggregate into stage result
         return WorkerResult(ok=False, error=str(exc))
@@ -134,15 +149,16 @@ def run_gateway_stage(
             log.warning("GET /v1/models failed (continuing): %s", exc)
 
         workers: list[WorkerResult] = []
-        with ThreadPoolExecutor(max_workers=n) as pool:
-            futures = [
-                pool.submit(
-                    _one_chat, pf.base_url, api_key, model_id, max_tokens, timeout
-                )
-                for _ in range(n)
-            ]
-            for fut in as_completed(futures):
-                workers.append(fut.result())
+        with GpuSampler(ai_namespace) as sampler:
+            with ThreadPoolExecutor(max_workers=n) as pool:
+                futures = [
+                    pool.submit(
+                        _one_chat, pf.base_url, api_key, model_id, max_tokens, timeout
+                    )
+                    for _ in range(n)
+                ]
+                for fut in as_completed(futures):
+                    workers.append(fut.result())
+            peak_gpu = sampler.peak_util_pct
 
-    gpu = gpu_utilization_percent(ai_namespace)
-    return stage_from_workers("gateway", n, workers, gpu_util_pct=gpu)
+    return stage_from_workers("gateway", n, workers, gpu_util_pct=peak_gpu)

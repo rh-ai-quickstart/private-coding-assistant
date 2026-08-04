@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 from pca_e2e import oc
 
@@ -69,3 +70,56 @@ def gpu_utilization_percent(ai_namespace: str) -> float | None:
     if not values:
         return None
     return sum(values) / len(values)
+
+
+class GpuSampler:
+    """Background nvidia-smi sampler; exposes peak util during a stage."""
+
+    def __init__(self, ai_namespace: str, *, interval_secs: float = 2.0) -> None:
+        self.ai_namespace = ai_namespace
+        self.interval_secs = interval_secs
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._samples: list[float] = []
+        self._lock = threading.Lock()
+
+    def __enter__(self) -> GpuSampler:
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._run, name="gpu-sampler", daemon=True
+        )
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=self.interval_secs + 10.0)
+            self._thread = None
+
+    @property
+    def peak_util_pct(self) -> float | None:
+        with self._lock:
+            if not self._samples:
+                return None
+            return max(self._samples)
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                util = gpu_utilization_percent(self.ai_namespace)
+            except Exception as exc:  # noqa: BLE001 — sampling must not fail the stage
+                log.info("GPU sample failed: %s", exc)
+                util = None
+            if util is not None:
+                with self._lock:
+                    self._samples.append(util)
+            self._stop.wait(self.interval_secs)
+        # One last sample after the load ends.
+        try:
+            util = gpu_utilization_percent(self.ai_namespace)
+        except Exception:  # noqa: BLE001
+            util = None
+        if util is not None:
+            with self._lock:
+                self._samples.append(util)

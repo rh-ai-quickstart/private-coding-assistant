@@ -11,8 +11,8 @@ from pca_e2e import oc
 from pca_e2e import opencode as ocapi
 
 from pca_perf.config import REPO_DIR, REPO_URL, opencode_timeout_secs, user_namespace
-from pca_perf.gpu import gpu_utilization_percent
-from pca_perf.metrics import WorkerResult, stage_from_workers, usage_total_tokens
+from pca_perf.gpu import GpuSampler
+from pca_perf.metrics import WorkerResult, stage_from_workers, usage_token_parts
 
 log = logging.getLogger(__name__)
 
@@ -92,16 +92,26 @@ def _run_one_user(user_index: int) -> WorkerResult:
                 # --- generation window (timed: first SSE frame → turn done) ---
                 resp: dict[str, Any]
                 generation_secs: float
-                resp, generation_secs = client.run_turn_with_generation_timing(
-                    sid,
-                    OPENCODE_PROMPT,
-                    provider_id=provider_id,
-                    model_id=model_id,
-                    timeout=timeout,
+                gen_start: float
+                gen_end: float
+                resp, generation_secs, gen_start, gen_end = (
+                    client.run_turn_with_generation_timing(
+                        sid,
+                        OPENCODE_PROMPT,
+                        provider_id=provider_id,
+                        model_id=model_id,
+                        timeout=timeout,
+                    )
                 )
-                tokens = usage_total_tokens(resp)
+                prompt_tokens, completion_tokens, tokens = usage_token_parts(resp)
                 return WorkerResult(
-                    ok=True, tokens=tokens, generation_secs=generation_secs
+                    ok=True,
+                    tokens=tokens,
+                    generation_secs=generation_secs,
+                    gen_start=gen_start,
+                    gen_end=gen_end,
+                    prompt_tokens=prompt_tokens or None,
+                    completion_tokens=completion_tokens or None,
                 )
     except Exception as exc:  # noqa: BLE001 — aggregate into stage result
         log.exception("OpenCode user %s failed", user_index)
@@ -110,11 +120,12 @@ def _run_one_user(user_index: int) -> WorkerResult:
 
 def run_opencode_stage(*, ai_namespace: str, n: int):
     workers: list[WorkerResult] = []
-    with ThreadPoolExecutor(max_workers=n) as pool:
-        futures = {
-            pool.submit(_run_one_user, i): i for i in range(1, n + 1)
-        }
-        for fut in as_completed(futures):
-            workers.append(fut.result())
-    gpu = gpu_utilization_percent(ai_namespace)
-    return stage_from_workers("opencode", n, workers, gpu_util_pct=gpu)
+    with GpuSampler(ai_namespace) as sampler:
+        with ThreadPoolExecutor(max_workers=n) as pool:
+            futures = {
+                pool.submit(_run_one_user, i): i for i in range(1, n + 1)
+            }
+            for fut in as_completed(futures):
+                workers.append(fut.result())
+        peak_gpu = sampler.peak_util_pct
+    return stage_from_workers("opencode", n, workers, gpu_util_pct=peak_gpu)

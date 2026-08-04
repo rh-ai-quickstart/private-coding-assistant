@@ -249,8 +249,8 @@ class OpenCodeClient:
         provider_id: str | None = None,
         model_id: str | None = None,
         timeout: float | None = None,
-    ) -> tuple[dict[str, Any], float]:
-        """Send a turn; return (response, generation_secs).
+    ) -> tuple[dict[str, Any], float, float, float]:
+        """Send a turn; return (response, generation_secs, gen_start, gen_end).
 
         generation_secs starts at the first SSE activity frame for this session
         (text/tool/part update) and ends when send_message returns. Setup such
@@ -329,8 +329,9 @@ class OpenCodeClient:
                     "no OpenCode SSE generation frame observed for session "
                     f"{session_id} (cannot measure generation_secs)"
                 )
-            generation_secs = max(gen_end - gen_start_box[0], 1e-6)
-            return resp, generation_secs
+            gen_start = gen_start_box[0]
+            generation_secs = max(gen_end - gen_start, 1e-6)
+            return resp, generation_secs, gen_start, gen_end
         finally:
             stop.set()
             reader.join(timeout=2.0)
