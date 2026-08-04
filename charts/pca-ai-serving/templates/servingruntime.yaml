@@ -53,14 +53,15 @@ spec:
         - '{"enable_thinking": false}'
         {{- end }}
       env:
-        {{- if .Values.vllm.extraEnv }}
+        - name: HF_HUB_OFFLINE
+          value: {{ include "pca-ai-serving.hfHubOffline" . | quote }}
         {{- range $key, $val := .Values.vllm.extraEnv }}
+        {{- if ne $key "HF_HUB_OFFLINE" }}
         - name: {{ $key }}
           value: {{ $val | quote }}
         {{- end }}
-        {{- else }}
-        []
         {{- end }}
+
       ports:
         - containerPort: 8000
           name: http

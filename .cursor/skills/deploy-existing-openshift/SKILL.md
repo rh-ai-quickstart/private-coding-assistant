@@ -161,7 +161,7 @@ Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails
 
 Prefer **upgrade in place** (`make ai-serving-deploy-existing-openshift`) over undeploy when iterating. Keep namespace + `model-cache` PVC unless `DELETE_NAMESPACE=1`. Keep the predictor at `minReplicas: 1` so you do not pay the multi‑minute MoE GPU load on every cold start.
 
-**`HF_HUB_OFFLINE` (cold-aware):** If `model-cache` is missing, the make target deploys with `0`, waits for Ready, then Helm-flips to `1`. If the PVC is kept (warm), it deploys with `1` directly. Force with `HF_HUB_OFFLINE=0|1`. When `HELM_ARGS` sets `model.name` (e.g. ARO `qwen36-vllm`), pass matching `MODEL_NAME=` for the cold-path Ready wait.
+**`HF_HUB_OFFLINE` (chart PVC lookup):** At helm render, missing `model-cache` → `"0"` (cold); PVC present → `"1"` (warm). No make/script flip. Next upgrade after first cold deploy picks up `"1"`.
 
 ### RWO `model-cache` Multi-Attach (redeploy)
 

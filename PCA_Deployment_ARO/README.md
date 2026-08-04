@@ -457,7 +457,7 @@ Environment variables handle non-root container constraints:
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `HF_HOME` | `/model-cache` | HuggingFace cache on PVC |
-| `HF_HUB_OFFLINE` | `0` | Allow Hugging Face download on cold bootstrap into an empty PVC; set `1` after weights are cached for offline restarts |
+| `HF_HUB_OFFLINE` | auto | Chart sets `"0"` when `model-cache` PVC is missing (cold) and `"1"` when it exists (warm); ArgoCD always renders `"0"` |
 | `TRITON_CACHE_DIR` | `/model-cache/triton-cache` | Triton MoE kernel cache on PVC |
 | `XDG_CACHE_HOME` | `/model-cache/xdg-cache` | General cache on PVC |
 | `HOME` | `/tmp` | Writable home for non-root user |
@@ -503,6 +503,10 @@ kernels, DeepGEMM warmup artifacts (`DG_JIT_CACHE_DIR`), and torch.compile AOT
 cache (`VLLM_CACHE_ROOT`). Survives pod restarts to avoid re-downloading the
 model and re-compiling kernels (~17 min saved on warm restart — from 19.5 min
 → 2.5 min cold start with populated caches).
+
+`HF_HUB_OFFLINE` is set by the chart from a live PVC lookup on `helm upgrade`
+(missing → `"0"` cold, present → `"1"` warm). ArgoCD always renders `"0"`
+because lookup is unsupported there — first GitOps sync can still download.
 
 ### AI Gateway (`llm-d-gateway`)
 

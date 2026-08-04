@@ -651,7 +651,7 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 
 ### Wave 3 — AI Serving (`pca-ai-serving`)
 
-- **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts)
+- **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts). Chart templates set `HF_HUB_OFFLINE` from a PVC lookup on Helm installs; under ArgoCD lookup is empty so it stays `"0"` (cold bootstrap can download).
 - **ServingRuntime + InferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` (custom vLLM runtime; API name matches `model.id`) with vLLM args:
   - `--tool-call-parser qwen3_xml --reasoning-parser qwen3`
   - `--max-model-len 32000 --gpu-memory-utilization 0.90`

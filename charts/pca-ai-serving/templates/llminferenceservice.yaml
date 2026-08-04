@@ -59,7 +59,6 @@ spec:
           - --middleware
           - pca_langfuse_io.langfuse_io_middleware
           {{- end }}
-        {{- if or $langfuseEnabled $ioFull .Values.vllm.extraEnv }}
         env:
           {{- if $langfuseEnabled }}
           - name: OTEL_SERVICE_NAME
@@ -87,11 +86,15 @@ spec:
                 name: pca-langfuse-credentials
                 key: init-project-secret-key
           {{- end }}
+          - name: HF_HUB_OFFLINE
+            value: {{ include "pca-ai-serving.hfHubOffline" . | quote }}
           {{- range $key, $val := .Values.vllm.extraEnv }}
+          {{- if ne $key "HF_HUB_OFFLINE" }}
           - name: {{ $key }}
             value: {{ $val | quote }}
           {{- end }}
-        {{- end }}
+          {{- end }}
+
         {{- if $ioFull }}
         volumeMounts:
           - name: pca-langfuse-io

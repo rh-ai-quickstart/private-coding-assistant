@@ -13,8 +13,7 @@ vllm:
   enforceEager: true
   extraEnv:
     HF_HOME: "/model-cache"
-    # File default stays "0" (safe for raw helm). make ai-serving-deploy-existing-openshift
-    # always --set HF_HUB_OFFLINE from cold/warm PVC detection (see scripts/ai-serving-deploy.sh).
+    # Ignored at render: chart PVC lookup sets HF_HUB_OFFLINE (cold/warm).
     HF_HUB_OFFLINE: "0"
     TRITON_CACHE_DIR: "/model-cache/triton-cache"
     XDG_CACHE_HOME: "/model-cache/xdg-cache"
