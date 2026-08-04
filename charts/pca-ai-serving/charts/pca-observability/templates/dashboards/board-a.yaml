@@ -31,46 +31,48 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Request rate (aggregate)",
+          "title": "vLLM completions/s",
+          "description": "Finished vLLM inference requests per second (aggregate, not per-user).",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m]))",
-              "legendFormat": "success/s"
+              "legendFormat": "vLLM completions/s"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "reqps" } }
         },
         {
           "type": "timeseries",
-          "title": "Running / waiting requests",
+          "title": "In-flight / queued requests",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(vllm:num_requests_running) or sum(vllm_num_requests_running)",
-              "legendFormat": "running"
+              "legendFormat": "in-flight"
             },
             {
               "expr": "sum(vllm:num_requests_waiting) or sum(vllm_num_requests_waiting)",
-              "legendFormat": "waiting"
+              "legendFormat": "queued"
             }
           ]
         },
         {
           "type": "timeseries",
-          "title": "Prompt + generation tokens/s (aggregate)",
+          "title": "Input vs output tokens/s",
+          "description": "Input = prompt/prefill; output = generation/decode. Output matches the token kind used by the performance ladder output tok/s rates.",
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:prompt_tokens_total[5m])) or sum(rate(vllm_prompt_tokens_total[5m]))",
-              "legendFormat": "prompt tok/s"
+              "legendFormat": "input tok/s"
             },
             {
               "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
-              "legendFormat": "gen tok/s"
+              "legendFormat": "output tok/s"
             }
           ]
         }

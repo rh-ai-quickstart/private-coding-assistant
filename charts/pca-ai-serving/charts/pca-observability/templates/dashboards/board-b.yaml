@@ -22,7 +22,8 @@ data:
       "panels": [
         {
           "type": "timeseries",
-          "title": "TTFT p50 / p95 / p99",
+          "title": "vLLM TTFT p50 / p95 / p99",
+          "description": "Time to first token per vLLM request.",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
@@ -43,7 +44,8 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Inter-token latency p50 / p95",
+          "title": "vLLM inter-token latency p50 / p95",
+          "description": "Time between output tokens (decode pacing). Not the same as OpenCode per-request output tok/s in the performance ladder.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
@@ -60,7 +62,8 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "E2E request latency p50 / p95",
+          "title": "vLLM request latency p50 / p95",
+          "description": "End-to-end latency per vLLM request (not OpenCode stage makespan).",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
@@ -77,7 +80,8 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Queue time p50 / p95",
+          "title": "vLLM queue time p50 / p95",
+          "description": "Time spent waiting in the vLLM scheduler queue before execution.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [

@@ -41,13 +41,18 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "GPU utilization (DCGM / nvidia)",
+          "title": "GPU util % (DCGM)",
+          "description": "Live avg util plus peak over the last 5m. Same intent as the performance ladder GPU peak %, but sampled from DCGM (not nvidia-smi during a stage).",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
           "targets": [
             {
               "expr": "avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle)",
               "legendFormat": "GPU util %"
+            },
+            {
+              "expr": "max_over_time((avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle))[5m:30s])",
+              "legendFormat": "GPU util peak % (last 5m)"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "percent" } }
@@ -66,17 +71,18 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Running / waiting concurrency",
+          "title": "In-flight / queued requests",
+          "description": "Live vLLM concurrency gauges (not OpenCode model-step counts from the performance ladder).",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(vllm:num_requests_running) or sum(vllm_num_requests_running)",
-              "legendFormat": "running"
+              "legendFormat": "in-flight"
             },
             {
               "expr": "sum(vllm:num_requests_waiting) or sum(vllm_num_requests_waiting)",
-              "legendFormat": "waiting"
+              "legendFormat": "queued"
             }
           ]
         },
@@ -112,6 +118,36 @@ data:
             }
           ],
           "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Output vs all tokens/s",
+          "description": "Output = vLLM generation (decode) tokens only — same token kind as the performance ladder output tok/s. All = prompt + output. This panel is a rolling 5m Prometheus rate (engine-wide); the ladder divides stage output tokens by OpenCode makespan.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
+              "legendFormat": "output tok/s"
+            },
+            {
+              "expr": "(sum(rate(vllm:prompt_tokens_total[5m])) + sum(rate(vllm:generation_tokens_total[5m]))) or (sum(rate(vllm_prompt_tokens_total[5m])) + sum(rate(vllm_generation_tokens_total[5m])))",
+              "legendFormat": "all tok/s (prompt + output)"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "vLLM completions/min",
+          "description": "Finished vLLM inference requests per minute. Not the same as OpenCode model steps (LLM calls) in the performance ladder.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "60 * (sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m])))",
+              "legendFormat": "vLLM completions/min"
+            }
+          ]
         }
       ]
     }

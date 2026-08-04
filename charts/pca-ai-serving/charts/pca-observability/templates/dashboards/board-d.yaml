@@ -33,25 +33,27 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Prompt tokens/s",
+          "title": "Input tokens/s (prompt / prefill)",
+          "description": "vLLM prompt tokens processed per second (prefill). Not used in performance-ladder output tok/s rates.",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:prompt_tokens_total[5m])) or sum(rate(vllm_prompt_tokens_total[5m]))",
-              "legendFormat": "prompt tok/s"
+              "legendFormat": "input tok/s"
             }
           ]
         },
         {
           "type": "timeseries",
-          "title": "Generation tokens/s",
+          "title": "Output tokens/s",
+          "description": "vLLM generation (decode) tokens per second — same token kind as the performance ladder output tok/s (ladder uses stage makespan; this is a rolling 5m rate).",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
-              "legendFormat": "gen tok/s"
+              "legendFormat": "output tok/s"
             }
           ]
         },
@@ -88,13 +90,14 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Successful requests/s",
+          "title": "vLLM completions/s",
+          "description": "Finished vLLM inference requests per second. Not OpenCode model steps from the performance ladder.",
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m]))",
-              "legendFormat": "success/s"
+              "legendFormat": "vLLM completions/s"
             }
           ]
         }

@@ -68,10 +68,12 @@ Optional values overrides (`grafana.adminPassword`, `langfuse.credentials.salt`,
 
 | Board | Content | Requires Langfuse |
 |-------|---------|-------------------|
-| A | Users overview (aggregate + Langfuse pointer) | yes |
-| B | UX / latency (TTFT, ITL, e2e) | no |
-| C | Capacity / KV / GPU (+ PLACEHOLDER $/hr) | no |
-| D | Tokens / cost fairness | yes |
+| A | Users overview (vLLM completions, in-flight/queued, input vs output tok/s + Langfuse pointer) | yes |
+| B | UX / latency (vLLM TTFT, ITL, request latency, queue) | no |
+| C | Capacity / KV / GPU (output vs all tok/s, vLLM completions/min, GPU avg+peak, + PLACEHOLDER $/hr) | no |
+| D | Tokens / cost fairness (input vs output tok/s, vLLM completions/s) | yes |
+
+Token naming matches the performance ladder: **output** = generation/decode only; **all/input** keep prompt visible. Grafana uses rolling 5m `rate()`; the ladder uses stage makespan — same token kind, different time base.
 
 ## GPU cost PLACEHOLDER
 
