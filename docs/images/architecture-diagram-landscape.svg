@@ -208,16 +208,16 @@
       <g transform="translate(20, 200)">
         <rect width="820" height="68" rx="8" fill="#1a0a2a" stroke="#a78bfa" stroke-width="1.5" filter="url(#shadow)"/>
         <text x="410" y="20" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="700">vLLM Pod  &#x2014;  CUDA (LLMInferenceService / KServe)</text>
-        <text x="410" y="38" text-anchor="middle" fill="#7a6aaa" font-size="11">Qwen3-Coder-30B-A3B-Instruct-FP8 &#xB7; TP=1 &#xB7; FP8 &#xB7; prefix caching ON</text>
-        <text x="410" y="54" text-anchor="middle" fill="#5a4a8a" font-size="10">max_model_len=16384 &#xB7; g6e.2xlarge (NVIDIA L40S 48GB) &#xB7; tool-call-parser=hermes &#xB7; reasoning-parser=deepseek_r1</text>
+        <text x="410" y="38" text-anchor="middle" fill="#7a6aaa" font-size="11">Qwen3.6-35B-A3B-FP8 &#xB7; TP=1 &#xB7; FP8 &#xB7; prefix caching ON</text>
+        <text x="410" y="54" text-anchor="middle" fill="#5a4a8a" font-size="10">max_model_len=32000 &#xB7; g6e.2xlarge (NVIDIA L40S 48GB) &#xB7; tool-call-parser=qwen3_xml &#xB7; reasoning-parser=qwen3</text>
       </g>
 
       <!-- vLLM Neuron pod -->
       <g transform="translate(900, 200)">
         <rect width="820" height="68" rx="8" fill="#0a2a1a" stroke="#00d26a" stroke-width="1.5" filter="url(#shadow)"/>
         <text x="410" y="20" text-anchor="middle" fill="#00d26a" font-size="12" font-weight="700">vLLM Pod  &#x2014;  Neuron (InferenceService / KServe)</text>
-        <text x="410" y="38" text-anchor="middle" fill="#3d8a6a" font-size="11">Qwen3-Coder-30B-A3B-Instruct BF16 &#xB7; TP=8 &#xB7; 8 NeuronCores</text>
-        <text x="410" y="54" text-anchor="middle" fill="#2a6a4a" font-size="10">max_model_len=16384 &#xB7; inf2.24xlarge (6&#xD7;Inferentia2, 192GB HBM) &#xB7; Neuron SDK 2.28</text>
+        <text x="410" y="38" text-anchor="middle" fill="#3d8a6a" font-size="11">Qwen3.6-35B-A3B BF16 &#xB7; TP=8 &#xB7; 8 NeuronCores</text>
+        <text x="410" y="54" text-anchor="middle" fill="#2a6a4a" font-size="10">max_model_len=32000 &#xB7; inf2.24xlarge (6&#xD7;Inferentia2, 192GB HBM) &#xB7; Neuron SDK 2.28</text>
       </g>
     </g>
 

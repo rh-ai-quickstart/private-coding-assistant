@@ -161,6 +161,8 @@ Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails
 
 Prefer **upgrade in place** (`make ai-serving-deploy-existing-openshift`) over undeploy when iterating. Keep namespace + `model-cache` PVC unless `DELETE_NAMESPACE=1`. Keep the predictor at `minReplicas: 1` so you do not pay the multi‑minute MoE GPU load on every cold start.
 
+**`HF_HUB_OFFLINE` (cold-aware):** If `model-cache` is missing, the make target deploys with `0`, waits for Ready, then Helm-flips to `1`. If the PVC is kept (warm), it deploys with `1` directly. Force with `HF_HUB_OFFLINE=0|1`. When `HELM_ARGS` sets `model.name` (e.g. ARO `qwen36-vllm`), pass matching `MODEL_NAME=` for the cold-path Ready wait.
+
 ### RWO `model-cache` Multi-Attach (redeploy)
 
 `model-cache` is **ReadWriteOnce**. If a rolling upgrade leaves the old predictor `Running` while the new one is `ContainerCreating`, the new pod often waits for hours with `Multi-Attach` / `FailedAttachVolume`. Clear the old holder, wait for detach, then scale back:

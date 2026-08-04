@@ -23,9 +23,10 @@ vllm:
   # Writable cache dirs for non-root containers (custom runtime / upstream vLLM image).
   extraEnv:
     HF_HOME: "/model-cache"
-    # "1" = use PVC cache only (fast restarts). First bootstrap with an empty PVC:
-    # temporarily set "0" (or preload the PVC), then flip back to "1".
-    HF_HUB_OFFLINE: "1"
+    # "0" = allow Hugging Face download into an empty PVC (cold bootstrap).
+    # Existing OpenShift make target flips to "1" after first Ready (warm path).
+    # Set "1" explicitly when the PVC already holds weights.
+    HF_HUB_OFFLINE: "0"
     TRITON_CACHE_DIR: "/model-cache/triton-cache"
     XDG_CACHE_HOME: "/model-cache/xdg-cache"
     HOME: "/tmp"

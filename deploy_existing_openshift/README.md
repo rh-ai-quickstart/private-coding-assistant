@@ -59,6 +59,9 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 | `DEV_USER` | *(required if N unset)* | Devspace | OpenShift username; namespace is always `<DEV_USER>-devspaces` |
 | `TYPE` | `opencode` | Devspace | `opencode` (default) or `continue` (Continue/Roo/Cline) |
 | `HF_TOKEN` | from `.env` (`HUGGINGFACE_TOKEN`) | AI serving | HuggingFace token |
+| `HF_HUB_OFFLINE` | *(auto)* | AI serving | Force `0` (cold) or `1` (warm); default auto-detects from `model-cache` PVC |
+| `MODEL_NAME` | `qwen3-coder` | AI serving | InferenceService / LLMInferenceService name used for Ready wait on cold path |
+| `READY_TIMEOUT` | `3600s` | AI serving | Cold-path wait for serving Ready before flipping offline |
 | `MCP_ENABLED` | `false` | Both | Enable `pca-mcp` + IDE MCP wiring |
 | `HELM_ARGS` | *(empty)* | Both | Extra `helm upgrade --install` flags |
 
@@ -265,7 +268,16 @@ Also create `~/.local/share/opencode/auth.json`:
 
 OpenCode needs headroom under `--max-model-len` for prompt + completion. All PCA paths set `tokens.total: 32000` (vLLM `--max-model-len`) and `tokens.output: 8192` (OpenCode/IDE completion cap). Keep `pca-ai-serving` and `pca-devspaces` `tokens.*` in sync. If you lower `tokens.total` without lowering OpenCode `limit.output`, chat requests can fail with max_tokens errors.
 
-**Warm model path (avoid multi‑minute cold starts):** Prefer `make ai-serving-deploy-existing-openshift` (upgrade in place) over undeploy. Keep `minReplicas: 1` — do not scale the predictor to 0. Default undeploy only uninstalls Helm releases and **keeps** the namespace + `model-cache` PVC; use `DELETE_NAMESPACE=1` only when you intend a full wipe. `HF_HUB_OFFLINE` is `1` so restarts read weights from the PVC (no Hugging Face). The PVC is also annotated `helm.sh/resource-policy: keep` so `helm uninstall` alone does not delete it. For a brand-new empty PVC, temporarily set `HF_HUB_OFFLINE=0` (or preload the PVC), then set it back to `1`.
+**Warm model path (avoid multi‑minute cold starts):** Prefer `make ai-serving-deploy-existing-openshift` (upgrade in place) over undeploy. Keep `minReplicas: 1` — do not scale the predictor to 0. Default undeploy only uninstalls Helm releases and **keeps** the namespace + `model-cache` PVC; use `DELETE_NAMESPACE=1` only when you intend a full wipe. The PVC is annotated `helm.sh/resource-policy: keep` so `helm uninstall` alone does not delete it.
+
+`make ai-serving-deploy-existing-openshift` is **cold-aware** for `HF_HUB_OFFLINE`:
+
+| PVC `model-cache` | Behavior |
+|-------------------|----------|
+| Missing (cold) | Deploy with `HF_HUB_OFFLINE=0`, wait for serving Ready, then Helm-flip to `1` (one warm restart) |
+| Present (warm) | Deploy with `HF_HUB_OFFLINE=1` directly (no second restart) |
+
+Overrides: `HF_HUB_OFFLINE=0` if the PVC exists but is empty/failed; `HF_HUB_OFFLINE=1` to skip download. Chart / ARO defaults stay `0` so GitOps cold bootstrap can download.
 
 ---
 

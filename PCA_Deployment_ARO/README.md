@@ -457,7 +457,7 @@ Environment variables handle non-root container constraints:
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `HF_HOME` | `/model-cache` | HuggingFace cache on PVC |
-| `HF_HUB_OFFLINE` | `1` | Use PVC cache only on restart (set `0` only for first download into an empty PVC) |
+| `HF_HUB_OFFLINE` | `0` | Allow Hugging Face download on cold bootstrap into an empty PVC; set `1` after weights are cached for offline restarts |
 | `TRITON_CACHE_DIR` | `/model-cache/triton-cache` | Triton MoE kernel cache on PVC |
 | `XDG_CACHE_HOME` | `/model-cache/xdg-cache` | General cache on PVC |
 | `HOME` | `/tmp` | Writable home for non-root user |

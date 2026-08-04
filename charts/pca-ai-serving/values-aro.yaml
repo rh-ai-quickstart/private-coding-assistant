@@ -18,9 +18,8 @@ vllm:
     # on driver 580+ (CUDA 13.0) — they caused Error 803 and were deliberately removed.
     # Add them back only if the GPU node has driver 550 (CUDA 12.4) or older.
     HF_HOME: "/model-cache"
-    # "1" = use PVC cache only (fast restarts). First bootstrap with an empty PVC:
-    # temporarily set "0" (or preload the PVC), then flip back to "1".
-    HF_HUB_OFFLINE: "1"
+    # "0" = allow Hugging Face download into an empty PVC (cold bootstrap).
+    HF_HUB_OFFLINE: "0"
     TRITON_CACHE_DIR: "/model-cache/triton-cache"
     XDG_CACHE_HOME: "/model-cache/xdg-cache"
     HOME: "/tmp"

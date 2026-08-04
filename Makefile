@@ -40,6 +40,10 @@ N ?=
 N_PARALLEL ?= 4
 DEV_USER ?=
 TYPE ?= opencode
+# Optional overrides for ai-serving-deploy-existing-openshift (empty = auto-detect from PVC).
+HF_HUB_OFFLINE ?=
+MODEL_NAME ?= qwen3-coder
+READY_TIMEOUT ?= 3600s
 DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
 # Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
 DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
@@ -59,24 +63,13 @@ shell: ## Start an interactive shell inside the container
 run: ## Run a one-shot command (usage: make run CMD="terraform plan")
 	podman run $(RUN_FLAGS) $(IMAGE_NAME) $(CMD)
 
+# Cold-aware HF_HUB_OFFLINE: missing model-cache PVC → 0 then flip to 1 after Ready;
+# PVC present → 1 directly. Override: HF_HUB_OFFLINE=0|1
 ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift (AI_NAMESPACE=, HF_TOKEN=, MCP_ENABLED=false)
-	@if [ -z "$(HF_TOKEN)" ]; then echo "ERROR: HF_TOKEN is required. Set in .env or pass HF_TOKEN=hf_xxx"; exit 1; fi
-	helm dependency update $(CHARTS_DIR)/pca-platform-config
-	helm dependency update $(CHARTS_DIR)/pca-ai-serving/charts/pca-observability
-	helm dependency update $(CHARTS_DIR)/pca-ai-serving
-	helm upgrade --install $(AI_NAMESPACE)-platform-config $(CHARTS_DIR)/pca-platform-config \
-		--namespace $(AI_NAMESPACE) --create-namespace \
-		-f $(DEPLOY_VALUES_DIR)/values-platform-config.yaml \
-		--set namespace=$(AI_NAMESPACE) \
-		--set pca-guardrails.namespace=$(AI_NAMESPACE) \
-		--set hfToken.raw=$(HF_TOKEN) \
-		$(MCP_FLAGS)
-	helm upgrade --install $(AI_NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
-		--namespace $(AI_NAMESPACE) \
-		-f $(DEPLOY_VALUES_DIR)/values-ai-serving.yaml \
-		--set namespace=$(AI_NAMESPACE) \
-		--set pca-observability.namespace=$(AI_NAMESPACE) \
-		$(HELM_ARGS)
+	@HF_TOKEN="$(HF_TOKEN)" AI_NAMESPACE="$(AI_NAMESPACE)" MCP_ENABLED="$(MCP_ENABLED)" \
+		HELM_ARGS="$(HELM_ARGS)" CHARTS_DIR="$(CHARTS_DIR)" DEPLOY_VALUES_DIR="$(DEPLOY_VALUES_DIR)" \
+		HF_HUB_OFFLINE="$(HF_HUB_OFFLINE)" MODEL_NAME="$(MODEL_NAME)" READY_TIMEOUT="$(READY_TIMEOUT)" \
+		$(DEPLOY_SCRIPTS_DIR)/ai-serving-deploy.sh
 
 # Default: helm uninstall only — keeps AI_NAMESPACE + model-cache PVC (warm restart path).
 # Full wipe (cold start next deploy): DELETE_NAMESPACE=1

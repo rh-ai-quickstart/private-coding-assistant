@@ -17,10 +17,9 @@ help: ## Show e2e help
 
 venv: $(PYTHON)
 
-$(PYTHON): pyproject.toml
+$(PYTHON): pyproject.toml uv.lock
 	@command -v uv >/dev/null || { echo "ERROR: uv not found in PATH"; exit 1; }
-	uv venv $(VENV)
-	uv pip install -p $(PYTHON) -e .
+	uv sync --frozen
 
 e2e: venv ## Run cluster e2e tests (requires oc login + Running OpenCode workspace)
 	@command -v oc >/dev/null || { echo "ERROR: oc not found in PATH"; exit 1; }
