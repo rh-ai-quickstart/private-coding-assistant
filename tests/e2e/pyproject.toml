@@ -1,0 +1,25 @@
+[project]
+name = "pca-e2e"
+version = "0.1.0"
+description = "Developer-only cluster e2e tests for Private AI Coding Assistant"
+requires-python = ">=3.11"
+dependencies = [
+  "pytest>=8.0",
+  "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+markers = [
+  "opencode: OpenCode Web / agent e2e cases (needs Running DevWorkspace)",
+  "opencode_calculator: OpenCode calculator power clone/chat e2e",
+]
+testpaths = ["."]
+pythonpath = ["."]
+norecursedirs = ["fixtures", ".venv"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pca_e2e*"]
