@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import threading
 import time
 from typing import Any
 
@@ -15,6 +17,53 @@ log = logging.getLogger(__name__)
 DEFAULT_USERNAME = "opencode"
 MESSAGE_TIMEOUT_SECS = 300
 DIRECTORY_HEADER = "x-opencode-directory"
+
+
+def _event_session_id(payload: dict[str, Any]) -> str | None:
+    """Best-effort session id from an OpenCode SSE event payload."""
+    for key in ("sessionID", "sessionId", "session_id"):
+        if payload.get(key):
+            return str(payload[key])
+    props = payload.get("properties") or payload.get("payload") or {}
+    if isinstance(props, dict):
+        for key in ("sessionID", "sessionId", "session_id"):
+            if props.get(key):
+                return str(props[key])
+        info = props.get("info") or {}
+        if isinstance(info, dict) and info.get("sessionID"):
+            return str(info["sessionID"])
+    info = payload.get("info") or {}
+    if isinstance(info, dict) and info.get("sessionID"):
+        return str(info["sessionID"])
+    return None
+
+
+def _event_is_generation_activity(payload: dict[str, Any]) -> bool:
+    """True if this event indicates assistant text/tool activity started."""
+    etype = str(payload.get("type") or payload.get("event") or "").lower()
+    activity_hints = (
+        "message.part",
+        "part.updated",
+        "part.delta",
+        "text-delta",
+        "text_delta",
+        "tool",
+        "reasoning",
+        "assistant",
+    )
+    if any(h in etype for h in activity_hints):
+        return True
+    props = payload.get("properties") or payload.get("payload") or {}
+    if not isinstance(props, dict):
+        return False
+    part = props.get("part") or props.get("delta") or {}
+    if isinstance(part, dict):
+        ptype = str(part.get("type") or "").lower()
+        if ptype in {"text", "tool", "tool-invocation", "reasoning", "step-start"}:
+            return True
+        if part.get("text") or part.get("tool") or part.get("content"):
+            return True
+    return False
 
 
 class OpenCodeError(RuntimeError):
@@ -84,6 +133,8 @@ class OpenCodeClient:
         self.base_url = base_url.rstrip("/")
         self.directory = directory
         self.timeout_secs = timeout_secs
+        self._username = username
+        self._password = password
         headers = {DIRECTORY_HEADER: directory} if directory else None
         self._client = httpx.Client(
             base_url=self.base_url,
@@ -189,6 +240,100 @@ class OpenCodeClient:
 
     def session_diff(self, session_id: str) -> Any:
         return self._request("GET", f"/session/{session_id}/diff", timeout=60.0)
+
+    def run_turn_with_generation_timing(
+        self,
+        session_id: str,
+        text: str,
+        *,
+        provider_id: str | None = None,
+        model_id: str | None = None,
+        timeout: float | None = None,
+    ) -> tuple[dict[str, Any], float]:
+        """Send a turn; return (response, generation_secs).
+
+        generation_secs starts at the first SSE activity frame for this session
+        (text/tool/part update) and ends when send_message returns. Setup such
+        as session create must happen before calling this helper.
+        """
+        wait = timeout or self.timeout_secs
+        gen_start_box: list[float] = []
+        stop = threading.Event()
+        headers = {DIRECTORY_HEADER: self.directory} if self.directory else None
+
+        def _sse_reader() -> None:
+            # Separate client: httpx.Client is not safe for concurrent use.
+            try:
+                with httpx.Client(
+                    base_url=self.base_url,
+                    auth=(self._username, self._password),
+                    verify=False,
+                    timeout=httpx.Timeout(wait + 60.0, connect=30.0),
+                    headers=headers,
+                ) as sse_client:
+                    with sse_client.stream("GET", "/event") as resp:
+                        if resp.status_code >= 400:
+                            log.warning(
+                                "OpenCode /event -> %s: %s",
+                                resp.status_code,
+                                resp.read()[:200],
+                            )
+                            return
+                        for line in resp.iter_lines():
+                            if stop.is_set():
+                                break
+                            if not line or not line.startswith("data:"):
+                                continue
+                            raw = line.split(":", 1)[1].strip()
+                            if not raw or raw == "[DONE]":
+                                continue
+                            try:
+                                payload = json.loads(raw)
+                            except json.JSONDecodeError:
+                                continue
+                            if not isinstance(payload, dict):
+                                continue
+                            sid = _event_session_id(payload)
+                            if sid and sid != session_id:
+                                continue
+                            if sid is None and not _event_is_generation_activity(
+                                payload
+                            ):
+                                continue
+                            if _event_is_generation_activity(payload) or (
+                                sid == session_id
+                                and str(payload.get("type") or "").startswith(
+                                    "message"
+                                )
+                            ):
+                                if not gen_start_box:
+                                    gen_start_box.append(time.perf_counter())
+            except Exception as exc:  # noqa: BLE001 — timing aid only
+                log.warning("OpenCode /event reader stopped: %s", exc)
+
+        reader = threading.Thread(target=_sse_reader, name="opencode-sse", daemon=True)
+        reader.start()
+        # Brief settle so the SSE subscription is open before the prompt.
+        time.sleep(0.3)
+        try:
+            resp = self.send_message(
+                session_id,
+                text,
+                provider_id=provider_id,
+                model_id=model_id,
+                timeout=wait,
+            )
+            gen_end = time.perf_counter()
+            if not gen_start_box:
+                raise OpenCodeError(
+                    "no OpenCode SSE generation frame observed for session "
+                    f"{session_id} (cannot measure generation_secs)"
+                )
+            generation_secs = max(gen_end - gen_start_box[0], 1e-6)
+            return resp, generation_secs
+        finally:
+            stop.set()
+            reader.join(timeout=2.0)
 
     def approve_pending_permissions(self, session_id: str) -> bool:
         approved = False
