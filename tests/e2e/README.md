@@ -27,3 +27,15 @@ make e2e DEV_USER=dev-user1 PYTEST_ARGS='-k opencode_calculator'
 | `test_opencode_adds_power_and_unittest_passes` | OpenCode Web API clone + chat adds `power`; `power(2,4)==16` via unittest (uses deployed OpenCode config) |
 
 Add new cases as `test_*.py` beside the OpenCode calculator test.
+
+## Performance / scalability
+
+Separate suite under `performance/` (not run by `make e2e`):
+
+```bash
+make performance N_LIST=1,2,4
+```
+
+OpenCode stage is a short load probe (creates a TODO file), not a real Model
+Registry integration. Metrics use `total_generation/s` (generation-only timing).
+See [performance/README.md](performance/README.md).

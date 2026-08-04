@@ -36,6 +36,8 @@ COMPONENT ?=
 PYTEST_ARGS ?=
 # N: DevSpace user count for devspace-deploy-existing-openshift (not used by smoke).
 N ?=
+# Performance ladder concurrency list (e.g. 1,2,4).
+N_LIST ?= 1
 # Smoke pytest-xdist workers (default 4).
 N_PARALLEL ?= 4
 DEV_USER ?=
@@ -44,7 +46,7 @@ DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
 # Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
 DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
 
-.PHONY: build shell run help smoke e2e unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
+.PHONY: build shell run help smoke e2e performance unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -141,3 +143,7 @@ e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
 	fi
 	$(MAKE) -C tests/e2e e2e \
 		DEV_USER=$(DEV_USER) DEV_NAMESPACE=$(DEV_NAMESPACE) PYTEST_ARGS='$(PYTEST_ARGS)'
+
+performance: ## Scalability ladder (N_LIST=1,2,4; AI_NAMESPACE=; needs pre-deployed OpenCode users)
+	$(MAKE) -C tests/e2e performance \
+		AI_NAMESPACE=$(AI_NAMESPACE) N_LIST=$(N_LIST) PYTEST_ARGS='$(PYTEST_ARGS)'

@@ -12,10 +12,11 @@ dependencies = [
 markers = [
   "opencode: OpenCode Web / agent e2e cases (needs Running DevWorkspace)",
   "opencode_calculator: OpenCode calculator power clone/chat e2e",
+  "performance: scalability ladder (gateway + OpenCode); use make performance",
 ]
 testpaths = ["."]
-pythonpath = ["."]
-norecursedirs = ["fixtures", ".venv"]
+pythonpath = [".", "performance"]
+norecursedirs = ["fixtures", ".venv", "performance"]
 
 [build-system]
 requires = ["setuptools>=68"]
