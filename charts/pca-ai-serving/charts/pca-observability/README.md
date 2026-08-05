@@ -68,12 +68,12 @@ Optional values overrides (`grafana.adminPassword`, `langfuse.credentials.salt`,
 
 | Board | Content | Requires Langfuse |
 |-------|---------|-------------------|
-| A | Users overview (vLLM completions, in-flight/queued, input vs output tok/s + Langfuse pointer) | yes |
-| B | UX / latency (vLLM TTFT, ITL, request latency, queue) | no |
-| C | Capacity / KV / GPU (output vs all tok/s, vLLM completions/min, GPU avg+peak, + PLACEHOLDER $/hr) | no |
-| D | Tokens / cost fairness (input vs output tok/s, vLLM completions/s) | yes |
+| A | Users overview (finished inference req/s, running vs queued, input vs output tokens/sec + Langfuse pointer) | yes |
+| B | UX / latency (TTFT, inter-token latency, end-to-end request latency, queue wait) | no |
+| C | Capacity / KV / GPU (KV cache %, GPU util avg+peak, output vs all tokens/sec, finished req/min, PLACEHOLDER $/hr) | no |
+| D | Tokens / cost fairness (input vs output tokens/sec, finished req/s, PLACEHOLDER GPU $/hr) | yes |
 
-Token naming matches the performance ladder: **output** = generation/decode only; **all/input** keep prompt visible. Grafana uses rolling 5m `rate()`; the ladder uses stage makespan — same token kind, different time base.
+Panel titles use long, definition-style names (same style as the performance ladder columns). Token naming: **output** = generation/decode only; **input/all** keep prompt visible. Grafana uses rolling 5m `rate()`; the ladder uses total stage time — same token kind, different time base.
 
 ## GPU cost PLACEHOLDER
 

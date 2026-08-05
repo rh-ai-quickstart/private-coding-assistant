@@ -16,7 +16,7 @@ data:
       "tags": ["pca", "langfuse", "users"],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 1,
+      "version": 2,
       "refresh": "30s",
       "time": { "from": "now-6h", "to": "now" },
       "panels": [
@@ -31,48 +31,49 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "vLLM completions/s",
-          "description": "Finished vLLM inference requests per second (aggregate, not per-user).",
+          "title": "vLLM finished inference requests per second",
+          "description": "Completed vLLM inference requests per second (aggregate across all users — not per-user, and not OpenCode model-step counts).",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m]))",
-              "legendFormat": "vLLM completions/s"
+              "legendFormat": "finished inference requests/sec"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "reqps" } }
         },
         {
           "type": "timeseries",
-          "title": "In-flight / queued requests",
+          "title": "vLLM requests currently running vs waiting in queue",
+          "description": "Live concurrency: running = being executed now; waiting = queued in the scheduler.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(vllm:num_requests_running) or sum(vllm_num_requests_running)",
-              "legendFormat": "in-flight"
+              "legendFormat": "requests currently running (in-flight)"
             },
             {
               "expr": "sum(vllm:num_requests_waiting) or sum(vllm_num_requests_waiting)",
-              "legendFormat": "queued"
+              "legendFormat": "requests waiting in scheduler queue"
             }
           ]
         },
         {
           "type": "timeseries",
-          "title": "Input vs output tokens/s",
-          "description": "Input = prompt/prefill; output = generation/decode. Output matches the token kind used by the performance ladder output tok/s rates.",
+          "title": "vLLM input tokens/sec (prompt/prefill) vs output tokens/sec (decode)",
+          "description": "Input = prompt/prefill tokens; output = generation/decode tokens. Output matches the token kind used by the performance ladder output tokens/sec rates.",
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:prompt_tokens_total[5m])) or sum(rate(vllm_prompt_tokens_total[5m]))",
-              "legendFormat": "input tok/s"
+              "legendFormat": "input tokens/sec (prompt / prefill)"
             },
             {
               "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
-              "legendFormat": "output tok/s"
+              "legendFormat": "output tokens/sec (decode / generation only)"
             }
           ]
         }

@@ -16,82 +16,82 @@ data:
       "tags": ["pca", "latency", "ttft"],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 1,
+      "version": 2,
       "refresh": "30s",
       "time": { "from": "now-6h", "to": "now" },
       "panels": [
         {
           "type": "timeseries",
-          "title": "vLLM TTFT p50 / p95 / p99",
-          "description": "Time to first token per vLLM request.",
+          "title": "Time to first token (TTFT) — p50 / p95 / p99",
+          "description": "Seconds from vLLM request start until the first output token. Higher under queueing or long prefills.",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p50"
+              "legendFormat": "TTFT p50 (sec)"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p95"
+              "legendFormat": "TTFT p95 (sec)"
             },
             {
               "expr": "histogram_quantile(0.99, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.99, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p99"
+              "legendFormat": "TTFT p99 (sec)"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
         },
         {
           "type": "timeseries",
-          "title": "vLLM inter-token latency p50 / p95",
-          "description": "Time between output tokens (decode pacing). Not the same as OpenCode per-request output tok/s in the performance ladder.",
+          "title": "Time between output tokens (inter-token latency) — p50 / p95",
+          "description": "Seconds between successive decode tokens (decode pacing). Not the same as OpenCode per-user output tokens/sec in the performance ladder.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(vllm:inter_token_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_time_per_output_token_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p50"
+              "legendFormat": "inter-token latency p50 (sec)"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(vllm:inter_token_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_time_per_output_token_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p95"
+              "legendFormat": "inter-token latency p95 (sec)"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
         },
         {
           "type": "timeseries",
-          "title": "vLLM request latency p50 / p95",
-          "description": "End-to-end latency per vLLM request (not OpenCode stage makespan).",
+          "title": "End-to-end vLLM request latency — p50 / p95",
+          "description": "Total time per vLLM request from arrival to completion (queue + prefill + decode). Not OpenCode total stage time (makespan).",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p50"
+              "legendFormat": "request latency p50 (sec)"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p95"
+              "legendFormat": "request latency p95 (sec)"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
         },
         {
           "type": "timeseries",
-          "title": "vLLM queue time p50 / p95",
-          "description": "Time spent waiting in the vLLM scheduler queue before execution.",
+          "title": "Time waiting in vLLM scheduler queue — p50 / p95",
+          "description": "Seconds a request spends queued before the scheduler starts executing it. Grows when GPU/KV capacity is saturated.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum(rate(vllm:request_queue_time_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_request_queue_time_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p50"
+              "legendFormat": "queue wait p50 (sec)"
             },
             {
               "expr": "histogram_quantile(0.95, sum(rate(vllm:request_queue_time_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_request_queue_time_seconds_bucket[5m])) by (le))",
-              "legendFormat": "p95"
+              "legendFormat": "queue wait p95 (sec)"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }

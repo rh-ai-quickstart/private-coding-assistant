@@ -18,7 +18,7 @@ data:
       "tags": ["pca", "cost", "tokens", "fairness"],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 1,
+      "version": 2,
       "refresh": "30s",
       "time": { "from": "now-24h", "to": "now" },
       "panels": [
@@ -33,33 +33,33 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Input tokens/s (prompt / prefill)",
-          "description": "vLLM prompt tokens processed per second (prefill). Not used in performance-ladder output tok/s rates.",
+          "title": "vLLM input tokens/sec (prompt / prefill)",
+          "description": "Prompt tokens processed per second (prefill). Not used in performance-ladder output tokens/sec rates.",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:prompt_tokens_total[5m])) or sum(rate(vllm_prompt_tokens_total[5m]))",
-              "legendFormat": "input tok/s"
+              "legendFormat": "input tokens/sec (prompt / prefill)"
             }
           ]
         },
         {
           "type": "timeseries",
-          "title": "Output tokens/s",
-          "description": "vLLM generation (decode) tokens per second — same token kind as the performance ladder output tok/s (ladder uses stage makespan; this is a rolling 5m rate).",
+          "title": "vLLM output tokens/sec (decode / generation only)",
+          "description": "Generation (decode) tokens per second — same token kind as the performance ladder output tokens/sec (ladder uses total stage time; this is a rolling 5m rate).",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
-              "legendFormat": "output tok/s"
+              "legendFormat": "output tokens/sec (decode / generation only)"
             }
           ]
         },
         {
           "type": "stat",
-          "title": "PLACEHOLDER — GPU $/hr (not billing truth)",
+          "title": "PLACEHOLDER — illustrative GPU cost ($/hour), not billing truth",
           "description": "Illustrative L40S on-demand from sizing doc. Set cost.gpuHourlyUsdIsPlaceholder: false when overridden with real rates.",
           "gridPos": { "h": 4, "w": 8, "x": 0, "y": 12 },
           "targets": [
@@ -72,13 +72,13 @@ data:
             "defaults": {
               "unit": "currencyUSD",
               "decimals": 2,
-              "displayName": "{{ if $ph }}PLACEHOLDER {{ end }}$/GPU-hr"
+              "displayName": "{{ if $ph }}PLACEHOLDER {{ end }}$/GPU-hour (illustrative)"
             }
           }
         },
         {
           "type": "stat",
-          "title": "Est. GPU burn $/day (1 GPU × placeholder rate)",
+          "title": "Estimated GPU cost per day (1 GPU × placeholder $/hour)",
           "gridPos": { "h": 4, "w": 8, "x": 8, "y": 12 },
           "targets": [
             {
@@ -90,14 +90,14 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "vLLM completions/s",
-          "description": "Finished vLLM inference requests per second. Not OpenCode model steps from the performance ladder.",
+          "title": "vLLM finished inference requests per second",
+          "description": "Completed vLLM inference requests per second. Not OpenCode total LLM model calls from the performance ladder.",
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m]))",
-              "legendFormat": "vLLM completions/s"
+              "legendFormat": "finished inference requests/sec"
             }
           ]
         }

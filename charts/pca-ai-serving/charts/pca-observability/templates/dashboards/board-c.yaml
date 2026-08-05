@@ -22,73 +22,75 @@ data:
       "tags": ["pca", "capacity", "gpu", "kv"],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 1,
+      "version": 2,
       "refresh": "30s",
       "time": { "from": "now-6h", "to": "now" },
       "panels": [
         {
           "type": "timeseries",
-          "title": "KV cache usage",
+          "title": "KV cache memory used (% of allocated)",
+          "description": "Fraction of vLLM KV-cache capacity currently in use. Rising toward 1.0 means less room for concurrent long contexts.",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "avg(vllm:kv_cache_usage_perc) or avg(vllm_kv_cache_usage_perc) or avg(vllm_gpu_cache_usage_perc)",
-              "legendFormat": "kv usage"
+              "legendFormat": "KV cache used (% of capacity)"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
         },
         {
           "type": "timeseries",
-          "title": "GPU util % (DCGM)",
-          "description": "Live avg util plus peak over the last 5m. Same intent as the performance ladder GPU peak %, but sampled from DCGM (not nvidia-smi during a stage).",
+          "title": "GPU compute utilization (%) — live average and peak over last 5m",
+          "description": "Live average GPU util plus peak over the last 5m. Same intent as the performance ladder peak GPU utilization (%), but sampled from DCGM (not nvidia-smi during a stage).",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
           "targets": [
             {
               "expr": "avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle)",
-              "legendFormat": "GPU util %"
+              "legendFormat": "GPU compute utilization (%) — live average"
             },
             {
               "expr": "max_over_time((avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle))[5m:30s])",
-              "legendFormat": "GPU util peak % (last 5m)"
+              "legendFormat": "GPU compute utilization (%) — peak over last 5m"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "percent" } }
         },
         {
           "type": "timeseries",
-          "title": "GPU memory used",
+          "title": "GPU framebuffer memory used",
+          "description": "Device memory occupied by the model weights, KV cache, and activations (DCGM framebuffer / nvidia used memory).",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
           "targets": [
             {
               "expr": "avg(DCGM_FI_DEV_FB_USED) or avg(nvidia_gpu_memory_used_bytes)",
-              "legendFormat": "FB used"
+              "legendFormat": "GPU framebuffer memory used"
             }
           ]
         },
         {
           "type": "timeseries",
-          "title": "In-flight / queued requests",
-          "description": "Live vLLM concurrency gauges (not OpenCode model-step counts from the performance ladder).",
+          "title": "vLLM requests currently running vs waiting in queue",
+          "description": "Live vLLM concurrency gauges: running = being executed now; waiting = queued in the scheduler. Not OpenCode model-step counts from the performance ladder.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(vllm:num_requests_running) or sum(vllm_num_requests_running)",
-              "legendFormat": "in-flight"
+              "legendFormat": "requests currently running (in-flight)"
             },
             {
               "expr": "sum(vllm:num_requests_waiting) or sum(vllm_num_requests_waiting)",
-              "legendFormat": "queued"
+              "legendFormat": "requests waiting in scheduler queue"
             }
           ]
         },
         {
           "type": "stat",
-          "title": "PLACEHOLDER — GPU $/hr context (override per cluster)",
+          "title": "PLACEHOLDER — illustrative GPU cost ($/hour) for sizing context only",
           "description": "Illustrative L40S on-demand from sizing doc — NOT billing truth. Set cost.gpuHourlyUsd / cost.gpuHourlyUsdIsPlaceholder in values.",
           "gridPos": { "h": 4, "w": 12, "x": 0, "y": 16 },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
@@ -96,7 +98,7 @@ data:
             {
               "expr": "{{ $gpu }}",
               "instant": true,
-              "legendFormat": "{{ if $ph }}PLACEHOLDER {{ end }}$/hr"
+              "legendFormat": "{{ if $ph }}PLACEHOLDER {{ end }}$/GPU-hour (illustrative)"
             }
           ],
           "fieldConfig": {
@@ -108,44 +110,45 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "Prefix cache hit rate",
+          "title": "GPU prefix-cache hit rate (hits ÷ queries)",
+          "description": "Share of prefix-cache lookups that hit reused KV prefixes. Higher means more prompt reuse and less prefill work.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:gpu_prefix_cache_hits[5m])) / clamp_min(sum(rate(vllm:gpu_prefix_cache_queries[5m])), 1) or sum(rate(vllm_gpu_prefix_cache_hits_total[5m])) / clamp_min(sum(rate(vllm_gpu_prefix_cache_queries_total[5m])), 1)",
-              "legendFormat": "hit rate"
+              "legendFormat": "prefix-cache hit rate"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
         },
         {
           "type": "timeseries",
-          "title": "Output vs all tokens/s",
-          "description": "Output = vLLM generation (decode) tokens only — same token kind as the performance ladder output tok/s. All = prompt + output. This panel is a rolling 5m Prometheus rate (engine-wide); the ladder divides stage output tokens by OpenCode makespan.",
+          "title": "vLLM output tokens/sec (decode) vs all tokens/sec (prompt + output)",
+          "description": "Output = vLLM generation (decode) tokens only — same token kind as the performance ladder output tokens/sec. All = prompt + output. This panel is a rolling 5m Prometheus rate (engine-wide); the ladder divides stage output tokens by OpenCode total stage time.",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
-              "legendFormat": "output tok/s"
+              "legendFormat": "output tokens/sec (decode / generation only)"
             },
             {
               "expr": "(sum(rate(vllm:prompt_tokens_total[5m])) + sum(rate(vllm:generation_tokens_total[5m]))) or (sum(rate(vllm_prompt_tokens_total[5m])) + sum(rate(vllm_generation_tokens_total[5m])))",
-              "legendFormat": "all tok/s (prompt + output)"
+              "legendFormat": "all tokens/sec (prompt/prefill + output)"
             }
           ]
         },
         {
           "type": "timeseries",
-          "title": "vLLM completions/min",
-          "description": "Finished vLLM inference requests per minute. Not the same as OpenCode model steps (LLM calls) in the performance ladder.",
+          "title": "vLLM finished inference requests per minute",
+          "description": "Completed vLLM inference requests per minute. Not the same as OpenCode total LLM model calls in the performance ladder.",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
               "expr": "60 * (sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m])))",
-              "legendFormat": "vLLM completions/min"
+              "legendFormat": "finished inference requests per minute"
             }
           ]
         }
