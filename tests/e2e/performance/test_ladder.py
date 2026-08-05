@@ -18,7 +18,8 @@ def test_performance_ladder(
 ) -> None:
     """Run OpenCode load at concurrency N.
 
-    Metrics: e2e/req output tok/s, makespan, gen span, overhead, LLM calls.
+    Metrics: e2e/req output tok/s, makespan, gen span, overhead,
+    avg prefill/decode, LLM calls.
     OpenCode only creates MODEL_REGISTRY_TODO.md (load probe). Missing
     DevSpaces fail at setup.
     """

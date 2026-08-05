@@ -20,6 +20,8 @@ All aggregates use **successful (`ok`) workers only**. Rates use **completion / 
 |-------|---------|
 | Worker lifetime | start of setup → worker finished (clone, session, generation) |
 | Generation window | first `/event` SSE activity for the session → agent turn returns (tools included) |
+| Prefill (TTFT) | prompt HTTP send → first assistant **text** token on `/event` |
+| Decode (turn-level) | first assistant text → turn end (may include later tools / model steps; not pure vLLM ITL) |
 
 ### Stage columns
 
@@ -32,6 +34,8 @@ All aggregates use **successful (`ok`) workers only**. Rates use **completion / 
 | `total stage time (sec)` | `max(worker_end) − min(worker_start)` |
 | `active generation window (sec)` | `max(gen_end) − min(gen_start)` |
 | `non-generation overhead (sec)` | total stage time − active generation window (clone/setup, etc.) |
+| `avg prefill time per user (sec)` | mean of per-user prefill (TTFT) over ok workers |
+| `avg decode time per user (sec)` | mean of per-user decode (first text → turn end) over ok workers |
 | `total output tokens` | `sum(completion_tokens)` |
 | `avg output tokens per user` | mean completion tokens per ok worker |
 | `total LLM model calls` | Sum of assistant/model messages with `output tokens > 0` |
@@ -45,7 +49,8 @@ As `N` grows:
 1. Watch **end-to-end output tokens/sec** — whole-test throughput under concurrency (includes setup).
 2. Watch **avg / p95 per-user output tokens/sec** — per-user decode rate fairness under load.
 3. Watch **total stage time / overhead / generation window** — whether slowdowns are setup vs generation.
-4. Watch **LLM model calls** — how deep the agent loop gets (many model steps per user).
+4. Watch **avg prefill / decode time** — TTFT vs post-first-token turn time under load.
+5. Watch **LLM model calls** — how deep the agent loop gets (many model steps per user).
 
 ## What it does
 

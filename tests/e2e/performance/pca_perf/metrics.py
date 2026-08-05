@@ -15,6 +15,8 @@ class WorkerResult:
     gen_end: float | None = None
     worker_start: float | None = None  # includes setup (clone, DW, session)
     worker_end: float | None = None
+    prefill_secs: float = 0.0  # prompt send → first assistant text (TTFT)
+    decode_secs: float = 0.0  # first text → turn end (may include tools)
     completion_tokens: int = 0
     llm_calls: int = 0
     error: str | None = None
@@ -34,6 +36,8 @@ class StageResult:
     makespan_secs: float = 0.0
     gen_span_secs: float = 0.0
     overhead_secs: float = 0.0
+    avg_prefill_secs: float | None = None
+    avg_decode_secs: float | None = None
     output_tokens: int = 0
     avg_output_tokens: float = 0.0
     e2e_output_tok_s: float = 0.0
@@ -99,6 +103,8 @@ def stage_from_workers(
         for w in ok_workers
         if (r := w.req_output_tok_s) is not None
     ]
+    prefills = [w.prefill_secs for w in ok_workers if w.prefill_secs > 0]
+    decodes = [w.decode_secs for w in ok_workers if w.decode_secs > 0]
     e2e = (output_tokens / makespan_secs) if makespan_secs > 0 else 0.0
     errors = [w.error for w in workers if w.error]
     return StageResult(
@@ -108,6 +114,8 @@ def stage_from_workers(
         makespan_secs=makespan_secs,
         gen_span_secs=gen_span_secs,
         overhead_secs=overhead_secs,
+        avg_prefill_secs=_mean(prefills),
+        avg_decode_secs=_mean(decodes),
         output_tokens=output_tokens,
         avg_output_tokens=(output_tokens / ok) if ok else 0.0,
         e2e_output_tok_s=e2e,
@@ -138,6 +146,8 @@ def format_report(rows: list[StageResult]) -> str:
         "total stage time (sec)",
         "active generation window (sec)",
         "non-generation overhead (sec)",
+        "avg prefill time per user (sec)",
+        "avg decode time per user (sec)",
         "total output tokens",
         "avg output tokens per user",
         "total LLM model calls",
@@ -165,6 +175,8 @@ def format_report(rows: list[StageResult]) -> str:
                     f"{r.makespan_secs:.1f}",
                     f"{r.gen_span_secs:.1f}",
                     f"{r.overhead_secs:.1f}",
+                    _fmt(r.avg_prefill_secs),
+                    _fmt(r.avg_decode_secs),
                     str(r.output_tokens),
                     f"{r.avg_output_tokens:.1f}",
                     str(r.llm_calls),

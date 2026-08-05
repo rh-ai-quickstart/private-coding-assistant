@@ -66,6 +66,35 @@ def _event_is_generation_activity(payload: dict[str, Any]) -> bool:
     return False
 
 
+def _event_is_assistant_text(payload: dict[str, Any]) -> bool:
+    """True if this event is assistant text (not tool/reasoning/step-start).
+
+    Used for TTFT / prefill: first non-empty text token or text part.
+    """
+    etype = str(payload.get("type") or payload.get("event") or "").lower()
+    if "text-delta" in etype or "text_delta" in etype:
+        return True
+    # Bare "text" event types, but not tool/reasoning disguised names.
+    if etype in {"text", "message.text", "assistant.text"}:
+        return True
+    props = payload.get("properties") or payload.get("payload") or {}
+    if not isinstance(props, dict):
+        return False
+    part = props.get("part") or props.get("delta") or {}
+    if not isinstance(part, dict):
+        return False
+    ptype = str(part.get("type") or "").lower()
+    if ptype in {"tool", "tool-invocation", "reasoning", "step-start"}:
+        return False
+    if ptype == "text":
+        text = part.get("text") or part.get("content") or ""
+        return bool(str(text).strip())
+    # text-delta style parts without explicit type
+    if part.get("text") and ptype in {"", "delta", "text-delta", "text_delta"}:
+        return bool(str(part.get("text") or "").strip())
+    return False
+
+
 class OpenCodeError(RuntimeError):
     pass
 
@@ -314,15 +343,19 @@ class OpenCodeClient:
         provider_id: str | None = None,
         model_id: str | None = None,
         timeout: float | None = None,
-    ) -> tuple[dict[str, Any], float, float, float]:
-        """Send a turn; return (response, generation_secs, gen_start, gen_end).
+    ) -> tuple[dict[str, Any], float, float, float, float, float]:
+        """Send a turn; return timing tuple for the OpenCode ladder.
 
-        generation_secs starts at the first SSE activity frame for this session
-        (text/tool/part update) and ends when send_message returns. Setup such
-        as session create must happen before calling this helper.
+        Returns:
+            (response, generation_secs, gen_start, gen_end, prefill_secs, decode_secs)
+
+        - generation_secs: first SSE activity (text/tool) → send_message returns
+        - prefill_secs: prompt send → first assistant text token (TTFT)
+        - decode_secs: first assistant text → turn end (may include later tools)
         """
         wait = timeout or self.timeout_secs
         gen_start_box: list[float] = []
+        first_text_box: list[float] = []
         stop = threading.Event()
         headers = {DIRECTORY_HEADER: self.directory} if self.directory else None
 
@@ -365,6 +398,7 @@ class OpenCodeClient:
                                 payload
                             ):
                                 continue
+                            now = time.perf_counter()
                             if _event_is_generation_activity(payload) or (
                                 sid == session_id
                                 and str(payload.get("type") or "").startswith(
@@ -372,7 +406,9 @@ class OpenCodeClient:
                                 )
                             ):
                                 if not gen_start_box:
-                                    gen_start_box.append(time.perf_counter())
+                                    gen_start_box.append(now)
+                            if _event_is_assistant_text(payload) and not first_text_box:
+                                first_text_box.append(now)
             except Exception as exc:  # noqa: BLE001 — timing aid only
                 log.warning("OpenCode /event reader stopped: %s", exc)
 
@@ -381,6 +417,7 @@ class OpenCodeClient:
         # Brief settle so the SSE subscription is open before the prompt.
         time.sleep(0.3)
         try:
+            prompt_send = time.perf_counter()
             resp = self.send_message(
                 session_id,
                 text,
@@ -394,9 +431,24 @@ class OpenCodeClient:
                     "no OpenCode SSE generation frame observed for session "
                     f"{session_id} (cannot measure generation_secs)"
                 )
+            if not first_text_box:
+                raise OpenCodeError(
+                    "no OpenCode SSE assistant text frame observed for session "
+                    f"{session_id} (cannot measure prefill_secs / decode_secs)"
+                )
             gen_start = gen_start_box[0]
+            first_text = first_text_box[0]
             generation_secs = max(gen_end - gen_start, 1e-6)
-            return resp, generation_secs, gen_start, gen_end
+            prefill_secs = max(first_text - prompt_send, 1e-6)
+            decode_secs = max(gen_end - first_text, 1e-6)
+            return (
+                resp,
+                generation_secs,
+                gen_start,
+                gen_end,
+                prefill_secs,
+                decode_secs,
+            )
         finally:
             stop.set()
             reader.join(timeout=2.0)

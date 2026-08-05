@@ -96,14 +96,21 @@ def _run_one_user(user_index: int) -> WorkerResult:
                 generation_secs: float
                 gen_start: float
                 gen_end: float
-                resp, generation_secs, gen_start, gen_end = (
-                    client.run_turn_with_generation_timing(
-                        sid,
-                        OPENCODE_PROMPT,
-                        provider_id=provider_id,
-                        model_id=model_id,
-                        timeout=timeout,
-                    )
+                prefill_secs: float
+                decode_secs: float
+                (
+                    resp,
+                    generation_secs,
+                    gen_start,
+                    gen_end,
+                    prefill_secs,
+                    decode_secs,
+                ) = client.run_turn_with_generation_timing(
+                    sid,
+                    OPENCODE_PROMPT,
+                    provider_id=provider_id,
+                    model_id=model_id,
+                    timeout=timeout,
                 )
                 llm_calls, output_from_steps = client.count_llm_calls(sid)
                 _, completion_from_resp, _ = usage_token_parts(resp)
@@ -119,6 +126,8 @@ def _run_one_user(user_index: int) -> WorkerResult:
                     gen_end=gen_end,
                     worker_start=worker_start,
                     worker_end=worker_end,
+                    prefill_secs=prefill_secs,
+                    decode_secs=decode_secs,
                     completion_tokens=completion_tokens,
                     llm_calls=llm_calls,
                 )
