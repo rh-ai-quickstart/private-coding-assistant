@@ -357,6 +357,7 @@ class OpenCodeClient:
         gen_start_box: list[float] = []
         first_text_box: list[float] = []
         stop = threading.Event()
+        sse_ready = threading.Event()
         headers = {DIRECTORY_HEADER: self.directory} if self.directory else None
 
         def _sse_reader() -> None:
@@ -377,6 +378,7 @@ class OpenCodeClient:
                                 resp.read()[:200],
                             )
                             return
+                        sse_ready.set()
                         for line in resp.iter_lines():
                             if stop.is_set():
                                 break
@@ -414,9 +416,11 @@ class OpenCodeClient:
 
         reader = threading.Thread(target=_sse_reader, name="opencode-sse", daemon=True)
         reader.start()
-        # Brief settle so the SSE subscription is open before the prompt.
-        time.sleep(0.3)
         try:
+            if not sse_ready.wait(timeout=30.0):
+                raise OpenCodeError(
+                    f"OpenCode /event SSE not ready within 30s for session {session_id}"
+                )
             prompt_send = time.perf_counter()
             resp = self.send_message(
                 session_id,
