@@ -8,23 +8,37 @@ from pathlib import Path
 
 import pytest
 
-_METRICS_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "e2e"
-    / "performance"
-    / "pca_perf"
-    / "metrics.py"
-)
+_PERF_DIR = Path(__file__).resolve().parents[1] / "e2e" / "performance" / "pca_perf"
+_METRICS_PATH = _PERF_DIR / "metrics.py"
+_GPU_PATH = _PERF_DIR / "gpu.py"
+
+
+def _load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    # gpu.py imports pca_e2e; stub if absent so _median can still be tested.
+    if name.endswith("gpu") and "pca_e2e" not in sys.modules:
+        import types
+
+        stub = types.ModuleType("pca_e2e")
+        stub_oc = types.ModuleType("pca_e2e.oc")
+        stub.oc = stub_oc
+        sys.modules["pca_e2e"] = stub
+        sys.modules["pca_e2e.oc"] = stub_oc
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture(scope="module")
 def metrics():
-    spec = importlib.util.spec_from_file_location("pca_perf_metrics", _METRICS_PATH)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["pca_perf_metrics"] = module
-    spec.loader.exec_module(module)
-    return module
+    return _load("pca_perf_metrics", _METRICS_PATH)
+
+
+@pytest.fixture(scope="module")
+def gpu_mod():
+    return _load("pca_perf_gpu", _GPU_PATH)
 
 
 def test_stage_averages_prefill_decode_ok_only(metrics):
@@ -73,9 +87,22 @@ def test_format_report_includes_prefill_decode_columns(metrics):
                 gen_end=6.0,
             )
         ],
+        gpu_util_pct=40.0,
+        gpu_median_util_pct=22.0,
     )
     report = format_report([stage])
     assert "avg prefill time per user (sec)" in report
     assert "avg decode time per user (sec)" in report
+    assert "peak GPU utilization (%)" in report
+    assert "median GPU utilization (%)" in report
     assert "| 1.5 |" in report.replace(" ", "") or "1.5" in report
     assert "3.5" in report
+    assert "40" in report
+    assert "22" in report
+
+
+def test_gpu_median(gpu_mod):
+    assert gpu_mod._median([]) is None
+    assert gpu_mod._median([10.0]) == 10.0
+    assert gpu_mod._median([10.0, 30.0, 20.0]) == 20.0
+    assert gpu_mod._median([10.0, 20.0]) == 15.0

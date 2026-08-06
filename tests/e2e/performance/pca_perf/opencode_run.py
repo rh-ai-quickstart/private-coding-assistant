@@ -146,4 +146,10 @@ def run_opencode_stage(*, ai_namespace: str, n: int):
             for fut in as_completed(futures):
                 workers.append(fut.result())
         peak_gpu = sampler.peak_util_pct
-    return stage_from_workers(n, workers, gpu_util_pct=peak_gpu)
+        median_gpu = sampler.median_util_pct
+    return stage_from_workers(
+        n,
+        workers,
+        gpu_util_pct=peak_gpu,
+        gpu_median_util_pct=median_gpu,
+    )

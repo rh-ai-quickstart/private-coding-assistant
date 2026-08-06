@@ -65,13 +65,19 @@ def test_stage_averages_prefill_decode_ok_workers_only() -> None:
         ),
         WorkerResult(ok=False, error="boom"),
     ]
-    stage = stage_from_workers(3, workers, gpu_util_pct=40.0)
+    stage = stage_from_workers(
+        3, workers, gpu_util_pct=40.0, gpu_median_util_pct=22.0
+    )
     assert stage.ok == 2
     assert stage.failed == 1
     assert stage.avg_prefill_secs == 3.0
     assert stage.avg_decode_secs == 7.0
+    assert stage.gpu_util_pct == 40.0
+    assert stage.gpu_median_util_pct == 22.0
     report = format_report([stage])
     assert "avg prefill time per user (sec)" in report
     assert "avg decode time per user (sec)" in report
+    assert "median GPU utilization (%)" in report
     assert "3.0" in report
     assert "7.0" in report
+    assert "22" in report

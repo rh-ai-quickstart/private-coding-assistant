@@ -72,8 +72,18 @@ def gpu_utilization_percent(ai_namespace: str) -> float | None:
     return sum(values) / len(values)
 
 
+def _median(values: list[float]) -> float | None:
+    if not values:
+        return None
+    xs = sorted(values)
+    mid = len(xs) // 2
+    if len(xs) % 2 == 1:
+        return xs[mid]
+    return (xs[mid - 1] + xs[mid]) / 2.0
+
+
 class GpuSampler:
-    """Background nvidia-smi sampler; exposes peak util during a stage."""
+    """Background nvidia-smi sampler; exposes peak/median util during a stage."""
 
     def __init__(self, ai_namespace: str, *, interval_secs: float = 2.0) -> None:
         self.ai_namespace = ai_namespace
@@ -103,6 +113,11 @@ class GpuSampler:
             if not self._samples:
                 return None
             return max(self._samples)
+
+    @property
+    def median_util_pct(self) -> float | None:
+        with self._lock:
+            return _median(self._samples)
 
     def _run(self) -> None:
         while not self._stop.is_set():
