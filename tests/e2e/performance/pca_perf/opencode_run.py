@@ -13,7 +13,7 @@ from pca_e2e import opencode as ocapi
 
 from pca_perf.config import REPO_DIR, REPO_URL, opencode_timeout_secs, user_namespace
 from pca_perf.gpu import GpuSampler
-from pca_perf.metrics import WorkerResult, stage_from_workers, usage_token_parts
+from pca_perf.metrics import StageResult, WorkerResult, stage_from_workers, usage_token_parts
 
 log = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ def _run_one_user(user_index: int) -> WorkerResult:
         return WorkerResult(ok=False, error=f"{ns}: {exc}")
 
 
-def run_opencode_stage(*, ai_namespace: str, n: int):
+def run_opencode_stage(*, ai_namespace: str, n: int) -> StageResult:
     workers: list[WorkerResult] = []
     with GpuSampler(ai_namespace) as sampler:
         with ThreadPoolExecutor(max_workers=n) as pool:
