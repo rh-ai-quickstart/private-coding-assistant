@@ -15,6 +15,11 @@ def ai_namespace() -> str:
     return os.environ.get("AI_NAMESPACE", "private-assistant-ai-serving").strip()
 
 
+def model_name() -> str:
+    """InferenceService / LLMInferenceService name (chart model.name)."""
+    return os.environ.get("MODEL_NAME", "qwen3-coder").strip()
+
+
 def parse_n_list(raw: str | None = None) -> list[int]:
     text = (raw if raw is not None else os.environ.get("N_LIST", "1")).strip()
     if not text:

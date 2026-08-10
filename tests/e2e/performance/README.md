@@ -89,6 +89,7 @@ Optional env:
 | Var | Default | Meaning |
 |-----|---------|---------|
 | `AI_NAMESPACE` | `private-assistant-ai-serving` | AI serving namespace |
+| `MODEL_NAME` | `qwen3-coder` | InferenceService / LLMInferenceService name (`model.name`) for GPU sampling fallback |
 | `PERF_OPENCODE_TIMEOUT` | `300` | Per-OpenCode agent turn (seconds) |
 
 `N=1` is the single-user baseline row of the same ladder.

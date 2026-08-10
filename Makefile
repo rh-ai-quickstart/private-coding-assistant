@@ -38,6 +38,8 @@ PYTEST_ARGS ?=
 N ?=
 # Performance ladder concurrency list (e.g. 1,2,4).
 N_LIST ?= 16
+# InferenceService / LLMInferenceService name for performance GPU sampling.
+MODEL_NAME ?= qwen3-coder
 # Smoke pytest-xdist workers (default 4).
 N_PARALLEL ?= 4
 DEV_USER ?=
@@ -144,6 +146,6 @@ e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
 	$(MAKE) -C tests/e2e e2e \
 		DEV_USER=$(DEV_USER) DEV_NAMESPACE=$(DEV_NAMESPACE) PYTEST_ARGS='$(PYTEST_ARGS)'
 
-performance: ## OpenCode scalability ladder (N_LIST=1,2,4,8 16; AI_NAMESPACE=; needs pre-deployed OpenCode users) default 16
+performance: ## OpenCode scalability ladder (N_LIST=1,2,4,8 16; AI_NAMESPACE=; MODEL_NAME=; needs pre-deployed OpenCode users) default 16
 	$(MAKE) -C tests/e2e performance \
-		AI_NAMESPACE=$(AI_NAMESPACE) N_LIST=$(N_LIST) PYTEST_ARGS='$(PYTEST_ARGS)'
+		AI_NAMESPACE=$(AI_NAMESPACE) MODEL_NAME=$(MODEL_NAME) N_LIST=$(N_LIST) PYTEST_ARGS='$(PYTEST_ARGS)'
