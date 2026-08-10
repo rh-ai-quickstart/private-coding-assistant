@@ -146,10 +146,20 @@ def run_opencode_stage(*, ai_namespace: str, n: int) -> StageResult:
             for fut in as_completed(futures):
                 workers.append(fut.result())
         peak_gpu = sampler.peak_util_pct
-        median_gpu = sampler.median_util_pct
+        gen_starts = [
+            w.gen_start for w in workers if w.ok and w.gen_start is not None
+        ]
+        gen_ends = [w.gen_end for w in workers if w.ok and w.gen_end is not None]
+        if gen_starts and gen_ends:
+            # Mean over active generation window only (not clone/setup idle).
+            mean_gpu = sampler.mean_util_pct_between(
+                min(gen_starts), max(gen_ends)
+            )
+        else:
+            mean_gpu = sampler.mean_util_pct
     return stage_from_workers(
         n,
         workers,
         gpu_util_pct=peak_gpu,
-        gpu_median_util_pct=median_gpu,
+        gpu_mean_util_pct=mean_gpu,
     )

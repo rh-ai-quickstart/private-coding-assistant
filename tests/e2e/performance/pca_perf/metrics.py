@@ -47,7 +47,7 @@ class StageResult:
     llm_calls: int = 0
     avg_llm_calls: float = 0.0
     gpu_util_pct: float | None = None
-    gpu_median_util_pct: float | None = None
+    gpu_mean_util_pct: float | None = None
     errors: list[str] = field(default_factory=list)
 
 
@@ -75,7 +75,7 @@ def stage_from_workers(
     workers: list[WorkerResult],
     *,
     gpu_util_pct: float | None = None,
-    gpu_median_util_pct: float | None = None,
+    gpu_mean_util_pct: float | None = None,
 ) -> StageResult:
     ok_workers = [w for w in workers if w.ok]
     ok = len(ok_workers)
@@ -127,7 +127,7 @@ def stage_from_workers(
         llm_calls=llm_calls,
         avg_llm_calls=(llm_calls / ok) if ok else 0.0,
         gpu_util_pct=gpu_util_pct,
-        gpu_median_util_pct=gpu_median_util_pct,
+        gpu_mean_util_pct=gpu_mean_util_pct,
         errors=errors,
     )
 
@@ -156,7 +156,7 @@ def format_report(rows: list[StageResult]) -> str:
         "total LLM model calls",
         "avg LLM model calls per user",
         "peak GPU utilization (%)",
-        "median GPU utilization (%)",
+        "mean GPU utilization (%)",
     )
     lines = [
         "Performance ladder results",
@@ -167,9 +167,9 @@ def format_report(rows: list[StageResult]) -> str:
     ]
     for r in rows:
         gpu = f"{r.gpu_util_pct:.0f}" if r.gpu_util_pct is not None else "n/a"
-        gpu_med = (
-            f"{r.gpu_median_util_pct:.0f}"
-            if r.gpu_median_util_pct is not None
+        gpu_mean = (
+            f"{r.gpu_mean_util_pct:.0f}"
+            if r.gpu_mean_util_pct is not None
             else "n/a"
         )
         lines.append(
@@ -191,7 +191,7 @@ def format_report(rows: list[StageResult]) -> str:
                     str(r.llm_calls),
                     f"{r.avg_llm_calls:.1f}",
                     gpu,
-                    gpu_med,
+                    gpu_mean,
                 ]
             )
         )

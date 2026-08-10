@@ -40,8 +40,8 @@ All aggregates use **successful (`ok`) workers only**. Rates use **completion / 
 | `avg output tokens per user` | mean completion tokens per ok worker |
 | `total LLM model calls` | Sum of assistant/model messages with `output tokens > 0` |
 | `avg LLM model calls per user` | total LLM model calls / ok |
-| `peak GPU utilization (%)` | Peak `nvidia-smi` util sampled every ~2s during the stage |
-| `median GPU utilization (%)` | Median of those same `nvidia-smi` samples during the stage |
+| `peak GPU utilization (%)` | Peak `nvidia-smi` util over the whole stage (setup + generation) |
+| `mean GPU utilization (%)` | Mean `nvidia-smi` util inside the **active generation window** only (`min(gen_start)` → `max(gen_end)`); setup idle is excluded |
 
 ### How to read the ladder
 

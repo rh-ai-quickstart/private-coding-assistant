@@ -18,15 +18,24 @@ def _load(name: str, path: Path):
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
-    # gpu.py imports pca_e2e; stub if absent so _median can still be tested.
-    if name.endswith("gpu") and "pca_e2e" not in sys.modules:
+    # gpu.py imports pca_e2e + pca_perf.config; stub if absent so _mean can
+    # still be tested without the e2e package path.
+    if name.endswith("gpu"):
         import types
 
-        stub = types.ModuleType("pca_e2e")
-        stub_oc = types.ModuleType("pca_e2e.oc")
-        stub.oc = stub_oc
-        sys.modules["pca_e2e"] = stub
-        sys.modules["pca_e2e.oc"] = stub_oc
+        if "pca_e2e" not in sys.modules:
+            stub = types.ModuleType("pca_e2e")
+            stub_oc = types.ModuleType("pca_e2e.oc")
+            stub.oc = stub_oc
+            sys.modules["pca_e2e"] = stub
+            sys.modules["pca_e2e.oc"] = stub_oc
+        if "pca_perf" not in sys.modules:
+            stub_perf = types.ModuleType("pca_perf")
+            stub_cfg = types.ModuleType("pca_perf.config")
+            stub_cfg.model_name = lambda: "qwen3-coder"
+            stub_perf.config = stub_cfg
+            sys.modules["pca_perf"] = stub_perf
+            sys.modules["pca_perf.config"] = stub_cfg
     spec.loader.exec_module(module)
     return module
 
@@ -88,21 +97,21 @@ def test_format_report_includes_prefill_decode_columns(metrics):
             )
         ],
         gpu_util_pct=40.0,
-        gpu_median_util_pct=22.0,
+        gpu_mean_util_pct=22.0,
     )
     report = format_report([stage])
     assert "avg prefill time per user (sec)" in report
     assert "avg decode time per user (sec)" in report
     assert "peak GPU utilization (%)" in report
-    assert "median GPU utilization (%)" in report
+    assert "mean GPU utilization (%)" in report
     assert "| 1.5 |" in report.replace(" ", "") or "1.5" in report
     assert "3.5" in report
     assert "40" in report
     assert "22" in report
 
 
-def test_gpu_median(gpu_mod):
-    assert gpu_mod._median([]) is None
-    assert gpu_mod._median([10.0]) == 10.0
-    assert gpu_mod._median([10.0, 30.0, 20.0]) == 20.0
-    assert gpu_mod._median([10.0, 20.0]) == 15.0
+def test_gpu_mean(gpu_mod):
+    assert gpu_mod._mean([]) is None
+    assert gpu_mod._mean([10.0]) == 10.0
+    assert gpu_mod._mean([10.0, 30.0, 20.0]) == 20.0
+    assert gpu_mod._mean([10.0, 20.0]) == 15.0

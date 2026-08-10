@@ -9,6 +9,7 @@ import time
 from typing import Self
 
 from pca_e2e import oc
+
 from pca_perf.config import model_name
 
 log = logging.getLogger(__name__)
@@ -96,22 +97,21 @@ def gpu_utilization_percent(
     return parse_nvidia_smi_util_lines(smi.stdout or "")
 
 
-def _median(values: list[float]) -> float | None:
+def _mean(values: list[float]) -> float | None:
     if not values:
         return None
-    xs = sorted(values)
-    mid = len(xs) // 2
-    if len(xs) % 2 == 1:
-        return xs[mid]
-    return (xs[mid - 1] + xs[mid]) / 2.0
+    return sum(values) / len(values)
 
 
 class GpuSampler:
-    """Background nvidia-smi sampler; exposes peak/median util during a stage.
+    """Background nvidia-smi sampler; exposes peak/mean util during a stage.
 
     Prefers one long-lived ``nvidia-smi -l 1`` stream (catches short decode
     bursts). Falls back to periodic one-shot ``oc exec`` polls if streaming
     cannot start.
+
+    Samples are ``(time.perf_counter(), util)`` so mean can be scoped to the
+    active generation window (first gen_start → last gen_end).
     """
 
     def __init__(self, ai_namespace: str, *, interval_secs: float = 2.0) -> None:
@@ -120,7 +120,7 @@ class GpuSampler:
         self.interval_secs = interval_secs
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self._samples: list[float] = []
+        self._samples: list[tuple[float, float]] = []
         self._lock = threading.Lock()
         self._proc: subprocess.Popen[str] | None = None
 
@@ -144,16 +144,23 @@ class GpuSampler:
         with self._lock:
             if not self._samples:
                 return None
-            return max(self._samples)
+            return max(u for _, u in self._samples)
 
     @property
-    def median_util_pct(self) -> float | None:
+    def mean_util_pct(self) -> float | None:
+        """Mean over all stage samples (setup + generation). Fallback only."""
         with self._lock:
-            return _median(self._samples)
+            return _mean([u for _, u in self._samples])
 
-    def _append(self, util: float) -> None:
+    def mean_util_pct_between(self, start: float, end: float) -> float | None:
+        """Mean of samples with ``start <= t <= end`` (perf_counter times)."""
         with self._lock:
-            self._samples.append(util)
+            vals = [u for t, u in self._samples if start <= t <= end]
+            return _mean(vals)
+
+    def _append(self, util: float, *, t: float | None = None) -> None:
+        with self._lock:
+            self._samples.append((time.perf_counter() if t is None else t, util))
 
     def _terminate_stream(self) -> None:
         proc = self._proc
