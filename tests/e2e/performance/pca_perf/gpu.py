@@ -6,6 +6,7 @@ import logging
 import subprocess
 import threading
 import time
+from typing import Self
 
 from pca_e2e import oc
 from pca_perf.config import model_name
@@ -123,7 +124,7 @@ class GpuSampler:
         self._lock = threading.Lock()
         self._proc: subprocess.Popen[str] | None = None
 
-    def __enter__(self) -> GpuSampler:
+    def __enter__(self) -> Self:
         self._stop.clear()
         self._thread = threading.Thread(
             target=self._run, name="gpu-sampler", daemon=True
@@ -210,20 +211,16 @@ class GpuSampler:
         self._proc = proc
         return proc
 
-    def _run_stream(self, proc: subprocess.Popen[str]) -> bool:
-        """Read streaming nvidia-smi lines until stop. Return True if any sample."""
-        got_sample = False
+    def _run_stream(self, proc: subprocess.Popen[str]) -> None:
+        """Read streaming nvidia-smi lines until stop or EOF."""
         assert proc.stdout is not None
         while not self._stop.is_set():
             line = proc.stdout.readline()
             if line == "":
-                # EOF — process ended
                 break
             util = parse_nvidia_smi_util_lines(line)
             if util is not None:
                 self._append(util)
-                got_sample = True
-        return got_sample
 
     def _run_poll_loop(self, pod: str | None) -> None:
         """Fallback: one-shot oc exec samples (slower; may miss short bursts)."""
