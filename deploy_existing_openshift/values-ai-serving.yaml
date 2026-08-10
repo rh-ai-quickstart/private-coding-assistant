@@ -8,9 +8,16 @@ tokens:
   total: 32000
   output: 8192
 vllm:
-  # L40S 48GB: skip CUDA graphs so KV profiling fits after ~34GiB MoE weights.
-  # Override to false on 80GB+ GPUs if you want max throughput.
-  enforceEager: true
+  # L40S 48GB + Qwen3.6 MoE FP8: CUDA graphs for decode throughput.
+  # FULL_DECODE_ONLY + expandable alloc: full cudagraph profile OOMs by ~1GiB on L40S.
+  enforceEager: false
+  kvCacheDtype: "fp8"
+  gpuMemoryUtilization: "0.90"
+  extraArgs:
+    # Qwen3.6 hybrid (Mamba) needs max-num-batched-tokens >= block_size (~2096).
+    - --max-num-batched-tokens=16384
+    - --performance-mode=throughput
+    - '--compilation-config={"cudagraph_mode":"FULL_DECODE_ONLY","max_cudagraph_capture_size":32}'
   extraEnv:
     HF_HOME: "/model-cache"
     # Ignored at render: chart PVC lookup sets HF_HUB_OFFLINE (cold/warm).
@@ -20,6 +27,7 @@ vllm:
     HOME: "/tmp"
     DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
     VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
 # Self-signed cert for llm-d / RHCL gateways (LLMInferenceService no longer creates kserve-self-signed-certs).
 tlsJob:
   enabled: true

@@ -54,8 +54,11 @@ The base `charts/pca-ai-serving/values.yaml` sets the default; cloud overlays an
 |-------|-------|
 | `tokens.total` | `32000` on all paths (chart default, ROSA, ARO, existing OpenShift). Maps to vLLM `--max-model-len` and OpenCode `limit.context`. Raise only if the GPU has enough VRAM; reduce if the model OOMs on load. |
 | `tokens.output` | `8192` completion budget for OpenCode / Continue / Roo / Cline (must be less than `tokens.total`). |
-| `vllm.enforceEager` | Set `true` on tight 48 GB cards (e.g. L40S) to skip CUDA graph capture and recover several GB of VRAM at the cost of throughput. |
+| `vllm.enforceEager` | Set `true` only if cudagraph capture OOMs on tight 48 GB cards. Prefer `false` + `kvCacheDtype=fp8` for decode throughput. |
+| `vllm.kvCacheDtype` | e.g. `"fp8"` — cuts KV VRAM vs auto; needed on L40S so CUDA graphs fit after MoE weights. |
 | `vllm.gpuMemoryUtilization` | Optional fraction (e.g. `"0.90"`); leave empty to use vLLM's default. Lower if KV cache allocation fails at startup. |
+| `vllm.extraArgs` | Extra vLLM CLI flags (list). Existing OpenShift L40S uses `FULL_DECODE_ONLY` cudagraphs, `--performance-mode=throughput`, and `--max-num-batched-tokens=16384`. |
+| `vllm.enableThinking` | When `false`, emits `--default-chat-template-kwargs={"enable_thinking":false}` (vLLM ≥ 0.19). |
 
 ### VRAM rule of thumb
 

@@ -39,9 +39,15 @@ vllm:
   # Use false when the model's thinking blocks exceed test max_tokens budgets.
   enableThinking: true
   # Skip CUDA graphs (helps L40S/48GB when weights already fill most of VRAM).
+  # Prefer false + kvCacheDtype=fp8 when KV headroom allows — much higher decode tok/s.
   enforceEager: false
   # Optional vLLM --gpu-memory-utilization (empty = vLLM default).
   gpuMemoryUtilization: ""
+  # FP8 KV cache (custom runtime + LLMInferenceService). Frees VRAM vs auto/fp16 KV.
+  kvCacheDtype: "fp8"
+  # Extra vLLM CLI args (appended after chart defaults). Example:
+  # ['--compilation-config={"cudagraph_mode":"FULL_DECODE_ONLY"}']
+  extraArgs: []
 hardware:
   gpuProduct: "g6e.2xlarge"
   instanceTypeLabel: "node.kubernetes.io/instance-type"

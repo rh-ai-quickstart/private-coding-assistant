@@ -42,6 +42,9 @@ spec:
         - --enable-auto-tool-choice
         - --tool-call-parser={{ .Values.vllm.toolCallParser }}
         - --reasoning-parser={{ .Values.vllm.reasoningParser }}
+        {{- if .Values.vllm.kvCacheDtype }}
+        - --kv-cache-dtype={{ .Values.vllm.kvCacheDtype }}
+        {{- end }}
         {{- if .Values.vllm.enforceEager }}
         - --enforce-eager
         {{- end }}
@@ -49,8 +52,11 @@ spec:
         - --gpu-memory-utilization={{ .Values.vllm.gpuMemoryUtilization }}
         {{- end }}
         {{- if not .Values.vllm.enableThinking }}
-        - --chat-template-kwargs
-        - '{"enable_thinking": false}'
+        # vLLM >= 0.19: --default-chat-template-kwargs (not --chat-template-kwargs).
+        - --default-chat-template-kwargs={"enable_thinking":false}
+        {{- end }}
+        {{- range .Values.vllm.extraArgs }}
+        - {{ . | quote }}
         {{- end }}
       env:
         - name: HF_HUB_OFFLINE
