@@ -19,5 +19,7 @@ spec:
   devEnvironments:
     defaultNamespace:
       template: "<username>-devspaces"
+    # -1 disables inactivity idling so workspace pods stay Running until stopped.
+    secondsOfInactivityBeforeIdling: -1
   networking: {}
 {{- end }}
