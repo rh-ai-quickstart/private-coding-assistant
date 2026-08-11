@@ -1,0 +1,182 @@
+{{- if .Values.enabled }}
+{{- $ns := .Values.namespace }}
+{{- $gw := .Values.gateway.url | default (printf "http://qwen3-coder-predictor.%s.svc.cluster.local" $ns) }}
+{{- $job := .Values.jobName | default "guidellm-capacity" }}
+# GuideLLM capacity sweep against live llm-d → vLLM (stateless Job; results in logs).
+# Concurrent ladder + optional throughput probe per workload shape.
+# Do not run alongside OpenCode make performance (shared GPU).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $job }}
+  namespace: {{ $ns }}
+  labels:
+    app: guidellm
+    app.kubernetes.io/name: pca-benchmarks
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: guidellm
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: guidellm
+          image: {{ .Values.image | quote }}
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu | quote }}
+              memory: {{ .Values.resources.requests.memory | quote }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu | quote }}
+              memory: {{ .Values.resources.limits.memory | quote }}
+          env:
+            - name: HF_TOKEN
+              value: ""
+            - name: HF_HOME
+              value: "/tmp/hf-cache"
+            - name: HOME
+              value: "/tmp"
+            - name: GUIDELLM_TARGET
+              value: {{ $gw | quote }}
+            - name: GUIDELLM_MODEL
+              value: {{ .Values.model.id | quote }}
+            - name: GUIDELLM_STREAMS
+              value: {{ .Values.streams | quote }}
+            - name: GUIDELLM_MAX_REQUESTS
+              value: {{ .Values.maxRequests | default "" | quote }}
+            - name: GUIDELLM_WARMUP
+              value: {{ .Values.warmupPercent | default "" | quote }}
+            - name: GUIDELLM_COOLDOWN
+              value: {{ .Values.cooldownPercent | default "" | quote }}
+            - name: GUIDELLM_HTTP2
+              value: {{ .Values.http2 | default false | quote }}
+            - name: GUIDELLM_RUN_THROUGHPUT
+              # Do not use `default true` — in Sprig, false is empty so it becomes true.
+              value: {{ .Values.runThroughputProbe | quote }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              TARGET="${GUIDELLM_TARGET}"
+              MODEL="${GUIDELLM_MODEL}"
+              STREAMS="${GUIDELLM_STREAMS}"
+              MAX_REQUESTS="${GUIDELLM_MAX_REQUESTS:-}"
+              WARMUP="${GUIDELLM_WARMUP:-}"
+              COOLDOWN="${GUIDELLM_COOLDOWN:-}"
+              HTTP2="${GUIDELLM_HTTP2:-false}"
+              RUN_THROUGHPUT="${GUIDELLM_RUN_THROUGHPUT}"
+              RESULTS_DIR="/tmp/guidellm-results"
+              mkdir -p "${RESULTS_DIR}"
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+              echo "============================================"
+              echo "GuideLLM capacity sweep (stateless — use Job logs)"
+              echo "Target: ${TARGET}"
+              echo "Model:  ${MODEL}"
+              echo "Streams (concurrent): ${STREAMS}"
+              echo "max_requests: ${MAX_REQUESTS:-default}"
+              echo "http2: ${HTTP2}"
+              echo "Started: $(date -u)"
+              echo "============================================"
+
+              echo "Waiting for model endpoint..."
+              ready=0
+              for i in $(seq 1 60); do
+                if curl -skf "${TARGET}/v1/models" > /dev/null 2>&1; then
+                  echo "Model endpoint is ready."
+                  ready=1
+                  break
+                fi
+                echo "  Waiting... ($i/60)"
+                sleep 10
+              done
+              if [ "${ready}" != "1" ]; then
+                echo "ERROR: model endpoint not ready at ${TARGET}/v1/models"
+                exit 1
+              fi
+
+              run_one() {
+                local rate_type=$1
+                local prompt_tokens=$2
+                local output_tokens=$3
+                local max_seconds=$4
+                local label=$5
+                local out="${RESULTS_DIR}/${label}_${rate_type}_${TIMESTAMP}.json"
+                local -a extra_args=()
+                if [ -n "${MAX_REQUESTS}" ]; then
+                  extra_args+=(--max-requests "${MAX_REQUESTS}")
+                fi
+                if [ -n "${WARMUP}" ]; then
+                  extra_args+=(--warmup-percent "${WARMUP}")
+                fi
+                if [ -n "${COOLDOWN}" ]; then
+                  extra_args+=(--cooldown-percent "${COOLDOWN}")
+                fi
+                if [ "${HTTP2}" = "true" ] || [ "${HTTP2}" = "True" ]; then
+                  extra_args+=(--backend-args '{"http2": true}')
+                else
+                  extra_args+=(--backend-args '{"http2": false}')
+                fi
+
+                echo ""
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "Benchmark: ${label} (${rate_type})"
+                echo "  prompt_tokens=${prompt_tokens}, output_tokens=${output_tokens}"
+                echo "  max_seconds=${max_seconds} (per strategy)"
+                if [ -n "${MAX_REQUESTS}" ]; then
+                  echo "  max_requests=${MAX_REQUESTS} (per strategy)"
+                fi
+                if [ "${rate_type}" = "concurrent" ]; then
+                  echo "  streams=${STREAMS}"
+                fi
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+                # Image CLI: guidellm benchmark run (not newer 'guidellm run').
+                # Failures are non-fatal so one cliff/OOM shape does not abort the Job.
+                set +e
+                if [ "${rate_type}" = "concurrent" ]; then
+                  guidellm benchmark run \
+                    --target "${TARGET}/v1" \
+                    --model "${MODEL}" \
+                    --data "prompt_tokens=${prompt_tokens},output_tokens=${output_tokens}" \
+                    --rate-type concurrent \
+                    --rate "${STREAMS}" \
+                    --max-seconds "${max_seconds}" \
+                    --output-path "${out}" \
+                    "${extra_args[@]}" 2>&1
+                else
+                  guidellm benchmark run \
+                    --target "${TARGET}/v1" \
+                    --model "${MODEL}" \
+                    --data "prompt_tokens=${prompt_tokens},output_tokens=${output_tokens}" \
+                    --rate-type throughput \
+                    --max-seconds "${max_seconds}" \
+                    --output-path "${out}" \
+                    "${extra_args[@]}" 2>&1
+                fi
+                local rc=$?
+                set -e
+                if [ "${rc}" -ne 0 ]; then
+                  echo "Benchmark ${label}/${rate_type} failed (non-fatal, rc=${rc})"
+                else
+                  echo "Wrote ephemeral ${out} (capture metrics from Job logs above)"
+                fi
+              }
+
+              {{- range .Values.workloads }}
+              run_one concurrent {{ .promptTokens }} {{ .outputTokens }} {{ .maxSeconds }} {{ .label | quote }}
+              if [ "${RUN_THROUGHPUT}" = "true" ] || [ "${RUN_THROUGHPUT}" = "True" ]; then
+                run_one throughput {{ .promptTokens }} {{ .outputTokens }} {{ .maxSeconds }} {{ .label | quote }}
+              fi
+              {{- end }}
+
+              echo ""
+              echo "============================================"
+              echo "All benchmarks complete: $(date -u)"
+              echo "Results are in Job logs (no PVC)."
+              echo "============================================"
+{{- end }}

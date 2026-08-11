@@ -6,6 +6,7 @@ Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GP
 |--------|-----------------|
 | `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel; RHCL AI Gateway front door |
 | `make devspace-deploy-existing-openshift` | OpenCode DevWorkspaces as `dev-userN` in `dev-userN-devspaces` (`N=<count>` or single `DEV_USER=`); `TYPE=continue` for Continue/Roo/Cline |
+| `make performance-vllm` | GuideLLM capacity Job against live vLLM predictor (opt-in; see [docs/benchmarks.md](../docs/benchmarks.md)) |
 
 `ai-serving-deploy-existing-openshift` must run first. With `N=`, the first user owns global ConfigMaps in `openshift-devspaces`; later users get `devspacesGlobalConfig.enabled=false` automatically. `N` creates N namespaces (`dev-userN-devspaces`), each with one DevWorkspace named `code-workspace-1` (separate Helm release per user — not one release with N workspaces). Do **not** use `private-assistant-*` as a DevSpace namespace (that prefix is only for AI serving).
 
@@ -82,6 +83,7 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 | `make ai-serving-undeploy-existing-openshift` | Remove AI serving Helm releases; **keeps** `AI_NAMESPACE` + `model-cache` PVC |
 | `make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1` | Full wipe (deletes namespace/PVC → cold start next deploy) |
 | `make devspace-undeploy-existing-openshift` | Remove one DevSpace (`DEV_USER=` required) |
+| `make performance-vllm` | GuideLLM capacity sweep on live vLLM (`AI_NAMESPACE=`); **do not** run alongside `make performance` |
 
 ## Authentication and Identity Provider Configuration
 

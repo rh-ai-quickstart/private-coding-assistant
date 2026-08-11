@@ -1,4 +1,4 @@
 apiVersion: v2
 name: pca-benchmarks
 version: 0.1.0
-description: PCA Benchmarks — GuideLLM sweep
+description: PCA Benchmarks — GuideLLM capacity sweep (concurrent + throughput)

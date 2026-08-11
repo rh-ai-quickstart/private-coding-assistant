@@ -48,7 +48,7 @@ DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
 # Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
 DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
 
-.PHONY: build shell run help smoke e2e performance unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
+.PHONY: build shell run help smoke e2e performance performance-vllm unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -146,6 +146,24 @@ e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
 	$(MAKE) -C tests/e2e e2e \
 		DEV_USER=$(DEV_USER) DEV_NAMESPACE=$(DEV_NAMESPACE) PYTEST_ARGS='$(PYTEST_ARGS)'
 
+# Do not run alongside make performance-vllm — shared vLLM/GPU.
 performance: ## OpenCode scalability ladder (N_LIST=1,2,4,8 16; AI_NAMESPACE=; MODEL_NAME=; needs pre-deployed OpenCode users) default 16
 	$(MAKE) -C tests/e2e performance \
 		AI_NAMESPACE=$(AI_NAMESPACE) MODEL_NAME=$(MODEL_NAME) N_LIST=$(N_LIST) PYTEST_ARGS='$(PYTEST_ARGS)'
+
+# Do not run alongside make performance — shared vLLM/GPU.
+# GuideLLM Job → vLLM predictor HTTP (concurrent streams + throughput probe).
+performance-vllm: ## GuideLLM capacity sweep on live vLLM (AI_NAMESPACE=; HELM_ARGS=)
+	@command -v oc >/dev/null || { echo "ERROR: oc not found in PATH"; exit 1; }
+	@command -v helm >/dev/null || { echo "ERROR: helm not found in PATH"; exit 1; }
+	@echo "NOTE: Do not run make performance in parallel — shared vLLM/GPU."
+	oc delete job guidellm-capacity -n $(AI_NAMESPACE) --ignore-not-found
+	oc delete job guidellm-sweep-h100 -n $(AI_NAMESPACE) --ignore-not-found
+	helm upgrade --install $(AI_NAMESPACE)-benchmarks $(CHARTS_DIR)/pca-benchmarks \
+		--namespace $(AI_NAMESPACE) \
+		-f $(DEPLOY_VALUES_DIR)/values-benchmarks.yaml \
+		--set namespace=$(AI_NAMESPACE) \
+		--set enabled=true \
+		$(HELM_ARGS)
+	@echo "Started Job guidellm-capacity in $(AI_NAMESPACE) (stateless — results in Job logs)."
+	@echo "Follow logs:  oc logs -n $(AI_NAMESPACE) -f job/guidellm-capacity"

@@ -34,7 +34,7 @@ ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
 | `pca-platform-config` | 2 | Namespaces, HF token, DSC/DSCI, NFD, NVIDIA ClusterPolicy, CheCluster, OAuth HTPasswd, Maas gateway, LWS CR; optional `pca-guardrails` / `pca-mcp` | AI ns (default `ai-serving`); optional per-dev namespaces |
 | `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), llm-d gateway + HTTPRoute, RHCL AI Gateway (`pca-ai-gateway`) + AuthPolicy; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
 | `pca-devspaces` | 4 | DevWorkspace, Roo/Continue/Cline ConfigMaps, per-ns API keys, RBAC; global DevSpaces ConfigMaps | Per-dev ns; globals in `openshift-devspaces` |
-| `pca-benchmarks` | 5 | GuideLLM sweep Job (one-shot; **disabled by default — opt-in via cloud values files**) | AI ns |
+| `pca-benchmarks` | 5 | GuideLLM capacity Job (concurrent + throughput; **disabled by default — opt-in / `make performance-vllm`**) | AI ns |
 
 ## Where each target deploys
 
@@ -42,7 +42,7 @@ ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
 |--------|--------|-----------------------|
 | **ROSA** | All six via ArgoCD (`charts/`) | `values-rosa.yaml` per chart |
 | **ARO** | All six via ArgoCD (`charts/`) | `values-aro.yaml` per chart |
-| **Existing OpenShift** | `pca-platform-config`, `pca-ai-serving`, `pca-devspaces` only (Helm) | `deploy_existing_openshift/values-*.yaml` |
+| **Existing OpenShift** | `pca-platform-config`, `pca-ai-serving`, `pca-devspaces` (Helm); optional `pca-benchmarks` via `make performance-vllm` | `deploy_existing_openshift/values-*.yaml` |
 
 Both ROSA and ARO use the same unified `charts/` directory at the repo root. Cloud-specific values (hardware, storage class, model, enabled features) are in `values-aro.yaml` / `values-rosa.yaml` within each chart. Terraform injects `gitops.cloud: aro|rosa` to select the right overlay via ArgoCD `valueFiles`. **`gitops.cloud` must be explicitly set — an empty or missing value causes a hard Helm render error in `pca-app-of-apps`.**
 
@@ -86,7 +86,7 @@ charts/                       # Unified Helm charts — single set for ROSA and 
 ├── pca-ai-serving/           # LLMInferenceService, llm-d + pca-ai-gateway; optional EPP, TLS job
 │   └── charts/pca-observability/  # Grafana + optional Langfuse/OTel Collector
 ├── pca-devspaces/            # Per-developer DevWorkspaces + Roo/Continue/Cline + API keys
-└── pca-benchmarks/           # GuideLLM sweep (optional; enabled in values-aro.yaml)
+└── pca-benchmarks/           # GuideLLM capacity (optional; enabled in values-aro.yaml / make performance-vllm)
 
 PCA_Deployment_ROSA/          # ROSA (AWS) — Terraform only
 └── terraform/                # Cluster provisioning (VPC, ROSA HCP, GPU node pool)

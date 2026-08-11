@@ -15,6 +15,7 @@ help: ## Show e2e help
 	@echo "Usage:"
 	@echo "  make e2e DEV_USER=<user> [PYTEST_ARGS='...']"
 	@echo "  make performance N_LIST=1,2,4 [AI_NAMESPACE=...] [MODEL_NAME=...]  # OpenCode ladder"
+	@echo "  (Do not run alongside root make performance-vllm — shared vLLM/GPU.)"
 	@echo "Example:"
 	@echo "  make e2e DEV_USER=dev-user1"
 	@echo "  make e2e DEV_USER=dev-user1 PYTEST_ARGS='-k opencode_calculator'"
@@ -34,6 +35,7 @@ e2e: venv ## Run cluster e2e tests (requires oc login + Running OpenCode workspa
 	DEV_NAMESPACE=$(DEV_NAMESPACE) \
 		$(PYTEST) -v --tb=short --ignore=fixtures --ignore=performance $(PYTEST_ARGS)
 
+# Do not run alongside root make performance-vllm — shared vLLM/GPU.
 performance: venv ## OpenCode scalability ladder; default N_LIST=16
 	@command -v oc >/dev/null || { echo "ERROR: oc not found in PATH"; exit 1; }
 	@test -n "$(N_LIST)" || { echo "ERROR: set N_LIST= (e.g. N_LIST=16)"; exit 1; }

@@ -1,0 +1,6 @@
+# GuideLLM capacity Job for existing OpenShift (make performance-vllm).
+# Hits llm-d gateway → vLLM in AI_NAMESPACE. Do not run alongside make performance.
+enabled: true
+model:
+  id: "Qwen/Qwen3.6-35B-A3B-FP8"
+# namespace overridden by Makefile --set namespace=$(AI_NAMESPACE)

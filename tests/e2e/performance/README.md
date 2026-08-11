@@ -2,6 +2,8 @@
 
 Measures how many developers the stack can serve at once via concurrent OpenCode agents.
 
+> **Do not run** `make performance` alongside root `make performance-vllm` (GuideLLM → live vLLM). Both contend for the same GPU.
+
 ## Important limitation
 
 The OpenCode stage is a **load probe**, not a real feature test.

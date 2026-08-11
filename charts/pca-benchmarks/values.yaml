@@ -1,4 +1,47 @@
+# GuideLLM capacity Job (opt-in). Disabled by default for GitOps; enable via
+# values-aro.yaml / deploy_existing_openshift/values-benchmarks.yaml / --set.
 enabled: false
 model:
   id: "Qwen/Qwen3.6-35B-A3B-FP8"
 namespace: "ai-serving"
+# OpenAI-compatible target (not RHCL). Prefer HTTP predictor — GuideLLM's
+# pinned image cannot disable TLS verify, so https://llm-d-gateway with
+# self-signed certs fails. Override to llm-d HTTPS only if the CA is trusted.
+gateway:
+  # Empty = http://qwen3-coder-predictor.<namespace>.svc.cluster.local
+  url: ""
+image: "quay.io/rh-aiservices-bu/guidellm:f1f8ca8"
+jobName: guidellm-capacity
+# Concurrent streams ladder (GuideLLM --rate-type concurrent --rate …).
+streams: "1,4,8,16"
+# Completions per stream level (GuideLLM --max-requests). Empty = tool default (100).
+maxRequests: 50
+# Omit / null = no warmup|cooldown. Non-null fractions (e.g. 0.1) exclude that
+# window from stats; with this GuideLLM build an all-warmup run crashes compile().
+warmupPercent: null
+cooldownPercent: null
+# httpx HTTP/2 against the HTTP/1.1 predictor is flaky; keep false.
+http2: false
+# Also run --rate-type throughput per shape (max aggregate tok/s).
+runThroughputProbe: false
+resources:
+  requests:
+    cpu: "2"
+    memory: 4Gi
+  limits:
+    cpu: "4"
+    memory: 8Gi
+# Code-oriented shapes; prompt + output must fit tokens.total (32K) on the server.
+workloads:
+  - label: code-completion-short
+    promptTokens: 256
+    outputTokens: 128
+    maxSeconds: 120
+  - label: code-review-large
+    promptTokens: 4096
+    outputTokens: 1024
+    maxSeconds: 300
+  - label: near-max-context
+    promptTokens: 28000
+    outputTokens: 512
+    maxSeconds: 480
