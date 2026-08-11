@@ -99,6 +99,10 @@ spec:
                 exit 1
               fi
 
+              # Per-shape failures stay non-fatal; Job fails only if none succeed.
+              SUCCEEDED=0
+              FAILED=0
+
               run_one() {
                 local rate_type=$1
                 local prompt_tokens=$2
@@ -161,8 +165,10 @@ spec:
                 local rc=$?
                 set -e
                 if [ "${rc}" -ne 0 ]; then
+                  FAILED=$((FAILED + 1))
                   echo "Benchmark ${label}/${rate_type} failed (non-fatal, rc=${rc})"
                 else
+                  SUCCEEDED=$((SUCCEEDED + 1))
                   echo "Wrote ephemeral ${out} (capture metrics from Job logs above)"
                 fi
               }
@@ -176,7 +182,12 @@ spec:
 
               echo ""
               echo "============================================"
-              echo "All benchmarks complete: $(date -u)"
+              echo "Benchmarks finished: $(date -u)"
+              echo "Succeeded: ${SUCCEEDED}, failed: ${FAILED}"
               echo "Results are in Job logs (no PVC)."
               echo "============================================"
+              if [ "${SUCCEEDED}" -eq 0 ]; then
+                echo "ERROR: every GuideLLM run failed"
+                exit 1
+              fi
 {{- end }}

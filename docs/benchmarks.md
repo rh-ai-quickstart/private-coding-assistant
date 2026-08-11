@@ -19,7 +19,7 @@ oc logs -n <your-ai-ns> -f job/guidellm-capacity
 | Max requests / level | `50` | `maxRequests` → GuideLLM `--max-requests` |
 | Workload shapes | short / large / near-max (see `workloads[]`) | `promptTokens` + `outputTokens` ≤ 32K |
 | Throughput probe | off | `runThroughputProbe` |
-| Override | `--set streams=1,4,16` etc. | `HELM_ARGS=` on the Make target |
+| Override | `--set streams=1\,4\,16` or `-f` with `streams: "1,4,16"` | `HELM_ARGS=` on the Make target (escape commas in `--set`) |
 
 ### Results
 
