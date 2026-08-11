@@ -202,19 +202,25 @@ class GpuSampler:
         except OSError as exc:
             log.info("failed to start nvidia-smi stream: %s", exc)
             return None
-        # Brief wait: if oc/exec fails immediately, fall back to polling.
-        time.sleep(0.5)
-        if proc.poll() is not None:
-            err = ""
-            if proc.stderr is not None:
-                err = proc.stderr.read() or ""
-            log.info(
-                "nvidia-smi stream exited early in %s/%s: %s",
-                self.ai_namespace,
-                pod,
-                err.strip(),
-            )
-            return None
+        # Fail-fast if oc/exec dies; otherwise commit after a short grace window.
+        # poll() is the signal (not first stdout line): nvidia-smi -l 1 stays
+        # alive on success, and the first sample can lag while oc attaches.
+        deadline = time.monotonic() + 0.5
+        while True:
+            if proc.poll() is not None:
+                err = ""
+                if proc.stderr is not None:
+                    err = proc.stderr.read() or ""
+                log.info(
+                    "nvidia-smi stream exited early in %s/%s: %s",
+                    self.ai_namespace,
+                    pod,
+                    err.strip(),
+                )
+                return None
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.05)
         self._proc = proc
         return proc
 
