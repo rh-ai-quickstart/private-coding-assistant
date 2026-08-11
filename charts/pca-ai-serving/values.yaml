@@ -31,6 +31,9 @@ vllm:
     HOME: "/tmp"
     DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
     VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
+    # Companion to FULL_DECODE_ONLY cudagraphs in extraArgs — reduces fragmentation
+    # OOM during capture on 48GB (ROSA L40S / existing OpenShift); harmless on H100.
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
   # Set true when RHOAI bundled vLLM doesn't support the model architecture.
   # Renders ServingRuntime + InferenceService instead of LLMInferenceService.
   # Requires vllm.image to be set. Qwen3.6 needs vLLM >= 0.18.
@@ -38,9 +41,6 @@ vllm:
   # Set false to disable Qwen3 thinking mode (adds --chat-template-kwargs).
   # Use false when the model's thinking blocks exceed test max_tokens budgets.
   enableThinking: true
-  # Skip CUDA graphs (helps L40S/48GB when weights already fill most of VRAM).
-  # Prefer false + kvCacheDtype=fp8 when KV headroom allows — much higher decode tok/s.
-  enforceEager: false
   # Optional vLLM --gpu-memory-utilization (empty = vLLM default).
   gpuMemoryUtilization: ""
   # FP8 KV cache (custom runtime + LLMInferenceService). Frees VRAM vs auto/fp16 KV.

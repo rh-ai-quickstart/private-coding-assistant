@@ -221,8 +221,29 @@ class GpuSampler:
             if time.monotonic() >= deadline:
                 break
             time.sleep(0.05)
+        # Drain stderr so a chatty oc/nvidia-smi cannot fill the PIPE and
+        # deadlock the stdout reader during a long stage.
+        self._start_stderr_drain(proc)
         self._proc = proc
         return proc
+
+    def _start_stderr_drain(self, proc: subprocess.Popen[str]) -> None:
+        err = proc.stderr
+        if err is None:
+            return
+
+        def _drain() -> None:
+            try:
+                while True:
+                    line = err.readline()
+                    if line == "":
+                        break
+            except Exception:  # noqa: BLE001 — drain must not fail the sampler
+                pass
+
+        threading.Thread(
+            target=_drain, name="gpu-sampler-stderr", daemon=True
+        ).start()
 
     def _run_stream(self, proc: subprocess.Popen[str]) -> None:
         """Read streaming nvidia-smi lines until stop or EOF."""

@@ -45,9 +45,6 @@ spec:
         {{- if .Values.vllm.kvCacheDtype }}
         - --kv-cache-dtype={{ .Values.vllm.kvCacheDtype }}
         {{- end }}
-        {{- if .Values.vllm.enforceEager }}
-        - --enforce-eager
-        {{- end }}
         {{- if .Values.vllm.gpuMemoryUtilization }}
         - --gpu-memory-utilization={{ .Values.vllm.gpuMemoryUtilization }}
         {{- end }}

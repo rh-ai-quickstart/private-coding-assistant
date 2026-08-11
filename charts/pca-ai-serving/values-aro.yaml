@@ -25,6 +25,7 @@ vllm:
     HOME: "/tmp"
     DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
     VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
+    # PYTORCH_CUDA_ALLOC_CONF: inherited from chart values.yaml (cudagraph companion)
 hardware:
   gpuProduct: "NVIDIA-H100-NVL"
   instanceTypeLabel: "nvidia.com/gpu.product"

@@ -10,7 +10,6 @@ tokens:
 vllm:
   # L40S 48GB + Qwen3.6 MoE FP8: CUDA graphs for decode throughput.
   # FULL_DECODE_ONLY + expandable alloc: full cudagraph profile OOMs by ~1GiB on L40S.
-  enforceEager: false
   kvCacheDtype: "fp8"
   gpuMemoryUtilization: "0.90"
   # extraArgs: inherited from charts/pca-ai-serving/values.yaml (ROSA/ARO/existing).
@@ -23,7 +22,7 @@ vllm:
     HOME: "/tmp"
     DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
     VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
-    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+    # PYTORCH_CUDA_ALLOC_CONF: inherited from charts/pca-ai-serving/values.yaml
 # Self-signed cert for llm-d / RHCL gateways (LLMInferenceService no longer creates kserve-self-signed-certs).
 tlsJob:
   enabled: true

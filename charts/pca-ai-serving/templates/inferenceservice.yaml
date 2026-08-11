@@ -38,9 +38,6 @@ spec:
         - --served-model-name={{ .Values.model.servedName | default .Values.model.id }}
         - --tensor-parallel-size={{ .Values.hardware.gpuCount }}
         - --max-model-len={{ include "pca-ai-serving.tokens.total" . }}
-        {{- if .Values.vllm.enforceEager }}
-        - --enforce-eager
-        {{- end }}
         {{- if .Values.vllm.gpuMemoryUtilization }}
         - --gpu-memory-utilization={{ .Values.vllm.gpuMemoryUtilization }}
         {{- end }}

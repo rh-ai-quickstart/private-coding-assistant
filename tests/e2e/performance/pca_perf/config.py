@@ -21,9 +21,9 @@ def model_name() -> str:
 
 
 def parse_n_list(raw: str | None = None) -> list[int]:
-    text = (raw if raw is not None else os.environ.get("N_LIST", "1")).strip()
+    text = (raw if raw is not None else os.environ.get("N_LIST", "16")).strip()
     if not text:
-        raise ValueError("N_LIST is empty — pass e.g. N_LIST=1,2,4")
+        raise ValueError("N_LIST is empty — pass e.g. N_LIST=16")
     values: list[int] = []
     for part in text.split(","):
         part = part.strip()
