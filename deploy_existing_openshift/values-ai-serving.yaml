@@ -13,11 +13,7 @@ vllm:
   enforceEager: false
   kvCacheDtype: "fp8"
   gpuMemoryUtilization: "0.90"
-  extraArgs:
-    # Qwen3.6 hybrid (Mamba) needs max-num-batched-tokens >= block_size (~2096).
-    - --max-num-batched-tokens=16384
-    - --performance-mode=throughput
-    - '--compilation-config={"cudagraph_mode":"FULL_DECODE_ONLY","max_cudagraph_capture_size":32}'
+  # extraArgs: inherited from charts/pca-ai-serving/values.yaml (ROSA/ARO/existing).
   extraEnv:
     HF_HOME: "/model-cache"
     # Ignored at render: chart PVC lookup sets HF_HUB_OFFLINE (cold/warm).

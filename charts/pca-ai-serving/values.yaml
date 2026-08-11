@@ -45,9 +45,15 @@ vllm:
   gpuMemoryUtilization: ""
   # FP8 KV cache (custom runtime + LLMInferenceService). Frees VRAM vs auto/fp16 KV.
   kvCacheDtype: "fp8"
-  # Extra vLLM CLI args (appended after chart defaults). Example:
-  # ['--compilation-config={"cudagraph_mode":"FULL_DECODE_ONLY"}']
-  extraArgs: []
+  # Extra vLLM CLI args (appended after chart defaults on both ServingRuntime
+  # and LLMInferenceService). Shared by ROSA / ARO / existing OpenShift.
+  # Qwen3.6 hybrid (Mamba) needs max-num-batched-tokens >= block_size (~2096).
+  # FULL_DECODE_ONLY + capped capture size: avoids full-cudagraph OOM on 48GB
+  # (L40S); still valid on larger GPUs (e.g. ARO H100).
+  extraArgs:
+    - --max-num-batched-tokens=16384
+    - --performance-mode=throughput
+    - '--compilation-config={"cudagraph_mode":"FULL_DECODE_ONLY","max_cudagraph_capture_size":32}'
 hardware:
   gpuProduct: "g6e.2xlarge"
   instanceTypeLabel: "node.kubernetes.io/instance-type"

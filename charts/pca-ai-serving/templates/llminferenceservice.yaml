@@ -1,6 +1,7 @@
-# LLMInferenceService — used when RHOAI bundled vLLM supports the model.
-# Set vllm.useCustomRuntime: true (chart default for Qwen3.6) to skip this and use
-# ServingRuntime + InferenceService instead (e.g. Qwen3.6-35B needs vLLM >= 0.18).
+# LLMInferenceService — used when vllm.useCustomRuntime is false.
+# Container image and vllm.extraArgs come from the same values as ServingRuntime
+# (vllm.image / vllm.extraArgs). Chart default useCustomRuntime: true skips this
+# and renders ServingRuntime + InferenceService instead.
 {{- if not .Values.vllm.useCustomRuntime }}
 {{- include "pca-ai-serving.langfuse.validate" . -}}
 {{- $langfuseEnabled := eq (include "pca-ai-serving.langfuseEnabled" .) "true" -}}
@@ -60,6 +61,9 @@ spec:
           {{- if $ioFull }}
           - --middleware
           - pca_langfuse_io.langfuse_io_middleware
+          {{- end }}
+          {{- range .Values.vllm.extraArgs }}
+          - {{ . | quote }}
           {{- end }}
         env:
           {{- if $langfuseEnabled }}
