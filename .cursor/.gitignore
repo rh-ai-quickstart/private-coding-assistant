@@ -1,1 +1,2 @@
-scripts/
+# Local helper scripts under .cursor/scripts/ (not skill scripts)
+/scripts/
