@@ -3,13 +3,12 @@ model:
   # servedName left empty (inherits "") so API name equals model.id
   name: "qwen3-coder" # service/pod label name (aligned with ROSA)
   poolName: "qwen3-coder-inference-pool"
-  workloadServiceSuffix: "predictor"
-  workloadServicePort: 80
+  workloadServiceSuffix: "kserve-workload-svc"
+  workloadServicePort: 8000
 tokens:
   total: 32000
   output: 8192
 vllm:
-  useCustomRuntime: true
   image: "vllm/vllm-openai:v0.19.0"
   toolCallParser: "qwen3_xml"
   reasoningParser: "qwen3"

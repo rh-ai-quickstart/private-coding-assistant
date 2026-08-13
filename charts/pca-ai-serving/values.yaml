@@ -5,10 +5,9 @@ model:
   servedName: "" # empty = use model.id as the vLLM --served-model-name
   name: "qwen3-coder"
   poolName: "qwen3-coder-inference-pool"
-  # InferenceService (useCustomRuntime) creates <name>-predictor:80.
-  # LLMInferenceService path uses kserve-workload-svc:8000 — keep these paired with useCustomRuntime.
-  workloadServiceSuffix: "predictor"
-  workloadServicePort: 80
+  # LLMInferenceService workload Service: <name>-kserve-workload-svc:8000.
+  workloadServiceSuffix: "kserve-workload-svc"
+  workloadServicePort: 8000
 # Shared token budgets (vLLM --max-model-len + IDE/OpenCode completion caps).
 # Keep OpenCode/Continue limits in pca-devspaces aligned with these values.
 tokens:
@@ -20,7 +19,7 @@ vllm:
   toolCallParser: "qwen3_xml"
   reasoningParser: "qwen3"
   image: "vllm/vllm-openai:v0.19.0"
-  # Writable cache dirs for non-root containers (custom runtime / upstream vLLM image).
+  # Writable cache dirs for non-root containers (upstream vLLM image).
   extraEnv:
     HF_HOME: "/model-cache"
     # Ignored at render time: templates set HF_HUB_OFFLINE from model-cache PVC
@@ -34,19 +33,15 @@ vllm:
     # Companion to FULL_DECODE_ONLY cudagraphs in extraArgs — reduces fragmentation
     # OOM during capture on 48GB (ROSA L40S / existing OpenShift); harmless on H100.
     PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
-  # Set true when RHOAI bundled vLLM doesn't support the model architecture.
-  # Renders ServingRuntime + InferenceService instead of LLMInferenceService.
-  # Requires vllm.image to be set. Qwen3.6 needs vLLM >= 0.18.
-  useCustomRuntime: true
-  # Set false to disable Qwen3 thinking mode (adds --chat-template-kwargs).
+  # Set false to disable Qwen3 thinking mode (adds --default-chat-template-kwargs).
   # Use false when the model's thinking blocks exceed test max_tokens budgets.
   enableThinking: true
-  # Optional vLLM --gpu-memory-utilization (empty = vLLM default).
+  # Optional vLLM --gpu-memory-utilization (empty = vLLM default / omit flag).
   gpuMemoryUtilization: ""
-  # FP8 KV cache (custom runtime + LLMInferenceService). Frees VRAM vs auto/fp16 KV.
+  # FP8 KV cache. Frees VRAM vs auto/fp16 KV.
   kvCacheDtype: "fp8"
-  # Extra vLLM CLI args (appended after chart defaults on both ServingRuntime
-  # and LLMInferenceService). Shared by ROSA / ARO / existing OpenShift.
+  # Extra vLLM CLI args (appended after chart defaults on LLMInferenceService).
+  # Shared by ROSA / ARO / existing OpenShift.
   # Qwen3.6 hybrid (Mamba) needs max-num-batched-tokens >= block_size (~2096).
   # FULL_DECODE_ONLY + capped capture size: avoids full-cudagraph OOM on 48GB
   # (L40S); still valid on larger GPUs (e.g. ARO H100).
