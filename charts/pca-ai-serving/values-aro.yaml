@@ -17,7 +17,7 @@ vllm:
     # on driver 580+ (CUDA 13.0) — they caused Error 803 and were deliberately removed.
     # Add them back only if the GPU node has driver 550 (CUDA 12.4) or older.
     HF_HOME: "/model-cache"
-    # Ignored at render: PVC lookup sets HF_HUB_OFFLINE (see pca-ai-serving.hfHubOffline).
+    # HF_HUB_OFFLINE is always 1 for LLMIS local-path load (see pca-ai-serving.hfHubOffline).
     HF_HUB_OFFLINE: "0"
     TRITON_CACHE_DIR: "/model-cache/triton-cache"
     XDG_CACHE_HOME: "/model-cache/xdg-cache"

@@ -47,11 +47,9 @@ vllm.maxModelLen remains a deprecated override for --max-model-len.
 {{- end -}}
 
 {{/*
-HF_HUB_OFFLINE from live model-cache PVC (helm upgrade/install only).
-Warm (PVC exists) → 1; cold (missing) → 0.
-ArgoCD lookup is empty → always 0 (safe for GitOps cold bootstrap).
-Values vllm.extraEnv.HF_HUB_OFFLINE is ignored; this helper is authoritative.
+HF_HUB_OFFLINE — always 1 for LLMIS local-path load (storage-initializer
+populates the PVC before vLLM starts; no HF Hub access needed at runtime).
 */}}
 {{- define "pca-ai-serving.hfHubOffline" -}}
-{{- if lookup "v1" "PersistentVolumeClaim" .Values.namespace "model-cache" -}}1{{- else -}}0{{- end -}}
+1
 {{- end -}}

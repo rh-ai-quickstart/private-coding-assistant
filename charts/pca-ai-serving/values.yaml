@@ -22,8 +22,7 @@ vllm:
   # Writable cache dirs for non-root containers (upstream vLLM image).
   extraEnv:
     HF_HOME: "/model-cache"
-    # Ignored at render time: templates set HF_HUB_OFFLINE from model-cache PVC
-    # lookup (missing → "0" cold, exists → "1" warm). Kept for docs / --set clarity.
+    # HF_HUB_OFFLINE is always 1 for LLMIS local-path load. Kept for docs / --set clarity.
     HF_HUB_OFFLINE: "0"
     TRITON_CACHE_DIR: "/model-cache/triton-cache"
     XDG_CACHE_HOME: "/model-cache/xdg-cache"

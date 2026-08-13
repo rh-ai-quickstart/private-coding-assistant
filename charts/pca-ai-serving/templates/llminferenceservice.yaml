@@ -50,7 +50,8 @@ spec:
           - vllm.entrypoints.openai.api_server
         args:
           - --port=8000
-          # Storage-initializer writes weights onto the PVC (mounted at /model-cache).
+          # storage-initializer writes the flat model tree to the PVC root;
+          # vLLM loads from that local path (HF_HUB_OFFLINE=1).
           - --model=/model-cache
           - --served-model-name={{ .Values.model.servedName | default .Values.model.id }}
           - --trust-remote-code
@@ -128,6 +129,7 @@ spec:
           httpGet:
             path: /health
             port: 8000
+            scheme: HTTPS
           initialDelaySeconds: 30
           periodSeconds: 30
           failureThreshold: 120
@@ -136,6 +138,7 @@ spec:
           httpGet:
             path: /health
             port: 8000
+            scheme: HTTPS
           periodSeconds: 10
           failureThreshold: 3
           timeoutSeconds: 5
@@ -143,6 +146,7 @@ spec:
           httpGet:
             path: /health
             port: 8000
+            scheme: HTTPS
           periodSeconds: 30
           failureThreshold: 3
           timeoutSeconds: 10
