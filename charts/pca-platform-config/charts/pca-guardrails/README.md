@@ -101,8 +101,8 @@ For detection logic beyond simple regex (Luhn validation, entropy checks, extern
 | `guardrails.enforcement` | `block` | Enforcement mode: `block`, `warn`, `log-only` |
 | `guardrails.proxy.enabled` | `true` | Deploy the guardrails proxy (OpenAI-compatible endpoint) |
 | `guardrails.gateway.enabled` | `false` | Deploy the TrustyAI gateway sidecar (see Known Limitations) |
-| `guardrails.llmService.host` | `qwen3-coder-predictor` | vLLM workload service name |
-| `guardrails.llmService.port` | `80` | vLLM service port |
+| `guardrails.llmService.host` | `qwen3-coder-kserve-workload-svc` | vLLM LLMIS workload service name |
+| `guardrails.llmService.port` | `8000` | Workload Service port |
 | `guardrails.replicas` | `1` | Orchestrator replicas |
 | `guardrails.detectors.promptInjection.enabled` | `true` | Enable prompt injection detection |
 | `guardrails.detectors.promptInjection.model` | `protectai/deberta-v3-base-prompt-injection-v2` | HuggingFace model for injection detection |

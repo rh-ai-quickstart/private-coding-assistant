@@ -9,7 +9,7 @@ AI_GATEWAY_AUTH_POLICY = "pca-ai-gateway-apikey"
 AI_GATEWAY_APIKEY_SECRET = "pca-ai-gw-apikey"
 AI_GATEWAY_APIKEY_KEY = "api_key"
 GATEWAY_CLASS = "data-science-gateway-class"
-WORKLOAD_SVC = "qwen3-coder-predictor"
+WORKLOAD_SVC = "qwen3-coder-kserve-workload-svc"
 PVC_NAME = "model-cache"
 GRAFANA_NAME = "pca-grafana"
 LANGFUSE_ROUTE = "pca-langfuse"
@@ -43,8 +43,8 @@ def ai_gateway_v1(namespace: str) -> str:
 
 
 def workload_base(namespace: str) -> str:
-    # InferenceService predictor Service is plain HTTP on port 80.
-    return f"http://{WORKLOAD_SVC}.{namespace}.svc.cluster.local:80"
+    # LLMIS workload Service is HTTPS when cluster enableLLMInferenceServiceTLS=true.
+    return f"https://{WORKLOAD_SVC}.{namespace}.svc.cluster.local:8000"
 
 
 def grafana_svc(namespace: str) -> str:

@@ -37,7 +37,7 @@ def parse_nvidia_smi_util_lines(text: str) -> float | None:
 
 
 def find_workload_pod(ai_namespace: str) -> str | None:
-    """Return a Running vLLM / InferenceService workload pod name, or None."""
+    """Return a Running LLMIS workload pod name, or None."""
     result = oc.run_oc(
         "get",
         "pods",
@@ -51,14 +51,13 @@ def find_workload_pod(ai_namespace: str) -> str | None:
     )
     names = (result.stdout or "").split()
     if not names:
-        # Custom runtime InferenceService predictor pods
         result = oc.run_oc(
             "get",
             "pods",
             "-n",
             ai_namespace,
             "-l",
-            f"serving.kserve.io/inferenceservice={model_name()}",
+            f"kserve.io/component=workload,app.kubernetes.io/name={model_name()}",
             "-o",
             "jsonpath={.items[?(@.status.phase=='Running')].metadata.name}",
             check=False,

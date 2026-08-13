@@ -60,7 +60,7 @@ Optional components (Langfuse, OTel, Guardrails, DevSpaces) **auto-skip** when r
 
 ## What is checked
 
-1. **readiness** — LLMIS Ready, llm-d Gateway Accepted, optional RHCL `pca-ai-gateway` Accepted + local HTTPRoute + AuthPolicy, PVC Bound, predictor pods, optional Grafana/Langfuse/OTel/Guardrails/DevWorkspace
+1. **readiness** — LLMIS Ready, llm-d Gateway Accepted, optional RHCL `pca-ai-gateway` Accepted + local HTTPRoute + AuthPolicy, PVC Bound, LLMIS workload pods, optional Grafana/Langfuse/OTel/Guardrails/DevWorkspace
 2. **vllm** — `/v1/models`, chat, completions, streaming, tool-calling (with `enable_thinking: false`), workload `/health` (hits **llm-d** Gateway directly — inference layer, not RHCL)
 3. **grafana** — route, `/api/health`, Prometheus datasource, dashboard ConfigMaps, Prometheus via `/api/ds/query`
 4. **langfuse** — route, health, credentials, project API auth, short-named dependency Services, traces after chat

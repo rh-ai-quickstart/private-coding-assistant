@@ -4,12 +4,14 @@ enabled: false
 model:
   id: "Qwen/Qwen3.6-35B-A3B-FP8"
 namespace: "ai-serving"
-# OpenAI-compatible target (not RHCL). Prefer HTTP predictor — GuideLLM's
-# pinned image cannot disable TLS verify, so https://llm-d-gateway with
-# self-signed certs fails. Override to llm-d HTTPS only if the CA is trusted.
+# OpenAI-compatible target (not RHCL). LLMIS workload is HTTPS when the
+# cluster has enableLLMInferenceServiceTLS=true; GuideLLM trusts the
+# mounted workload CA (SSL_CERT_FILE). Avoid llm-d HTTPS unless that CA is trusted.
 gateway:
-  # Empty = http://qwen3-coder-predictor.<namespace>.svc.cluster.local
+  # Empty = https://qwen3-coder-kserve-workload-svc.<namespace>.svc.cluster.local:8000
   url: ""
+# CA for the LLMIS self-signed workload cert (secret keys: ca.crt / tls.crt).
+workloadTlsSecret: "qwen3-coder-kserve-self-signed-certs"
 image: "quay.io/rh-aiservices-bu/guidellm:f1f8ca8"
 jobName: guidellm-capacity
 # Concurrent streams ladder (GuideLLM --rate-type concurrent --rate …).

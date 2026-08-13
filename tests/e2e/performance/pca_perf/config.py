@@ -16,7 +16,7 @@ def ai_namespace() -> str:
 
 
 def model_name() -> str:
-    """InferenceService / LLMInferenceService name (chart model.name)."""
+    """LLMInferenceService name (chart model.name)."""
     return os.environ.get("MODEL_NAME", "qwen3-coder").strip()
 
 
