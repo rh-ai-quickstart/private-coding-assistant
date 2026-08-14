@@ -158,6 +158,14 @@ spec:
         - values-{{ .Values.gitops.cloud }}.yaml
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    # Users start/stop their own DevWorkspace from the DevSpaces dashboard, which
+    # patches spec.started directly. Without this, selfHeal reverts it back to the
+    # chart's default (false) on the next reconcile and force-stops running workspaces.
+    - group: workspace.devfile.io
+      kind: DevWorkspace
+      jsonPointers:
+        - /spec/started
   syncPolicy:
     automated:
       prune: true
