@@ -173,6 +173,10 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      # Without this, ignoreDifferences above only suppresses the OutOfSync/drift
+      # display — a real sync (e.g. from a hard refresh, or another resource's
+      # drift) still reapplies spec.started: false and force-stops the workspace.
+      - RespectIgnoreDifferences=true
     retry:
       limit: 3
       backoff:
