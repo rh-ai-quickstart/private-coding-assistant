@@ -71,6 +71,16 @@ spec:
               exposure: public
               protocol: https
     commands:
+      - id: open-projects-folder
+        exec:
+          label: "Open /projects as workspace folder"
+          component: dev-tools
+          commandLine: |
+            # No git project is cloned into /projects (mountSources only, no `projects:`
+            # devfile entry), so che-code's injector writes an empty `{}` workspace file
+            # and the editor opens with no folder — new-folder/file actions then have no
+            # root to operate against and appear to hang. Give it a real folder to open.
+            echo '{"folders":[{"path":"/projects"}]}' > /projects/.code-workspace
       - id: write-opencode-config
         exec:
           label: "Write OpenCode Config"
@@ -126,6 +136,7 @@ spec:
             echo "OpenCode Web UI started on port 4096 (password-protected)"
     events:
       postStart:
+        - open-projects-folder
         - write-opencode-config
         - download-opencode-extension
         - start-opencode-web
@@ -176,6 +187,16 @@ spec:
             - name: KUBEDOCK_ENABLED
               value: "true"
     commands:
+      - id: open-projects-folder
+        exec:
+          label: "Open /projects as workspace folder"
+          component: dev-tools
+          commandLine: |
+            # No git project is cloned into /projects (mountSources only, no `projects:`
+            # devfile entry), so che-code's injector writes an empty `{}` workspace file
+            # and the editor opens with no folder — new-folder/file actions then have no
+            # root to operate against and appear to hang. Give it a real folder to open.
+            echo '{"folders":[{"path":"/projects"}]}' > /projects/.code-workspace
       - id: install-and-configure-extensions
         exec:
           component: dev-tools
@@ -239,6 +260,7 @@ spec:
           label: Install and configure AI extensions
     events:
       postStart:
+        - open-projects-folder
         - install-and-configure-extensions
 {{- end }}
 {{- end }}
