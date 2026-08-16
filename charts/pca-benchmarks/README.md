@@ -1,6 +1,6 @@
 # pca-benchmarks
 
-Opt-in [GuideLLM](https://github.com/vllm-project/guidellm) Job that load-tests the live **vLLM predictor** (`qwen3-coder-predictor`, HTTP — not RHCL / not OpenCode).
+Opt-in [GuideLLM](https://github.com/vllm-project/guidellm) Job that load-tests the live **vLLM LLMIS workload Service** (`qwen3-coder-kserve-workload-svc:8000`, HTTPS with mounted CA — not RHCL / not OpenCode).
 
 ## Run (existing OpenShift)
 

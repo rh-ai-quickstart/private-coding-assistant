@@ -1,8 +1,9 @@
 {{- if .Values.enabled }}
 {{- $ns := .Values.namespace }}
-{{- $gw := .Values.gateway.url | default (printf "http://qwen3-coder-predictor.%s.svc.cluster.local" $ns) }}
+{{- $gw := .Values.gateway.url | default (printf "https://qwen3-coder-kserve-workload-svc.%s.svc.cluster.local:8000" $ns) }}
+{{- $tlsSecret := .Values.workloadTlsSecret | default "qwen3-coder-kserve-self-signed-certs" }}
 {{- $job := .Values.jobName | default "guidellm-capacity" }}
-# GuideLLM capacity sweep against live llm-d → vLLM (stateless Job; results in logs).
+# GuideLLM capacity sweep against live LLMIS workload (stateless Job; results in logs).
 # Concurrent ladder + optional throughput probe per workload shape.
 # Do not run alongside OpenCode make performance (shared GPU).
 apiVersion: batch/v1
@@ -32,6 +33,10 @@ spec:
             limits:
               cpu: {{ .Values.resources.limits.cpu | quote }}
               memory: {{ .Values.resources.limits.memory | quote }}
+          volumeMounts:
+            - name: workload-tls
+              mountPath: /etc/workload-tls
+              readOnly: true
           env:
             - name: HF_TOKEN
               value: ""
@@ -61,6 +66,22 @@ spec:
             - -c
             - |
               set -euo pipefail
+              # Merge system CAs + LLMIS workload CA (SSL_CERT_FILE replaces the
+              # whole bundle — do not point it only at the workload cert).
+              SYSTEM_CA=""
+              for cand in /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/certs/ca-certificates.crt /etc/ssl/cert.pem; do
+                if [ -f "${cand}" ]; then SYSTEM_CA="${cand}"; break; fi
+              done
+              if [ -n "${SYSTEM_CA}" ] && [ -f /etc/workload-tls/ca.crt ]; then
+                cat "${SYSTEM_CA}" /etc/workload-tls/ca.crt > /tmp/pca-ca-bundle.crt
+                export SSL_CERT_FILE=/tmp/pca-ca-bundle.crt
+                export REQUESTS_CA_BUNDLE=/tmp/pca-ca-bundle.crt
+                export CURL_CA_BUNDLE=/tmp/pca-ca-bundle.crt
+              elif [ -f /etc/workload-tls/ca.crt ]; then
+                export SSL_CERT_FILE=/etc/workload-tls/ca.crt
+                export REQUESTS_CA_BUNDLE=/etc/workload-tls/ca.crt
+                export CURL_CA_BUNDLE=/etc/workload-tls/ca.crt
+              fi
               TARGET="${GUIDELLM_TARGET}"
               MODEL="${GUIDELLM_MODEL}"
               STREAMS="${GUIDELLM_STREAMS}"
@@ -190,4 +211,8 @@ spec:
                 echo "ERROR: every GuideLLM run failed"
                 exit 1
               fi
+      volumes:
+        - name: workload-tls
+          secret:
+            secretName: {{ $tlsSecret | quote }}
 {{- end }}

@@ -1,0 +1,13 @@
+# GuideLLM short-only at streams 4,16 (compare to PR #29).
+enabled: true
+model:
+  id: "Qwen/Qwen3.6-35B-A3B-FP8"
+streams: "4,16"
+maxRequests: 50
+runThroughputProbe: false
+http2: false
+workloads:
+  - label: code-completion-short
+    promptTokens: 256
+    outputTokens: 128
+    maxSeconds: 120

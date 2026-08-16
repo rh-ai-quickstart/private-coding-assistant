@@ -2,8 +2,8 @@ namespace: ai-serving
 guardrails:
   enforcement: block # block | warn | log-only
   llmService:
-    host: qwen3-coder-predictor
-    port: 80
+    host: qwen3-coder-kserve-workload-svc
+    port: 8000
     tlsSecret: qwen3-coder-kserve-self-signed-certs
   replicas: 1
   # The gateway sidecar provides an OpenAI-compatible /v1/chat/completions
