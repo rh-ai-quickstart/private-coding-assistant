@@ -20,6 +20,13 @@ hardware:
 storage:
   storageClass: "gp3-csi"
   modelCacheSize: 100Gi
+# LLMInferenceService no longer auto-creates the kserve self-signed cert
+# secret that both Gateways' listeners reference by default, so without this
+# job neither Gateway's HTTPS listener ever programs (envoy refuses
+# connections on 443 with "invalid certificate reference"). See ARO's and
+# deploy_existing_openshift's values files, which already carry this fix.
+tlsJob:
+  enabled: true
 observability:
   enabled: true
 pca-observability:
