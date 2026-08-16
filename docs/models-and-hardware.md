@@ -36,8 +36,7 @@ The base `charts/pca-ai-serving/values.yaml` sets the default; cloud overlays an
 
 | Field | Description |
 |-------|-------------|
-| `vllm.useCustomRuntime: true` | Deploys a ServingRuntime + InferenceService instead of LLMInferenceService |
-| `vllm.image` | Upstream vLLM image tag that supports the model architecture (e.g. `vllm/vllm-openai:v0.19.0` for Qwen3.6) |
+| `vllm.image` | Upstream vLLM image tag on the LLMInferenceService (e.g. `vllm/vllm-openai:v0.19.0` for Qwen3.6) |
 
 **Model-specific parsers:**
 
@@ -46,7 +45,7 @@ The base `charts/pca-ai-serving/values.yaml` sets the default; cloud overlays an
 | `vllm.toolCallParser` | `qwen3_xml`, `llama3_json`, `hermes` |
 | `vllm.reasoningParser` | `qwen3` (only for thinking-mode models; set to `""` only if you also patch the chart template to drop `--reasoning-parser`) |
 
-> **Note:** The chart templates emit `--enable-auto-tool-choice`, `--tool-call-parser`, and `--reasoning-parser` unconditionally. Do not set these to an empty string — vLLM will fail to start with a blank flag value. If the target model does not support tool calling or reasoning mode, you need to remove those args from `templates/servingruntime.yaml` or `templates/llminferenceservice.yaml` rather than leaving the values empty.
+> **Note:** The chart templates emit `--enable-auto-tool-choice`, `--tool-call-parser`, and `--reasoning-parser` unconditionally. Do not set these to an empty string — vLLM will fail to start with a blank flag value. If the target model does not support tool calling or reasoning mode, you need to remove those args from `templates/llminferenceservice.yaml` rather than leaving the values empty.
 
 **Context length and VRAM tuning:**
 

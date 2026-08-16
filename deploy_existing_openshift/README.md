@@ -6,7 +6,7 @@ Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GP
 |--------|-----------------|
 | `make ai-serving-deploy-existing-openshift` | AI serving (once per cluster) — namespace, HF token, PVC, LLMInferenceService, Grafana; optional Langfuse + OTel; RHCL AI Gateway front door |
 | `make devspace-deploy-existing-openshift` | OpenCode DevWorkspaces as `dev-userN` in `dev-userN-devspaces` (`N=<count>` or single `DEV_USER=`); `TYPE=continue` for Continue/Roo/Cline |
-| `make performance-vllm` | GuideLLM capacity Job against live vLLM predictor (opt-in; see [docs/benchmarks.md](../docs/benchmarks.md)) |
+| `make performance-vllm` | GuideLLM capacity Job against live LLMIS workload Service (opt-in; see [docs/benchmarks.md](../docs/benchmarks.md)) |
 
 `ai-serving-deploy-existing-openshift` must run first. With `N=`, the first user owns global ConfigMaps in `openshift-devspaces`; later users get `devspacesGlobalConfig.enabled=false` automatically. `N` creates N namespaces (`dev-userN-devspaces`), each with one DevWorkspace named `code-workspace-1` (separate Helm release per user — not one release with N workspaces). Do **not** use `private-assistant-*` as a DevSpace namespace (that prefix is only for AI serving).
 
@@ -24,6 +24,19 @@ IDE traffic defaults to:
 `https://pca-ai-gateway-data-science-gateway-class.<AI_NAMESPACE>.svc.cluster.local/v1`
 
 Each DevSpaces namespace gets an API key Secret (`pca-ai-gw-apikey`); the same key is mirrored into the AI serving namespace for AuthPolicy validation (`pca-ai-gw-apikey-<devNamespace>`). Break-glass: `--set aiGateway.escapeHatchToLlmd=true` points IDEs at llm-d directly (no API key).
+
+### Prerequisite: LLMInferenceService workload TLS
+
+The chart hardcodes vLLM `--ssl-certfile` / `--ssl-keyfile` and HTTPS probes. The cluster must have **`enableLLMInferenceServiceTLS: true`** in the KServe `inferenceservice-config` ConfigMap (typical RHOAI default):
+
+```bash
+oc get cm inferenceservice-config -n redhat-ods-applications \
+  -o jsonpath='{.data.ingress}' | grep enableLLMInferenceServiceTLS
+```
+
+Expect `"enableLLMInferenceServiceTLS": true`. The workload Service is HTTPS
+`qwen3-coder-kserve-workload-svc:8000`; clients (GuideLLM, smoke, guardrails) trust
+secret `qwen3-coder-kserve-self-signed-certs`.
 
 ### Demo DevSpaces (`dev-user1..N`)
 
@@ -267,9 +280,9 @@ Also create `~/.local/share/opencode/auth.json`:
 
 OpenCode needs headroom under `--max-model-len` for prompt + completion. All PCA paths set `tokens.total: 32000` (vLLM `--max-model-len`) and `tokens.output: 8192` (OpenCode/IDE completion cap). Keep `pca-ai-serving` and `pca-devspaces` `tokens.*` in sync. If you lower `tokens.total` without lowering OpenCode `limit.output`, chat requests can fail with max_tokens errors.
 
-**Warm model path (avoid multi‑minute cold starts):** Prefer `make ai-serving-deploy-existing-openshift` (upgrade in place) over undeploy. Keep `minReplicas: 1` — do not scale the predictor to 0. Default undeploy only uninstalls Helm releases and **keeps** the namespace + `model-cache` PVC; use `DELETE_NAMESPACE=1` only when you intend a full wipe. The PVC is annotated `helm.sh/resource-policy: keep` so `helm uninstall` alone does not delete it.
+**Warm model path (avoid multi‑minute cold starts):** Prefer `make ai-serving-deploy-existing-openshift` (upgrade in place) over undeploy. Keep `minReplicas: 1` — do not scale the LLMInferenceService to 0. Default undeploy only uninstalls Helm releases and **keeps** the namespace + `model-cache` PVC; use `DELETE_NAMESPACE=1` only when you intend a full wipe. The PVC is annotated `helm.sh/resource-policy: keep` so `helm uninstall` alone does not delete it.
 
-The chart sets `HF_HUB_OFFLINE` from a live `model-cache` PVC lookup at `helm upgrade --install` time: missing PVC → `"0"` (cold download); PVC present → `"1"` (warm, no Hugging Face). On the next upgrade after a cold first deploy, offline flips to `"1"` automatically. Under ArgoCD, lookup is empty so the value stays `"0"` (safe for GitOps cold bootstrap).
+The chart always sets `HF_HUB_OFFLINE=1` for LLMIS local-path load: the storage-initializer populates the `model-cache` PVC before vLLM starts, so runtime does not need Hugging Face Hub access. Keep the PVC across upgrades (default undeploy) so the warm cache is reused.
 
 ---
 

@@ -24,6 +24,14 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
    make ai-serving-deploy-existing-openshift HELM_ARGS='--set aiGateway.kuadrant.create=false'
    ```
 
+6. **LLMIS workload TLS** — this chart hardcodes vLLM `--ssl-*` and HTTPS probes. Confirm cluster `enableLLMInferenceServiceTLS=true`:
+   ```bash
+   oc get cm inferenceservice-config -n redhat-ods-applications \
+     -o jsonpath='{.data.ingress}' | grep enableLLMInferenceServiceTLS
+   ```
+   Expect `"enableLLMInferenceServiceTLS": true`. Workload Service is HTTPS
+   `qwen3-coder-kserve-workload-svc:8000` with secret `qwen3-coder-kserve-self-signed-certs`.
+
 ## ARO-specific overrides
 
 On ARO (Azure), the chart defaults use AWS storage/hardware. Add these to `HELM_ARGS` for any ARO deployment:
@@ -35,8 +43,7 @@ HELM_ARGS="--set storage.storageClass=managed-csi \
   --set hardware.cpu.request=8 --set hardware.cpu.limit=16 \
   --set hardware.memory.request=80Gi --set hardware.memory.limit=120Gi \
   --set model.id=Qwen/Qwen3.6-35B-A3B-FP8 \
-  --set model.name=qwen36-vllm \
-  --set vllm.useCustomRuntime=true \
+  --set model.name=qwen3-coder \
   --set vllm.image=vllm/vllm-openai:v0.19.0 \
   --set tokens.total=32000 \
   --set tokens.output=8192 \
@@ -72,7 +79,7 @@ oc scale machineset aro-pca-aue-cq6r2-gpu-h100 -n openshift-machine-api --replic
    ```
 2. Run `make ai-serving-deploy-existing-openshift` (uses default `AI_NAMESPACE=private-assistant-ai-serving`).
 3. Wait for pods to become `Running`: `oc get pods -n <NS> -w`.
-   On **redeploy / upgrade** (predictor pod template changed), if a new predictor stays `ContainerCreating`, check for Multi-Attach on the RWO `model-cache` PVC — see [Teardown / warm path](#teardown--warm-path).
+   On **redeploy / upgrade** (LLMIS pod template changed), if a new vLLM pod stays `ContainerCreating`, check for Multi-Attach on the RWO `model-cache` PVC — see [Teardown / warm path](#teardown--warm-path).
 
 Grafana (boards B/C) deploys by default. Prometheus uses **namespace** tenancy (`:9092`) via `deploy_existing_openshift/values-ai-serving.yaml`.
 
@@ -159,31 +166,30 @@ Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails
 
 ## Teardown / warm path
 
-Prefer **upgrade in place** (`make ai-serving-deploy-existing-openshift`) over undeploy when iterating. Keep namespace + `model-cache` PVC unless `DELETE_NAMESPACE=1`. Keep the predictor at `minReplicas: 1` so you do not pay the multi‑minute MoE GPU load on every cold start.
+Prefer **upgrade in place** (`make ai-serving-deploy-existing-openshift`) over undeploy when iterating. Keep namespace + `model-cache` PVC unless `DELETE_NAMESPACE=1`. Keep the LLMInferenceService at `spec.replicas: 1` so you do not pay the multi‑minute MoE GPU load on every cold start.
 
-**`HF_HUB_OFFLINE` (chart PVC lookup):** At helm render, missing `model-cache` → `"0"` (cold); PVC present → `"1"` (warm). No make/script flip. Next upgrade after first cold deploy picks up `"1"`.
+**`HF_HUB_OFFLINE`:** Always `1` for LLMIS local-path load (storage-initializer populates the PVC before vLLM starts). Keep the PVC across upgrades for a warm cache.
 
 ### RWO `model-cache` Multi-Attach (redeploy)
 
-`model-cache` is **ReadWriteOnce**. If a rolling upgrade leaves the old predictor `Running` while the new one is `ContainerCreating`, the new pod often waits for hours with `Multi-Attach` / `FailedAttachVolume`. Clear the old holder, wait for detach, then scale back:
+`model-cache` is **ReadWriteOnce**. If a rolling upgrade leaves the old vLLM pod `Running` while the new one is `ContainerCreating`, the new pod often waits for hours with `Multi-Attach` / `FailedAttachVolume`. Clear the old holder, wait for detach, then scale back:
 
 ```bash
-# Detect stuck new predictor + Multi-Attach
-oc get pods -n <NS> | grep predictor
-oc describe pod <new-predictor-pod> -n <NS> | grep -E 'Multi-Attach|FailedAttachVolume|Unable to attach'
-oc describe pvc model-cache -n <NS>   # Used By: <old-predictor-pod>
+# Detect stuck new LLMIS pod + Multi-Attach
+oc get pods -n <NS> | grep -E 'qwen|llmis|kserve'
+oc describe pod <new-vllm-pod> -n <NS> | grep -E 'Multi-Attach|FailedAttachVolume|Unable to attach'
+oc describe pvc model-cache -n <NS>   # Used By: <old-vllm-pod>
 
-# Clear old holder: scale predictor to 0, wait for detach, scale back to 1
-oc get inferenceservice,llminferenceservice,deployment -n <NS> | grep -iE 'predictor|qwen'
-oc scale deployment <predictor-deployment> -n <NS> --replicas=0
-# or: oc patch inferenceservice <name> -n <NS> --type=merge \
-#        -p '{"spec":{"predictor":{"minReplicas":0}}}'
-oc delete pod <old-predictor-pod> -n <NS> --wait=true   # if still present
-oc describe pvc model-cache -n <NS>                     # wait until no Used By
-oc scale deployment <predictor-deployment> -n <NS> --replicas=1
-# or restore minReplicas:1 on the InferenceService / LLMInferenceService
+# Clear old holder: scale LLMIS to 0, wait for detach, scale back to 1
+oc get llminferenceservice,deployment -n <NS> | grep -iE 'qwen|kserve'
+oc patch llminferenceservice qwen3-coder -n <NS> --type=merge \
+  -p '{"spec":{"replicas":0}}'
+# or: oc scale deployment <vllm-deployment> -n <NS> --replicas=0
+oc delete pod <old-vllm-pod> -n <NS> --wait=true   # if still present
+oc describe pvc model-cache -n <NS>                # wait until no Used By
+oc patch llminferenceservice qwen3-coder -n <NS> --type=merge \
+  -p '{"spec":{"replicas":1}}'
 ```
-
 ```bash
 # Remove one developer's DevSpace
 make devspace-undeploy-existing-openshift DEV_USER=dev-user1

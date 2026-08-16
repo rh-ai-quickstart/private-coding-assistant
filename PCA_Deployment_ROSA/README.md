@@ -651,16 +651,18 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 
 ### Wave 3 — AI Serving (`pca-ai-serving`)
 
-- **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts). Chart templates set `HF_HUB_OFFLINE` from a PVC lookup on Helm installs; under ArgoCD lookup is empty so it stays `"0"` (cold bootstrap can download).
-- **ServingRuntime + InferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` (custom vLLM runtime; API name matches `model.id`) with vLLM args:
+- **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts). Chart always sets `HF_HUB_OFFLINE=1` for LLMIS local-path load (storage-initializer populates the PVC before vLLM starts).
+- **LLMInferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` via `vllm.image` (API name matches `model.id`) with vLLM args:
   - `--tool-call-parser qwen3_xml --reasoning-parser qwen3`
   - `--max-model-len 32000 --gpu-memory-utilization 0.90`
   - `--enable-prefix-caching --kv-cache-dtype fp8`
+  - HTTPS on :8000 (`--ssl-*` + probe `scheme: HTTPS`; requires cluster `enableLLMInferenceServiceTLS=true`)
+  - Workload Service: `qwen3-coder-kserve-workload-svc:8000`
   - EPP scorer weights: queue=2, kv-cache=2, prefix-cache=3
 - **llm-d Gateway + HTTPRoute**: cluster-internal llm-d Gateway with EPP routing
 - **RHCL AI Gateway** (`pca-ai-gateway`): HTTPS front door with per-developer API key auth (AuthPolicy)
 - **HardwareProfile**: GPU hardware profile definition
-- **ServingRuntime**: vLLM Neuron runtime template for Inferentia/Trainium (optional)
+- **ServingRuntime** (optional): vLLM Neuron runtime template for Inferentia/Trainium only
 - **pca-observability** (optional): Grafana dashboards + optional Langfuse/OTel Collector
 
 ### Wave 4 — Developer Workspaces (`pca-devspaces`)
@@ -743,7 +745,8 @@ rosa edit machinepool gpu-l40s --cluster=rosa-pca --replicas=2
 
 ### Scaling model replicas
 
-Edit `charts/pca-ai-serving/values-rosa.yaml` → update `llmInferenceService.replicas`, commit and push. ArgoCD syncs automatically.
+Edit `charts/pca-ai-serving/templates/llminferenceservice.yaml` → `spec.replicas`
+(or patch the live `LLMInferenceService`), commit/push for GitOps, and let ArgoCD sync.
 
 ### Adding a new model
 
