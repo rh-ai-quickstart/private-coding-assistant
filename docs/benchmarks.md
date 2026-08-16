@@ -4,7 +4,7 @@ Short highlights only. Full GuideLLM sweeps live next to the cloud deploy trees 
 
 ## Run GuideLLM on the live cluster (`make performance-vllm`)
 
-Measures **TTFT**, **ITL/TPOT**, **token throughput**, and **error/timeout behavior** against the currently deployed vLLM **predictor** (HTTP `qwen3-coder-predictor`; GuideLLM Job in `charts/pca-benchmarks`). Defaults avoid HTTPS llm-d because the pinned GuideLLM image cannot skip self-signed TLS verify.
+Measures **TTFT**, **ITL/TPOT**, **token throughput**, and **error/timeout behavior** against the live **LLMInferenceService workload Service** (HTTPS `qwen3-coder-kserve-workload-svc:8000` with mounted CA; GuideLLM Job in `charts/pca-benchmarks`). Defaults hit the workload Service directly — not RHCL / llm-d — and trust the LLMIS self-signed cert via the mounted CA secret.
 
 ```bash
 # AI serving already deployed. Do not run alongside make performance (OpenCode) — shared GPU.

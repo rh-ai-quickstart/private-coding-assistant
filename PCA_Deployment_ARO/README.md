@@ -25,8 +25,8 @@ Endpoint Picker Plugin (EPP)
   │    • Prefix cache hit scoring (weight: 3)
   │  Sets x-gateway-destination-endpoint header
   ▼
-vLLM Replica N (KServe RawDeployment, port 8000)
-  │  Custom ServingRuntime (vLLM v0.19.0)
+vLLM Replica N (KServe LLMInferenceService, port 8000 HTTPS)
+  │  Upstream vLLM via vllm.image (v0.19.0)
   │  Tool calling: --enable-auto-tool-choice --tool-call-parser=qwen3_xml
   │  Reasoning:    --reasoning-parser=qwen3
   ▼
@@ -43,18 +43,20 @@ designed for multi-replica, multi-GPU scaling:
 
 1. **Data Science Gateway** — TLS termination, stable cluster-internal endpoint
 2. **HTTPRoute** — `/v1/chat/completions` and `/v1/completions` route to the EPP
-   Envoy proxy; `/v1/models` routes directly to the predictor Service
+   Envoy proxy; `/v1/models` routes directly to the LLMIS workload Service
+   (`qwen3-coder-kserve-workload-svc:8000`, HTTPS)
 3. **Envoy + EPP (ExtProc)** — Envoy calls the EPP via gRPC ExtProc. The EPP
    uses the InferencePool to discover all vLLM replicas, scores them by queue
    depth and prefix cache affinity, and sets `x-gateway-destination-endpoint` to
    the optimal pod's IP. Envoy uses ORIGINAL_DST to forward directly.
-4. **InferencePool** — selects pods by label (`serving.kserve.io/inferenceservice: qwen36-vllm`)
+4. **InferencePool** — selects pods by label (`serving.kserve.io/inferenceservice: qwen3-coder`)
    and exposes target port 8000. Automatically discovers new replicas.
 5. **InferenceModel** — maps model name `Qwen/Qwen3.6-35B-A3B-FP8` to the pool,
    enabling future multi-model routing through a single gateway.
 
-**Current demo: 1 replica.** Scale by increasing GPU nodes and InferenceService
-`maxReplicas` — the EPP automatically discovers and routes to new replicas.
+**Current demo: 1 replica.** Scale by increasing GPU nodes and
+`LLMInferenceService` `spec.replicas` — the EPP automatically discovers and
+routes to new replicas.
 
 ---
 
@@ -99,11 +101,11 @@ designed for multi-replica, multi-GPU scaling:
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| **vLLM** | **0.19.0 (upstream)** | Custom ServingRuntime — see [Why Upstream vLLM](#why-upstream-vllm-v0190) |
+| **vLLM** | **0.19.0 (upstream)** | `vllm.image` on LLMInferenceService — see [Why Upstream vLLM](#why-upstream-vllm-v0190) |
 | PyTorch | 2.10.0+cu129 | Bundled with vLLM v0.19.0 |
 | Transformers | 4.57.6 | Required >=5.1 for Qwen3.6 |
 | Model | Qwen/Qwen3.6-35B-A3B-FP8 | 35B total / 3B active MoE, FP8, 256K ctx (native max) |
-| Serving | KServe RawDeployment | Via custom ServingRuntime |
+| Serving | KServe `LLMInferenceService` | Sole NVIDIA serving path (`vllm.image`) |
 | Gateway | Data Science Gateway | Gateway API + HTTPRoute (TLS) |
 | EPP | RHOAI odh-llm-d-inference-scheduler | Prefix-cache + queue-depth scoring |
 | Envoy Proxy | v1.33.2 (distroless) | ExtProc sidecar for EPP |
@@ -135,12 +137,14 @@ RHOAI 3.3.1 bundles `registry.redhat.io/rhaiis/vllm-cuda-rhel9` based on vLLM
    `VLLM_ENABLE_CUDA_COMPATIBILITY=1` bridges the gap using CUDA compat
    libraries (575.57.08)
 
-A **custom `ServingRuntime`** (`vllm-cuda-v0190`) is registered in RHOAI to
-serve the model through the standard KServe RawDeployment path, making the
-model visible and manageable through the OpenShift AI dashboard.
+The chart pins upstream vLLM via **`vllm.image`** on the **`LLMInferenceService`**
+(sole NVIDIA serving path). Cluster `enableLLMInferenceServiceTLS=true` is required
+so KServe mounts `/var/run/kserve/tls` and the chart’s HTTPS probes / `--ssl-*`
+args match.
 
-> **Note:** This custom runtime is unsupported by Red Hat. When RHOAI ships with
-> vLLM >= 0.19 and transformers >= 5.1, switch back to the bundled runtime.
+> **Note:** Upstream `vllm/vllm-openai` is unsupported by Red Hat. When RHOAI
+> ships with vLLM >= 0.19 and transformers >= 5.1, point `vllm.image` at the
+> bundled runtime image instead.
 
 ---
 
@@ -429,35 +433,37 @@ Registered in `redhat-ods-applications`, makes the H100 GPU visible in the
 RHOAI dashboard when deploying models. Defines CPU (4-16), Memory (40-120Gi),
 and GPU (1x `nvidia.com/gpu`) resource bounds.
 
-### Custom ServingRuntime (`vllm-cuda-v0190`)
+### LLMInferenceService (`qwen3-coder`)
 
 | Field | Value |
 |-------|-------|
-| Image | `vllm/vllm-openai:v0.19.0` |
+| Image | `vllm/vllm-openai:v0.19.0` (`vllm.image`) |
 | Entrypoint | `python3 -m vllm.entrypoints.openai.api_server` |
-| Model format | vLLM |
-| Protocol | REST (OpenAI-compatible) |
-| CUDA compat | `VLLM_ENABLE_CUDA_COMPATIBILITY=1` + `LD_LIBRARY_PATH` |
-| Cache | PVC-backed (`/model-cache`) for persistent model weights and JIT kernels |
-| Probes | Startup: 60min tolerance, Readiness: 10s, Liveness: 30s |
+| Model load | Local PVC path `/model-cache` (storage-initializer; `HF_HUB_OFFLINE=1`) |
+| Protocol | HTTPS on :8000 (`--ssl-certfile` / `--ssl-keyfile` under `/var/run/kserve/tls`) |
+| Workload Service | `qwen3-coder-kserve-workload-svc:8000` |
+| Cache | PVC-backed (`/model-cache`) for model weights and JIT kernels |
+| Probes | Startup / readiness / liveness with `scheme: HTTPS` |
 
-**vLLM server args:**
+**vLLM server args** (from `templates/llminferenceservice.yaml`):
 
 | Arg | Purpose |
 |-----|---------|
-| `--port=8000` | HTTP listen port |
-| `--served-model-name=Qwen/Qwen3.6-35B-A3B-FP8` | Model name in OpenAI API responses |
+| `--port=8000` | Listen port |
+| `--model=/model-cache` | Local path after storage-initializer |
+| `--served-model-name=…` | OpenAI API model name (defaults to `model.id`) |
 | `--trust-remote-code` | Required for Qwen3.5-MoE architecture |
 | `--enable-prefix-caching` | KV cache reuse for shared prefixes (EPP affinity) |
 | `--enable-auto-tool-choice` | Allow model to decide when to use tools (required by OpenCode/Roo Code) |
-| `--tool-call-parser=qwen3_xml` | Parse Qwen3.x XML tool calls (`<tool_call>` tags) into OpenAI `tool_calls` |
+| `--tool-call-parser=qwen3_xml` | Parse Qwen3.x XML tool calls into OpenAI `tool_calls` |
+| `--ssl-certfile` / `--ssl-keyfile` | Serve TLS on :8000 (cluster `enableLLMInferenceServiceTLS=true`) |
 
 Environment variables handle non-root container constraints:
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `HF_HOME` | `/model-cache` | HuggingFace cache on PVC |
-| `HF_HUB_OFFLINE` | auto | Chart sets `"0"` when `model-cache` PVC is missing (cold) and `"1"` when it exists (warm); ArgoCD always renders `"0"` |
+| `HF_HUB_OFFLINE` | `1` | Always on for LLMIS local-path load (storage-initializer populates the PVC) |
 | `TRITON_CACHE_DIR` | `/model-cache/triton-cache` | Triton MoE kernel cache on PVC |
 | `XDG_CACHE_HOME` | `/model-cache/xdg-cache` | General cache on PVC |
 | `HOME` | `/tmp` | Writable home for non-root user |
@@ -466,33 +472,31 @@ Environment variables handle non-root container constraints:
 | `DG_JIT_CACHE_DIR` | `/model-cache/deep-gemm` | DeepGEMM MoE kernel JIT cache on PVC — saves ~5 min on restart |
 | `VLLM_CACHE_ROOT` | `/model-cache/vllm-cache` | torch.compile AOT cache on PVC — saves ~30s on restart |
 
-### InferenceService (`qwen36-vllm`)
-
-- **Mode**: KServe RawDeployment (no Knative/Serverless dependency)
-- **Runtime**: `vllm-cuda-v0190`
-- **Model args**: `--model=Qwen/Qwen3.6-35B-A3B-FP8 --tensor-parallel-size=1 --max-model-len=32000`
+- **Mode**: KServe RawDeployment via `LLMInferenceService` (no Knative/Serverless dependency)
 - **Resources per replica**: 8-16 CPU, 80-120Gi RAM, 1x NVIDIA GPU
 - **Toleration**: `nvidia.com/gpu=present:NoSchedule`
-- **Scaling**: `minReplicas: 1`, `maxReplicas: 4` (increase for more GPU nodes)
+- **Scaling**: `spec.replicas: 1` in the chart (raise for more GPU nodes)
 
-**Combined vLLM args** (ServingRuntime + InferenceService):
+**Combined vLLM args** (chart `command` / `args`):
 
 ```
 python3 -m vllm.entrypoints.openai.api_server \
   --port=8000 \
+  --model=/model-cache \
   --served-model-name=Qwen/Qwen3.6-35B-A3B-FP8 \
   --trust-remote-code \
   --enable-prefix-caching \
   --enable-auto-tool-choice \
   --tool-call-parser=qwen3_xml \
   --reasoning-parser=qwen3 \
-  --model=Qwen/Qwen3.6-35B-A3B-FP8 \
   --tensor-parallel-size=1 \
-  --max-model-len=32000
+  --max-model-len=32000 \
+  --ssl-certfile=/var/run/kserve/tls/tls.crt \
+  --ssl-keyfile=/var/run/kserve/tls/tls.key
 ```
 
 > **Tool calling is required** for OpenCode's agentic features. Without
-> `--enable-auto-tool-choice` and `--tool-call-parser=hermes`, OpenCode
+> `--enable-auto-tool-choice` and `--tool-call-parser`, OpenCode
 > requests fail with: `"auto" tool choice requires --enable-auto-tool-choice
 > and --tool-call-parser to be set`.
 
@@ -504,16 +508,16 @@ cache (`VLLM_CACHE_ROOT`). Survives pod restarts to avoid re-downloading the
 model and re-compiling kernels (~17 min saved on warm restart — from 19.5 min
 → 2.5 min cold start with populated caches).
 
-`HF_HUB_OFFLINE` is set by the chart from a live PVC lookup on `helm upgrade`
-(missing → `"0"` cold, present → `"1"` warm). ArgoCD always renders `"0"`
-because lookup is unsupported there — first GitOps sync can still download.
+`HF_HUB_OFFLINE` is always `1`: the storage-initializer populates the PVC before
+vLLM starts, so runtime does not call Hugging Face Hub. Keep the PVC across
+upgrades for a warm cache.
 
 ### AI Gateway (`llm-d-gateway`)
 
 Gateway API `Gateway` with HTTPS listener (self-signed TLS) and `HTTPRoute`.
 Inference requests (`/v1/chat/completions`, `/v1/completions`, `/v1`) route
 through the EPP Envoy proxy for intelligent scheduling. Metadata requests
-(`/v1/models`) bypass EPP and go directly to the predictor Service.
+(`/v1/models`) bypass EPP and go directly to the LLMIS workload Service.
 
 **Cluster-internal endpoint:**
 ```
@@ -542,15 +546,15 @@ The EPP is the intelligent request scheduler deployed as an Envoy sidecar.
 5. EPP returns `x-gateway-destination-endpoint` header with optimal pod IP
 6. Envoy forwards request to the selected pod using ORIGINAL_DST cluster
 
-### InferencePool (`qwen36-vllm-pool`)
+### InferencePool (`qwen3-coder-inference-pool`)
 
-Selects vLLM predictor pods by label `serving.kserve.io/inferenceservice: qwen36-vllm`
+Selects vLLM pods by label `serving.kserve.io/inferenceservice: qwen3-coder`
 and forwards traffic to port 8000. Automatically discovers new replicas when
-InferenceService scales up.
+the `LLMInferenceService` scales up.
 
-### InferenceModel (`qwen36-model`)
+### InferenceModel (`qwen3-coder-model`)
 
-Maps model name `Qwen/Qwen3.6-35B-A3B-FP8` to `qwen36-vllm-pool`. For
+Maps model name `Qwen/Qwen3.6-35B-A3B-FP8` to `qwen3-coder-inference-pool`. For
 multi-model setups, create additional InferenceModel resources pointing to
 different InferencePools.
 
@@ -672,7 +676,7 @@ Full results: [`testresults_h100.md`](testresults_h100.md) · A100 sweep: [`test
 | Cloud values | Terraform sets `gitops.cloud=rosa` | Terraform sets `gitops.cloud=aro` |
 | NSG / network | AWS security groups | ARO-managed subnets (no customer NSG on master/worker) |
 | vLLM image | Chart / RHOAI default path for the ROSA overlay | Upstream vLLM (see [Why Upstream vLLM v0.19.0](#why-upstream-vllm-v0190)) |
-| Tool / reasoning parsers | Set in ROSA `values-rosa.yaml` / ServingRuntime for the chosen model | See [Model Tool Calling & Reasoning Configuration](#model-tool-calling--reasoning-configuration) (e.g. `qwen3_xml` + `qwen3` for Qwen3.6) |
+| Tool / reasoning parsers | Set in ROSA `values-rosa.yaml` / LLMIS args for the chosen model | See [Model Tool Calling & Reasoning Configuration](#model-tool-calling--reasoning-configuration) (e.g. `qwen3_xml` + `qwen3` for Qwen3.6) |
 
 Azure GPU choice depends on quota and model size (A100 80 GB vs H100 NVL 94 GB). Prefer a SKU with native FP8 and enough VRAM for your context window; see [docs/benchmarks.md](../docs/benchmarks.md).
 
@@ -717,9 +721,9 @@ oc scale machineset <infra_id>-gpu-h100 -n openshift-machine-api --replicas=N
 # 2. Wait for nodes to be Ready
 oc get nodes -l nvidia.com/gpu.present=true -w
 
-# 3. Update InferenceService replicas (maxReplicas already set to 4)
-oc patch inferenceservice qwen36-vllm -n ai-serving --type merge \
-  -p '{"spec":{"predictor":{"minReplicas": N}}}'
+# 3. Update LLMInferenceService replicas
+oc patch llminferenceservice qwen3-coder -n ai-serving --type merge \
+  -p '{"spec":{"replicas": N}}'
 
 # 4. Verify EPP discovers new replicas (check EPP logs)
 oc logs deploy/llm-d-epp -n ai-serving -c epp | grep "Starting refresher"
@@ -740,8 +744,8 @@ oc scale deploy/llm-d-epp -n ai-serving --replicas=2
 ### Scale to Zero (stop GPU billing)
 
 ```bash
-oc patch inferenceservice qwen36-vllm -n ai-serving --type merge \
-  -p '{"spec":{"predictor":{"minReplicas": 0}}}'
+oc patch llminferenceservice qwen3-coder -n ai-serving --type merge \
+  -p '{"spec":{"replicas": 0}}'
 oc scale machineset <infra_id>-gpu-h100 -n openshift-machine-api --replicas=0
 ```
 
@@ -749,7 +753,7 @@ oc scale machineset <infra_id>-gpu-h100 -n openshift-machine-api --replicas=0
 
 To serve a second model (e.g., a coding-specific model alongside the general one):
 
-1. Create a new `ServingRuntime` and `InferenceService` for the second model
+1. Add a second `LLMInferenceService` (or chart release) for the second model
 2. Create a new `InferencePool` selecting the second model's pods
 3. Create a new `InferenceModel` mapping the model name to the new pool
 4. Deploy a second EPP instance pointing to the new pool
@@ -774,8 +778,9 @@ Subsequent restarts are fast when using PVC-backed cache. The startup probe
 allows up to 60 minutes.
 
 **GPU node taint preventing pod scheduling:**
-The H100 node has taint `nvidia.com/gpu=present:NoSchedule`. The InferenceService
-includes the matching toleration. If deploying custom pods, add the toleration.
+The H100 node has taint `nvidia.com/gpu=present:NoSchedule`. The
+`LLMInferenceService` includes the matching toleration. If deploying custom
+pods, add the toleration.
 
 **CUDA driver version mismatch:**
 If the GPU node has been updated to NVIDIA driver 580+ (CUDA 13.0), set
@@ -795,22 +800,14 @@ Verify the HTTPRoute backend resolves: `oc get httproute model-route -n ai-servi
 **EPP pod in CrashLoopBackOff:**
 Check the EPP config version (`apiVersion: inference.networking.x-k8s.io/v1alpha1`).
 Ensure RBAC includes `inferenceobjectives` and `leases`. Check that the
-`qwen36-vllm-pool` InferencePool exists.
+`qwen3-coder-inference-pool` InferencePool exists.
 
 **OpenCode "auto tool choice requires --enable-auto-tool-choice" error:**
 OpenCode sends `tool_choice: "auto"` for agentic features. vLLM rejects these
 requests unless both `--enable-auto-tool-choice` and `--tool-call-parser` are set
-in the ServingRuntime args. Use `qwen3_xml` for Qwen3.x models. To fix:
-
-```bash
-oc patch servingruntime vllm-cuda-v0190 -n ai-serving --type='json' -p='[
-  {"op": "add", "path": "/spec/containers/0/args/-", "value": "--enable-auto-tool-choice"},
-  {"op": "add", "path": "/spec/containers/0/args/-", "value": "--tool-call-parser=qwen3_xml"},
-  {"op": "add", "path": "/spec/containers/0/args/-", "value": "--reasoning-parser=qwen3"}
-]'
-```
-
-Then delete the running vLLM pod to trigger a rollout with the new args.
+in the LLMInferenceService args (`charts/pca-ai-serving/values-aro.yaml` /
+`templates/llminferenceservice.yaml`). Use `qwen3_xml` for Qwen3.x models.
+Fix via GitOps (preferred) or patch the LLMIS container args, then roll the pod.
 
 **Model download slow or failing:**
 The model-cache PVC persists downloads across restarts. If HuggingFace is rate-limited,

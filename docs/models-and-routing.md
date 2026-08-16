@@ -2,7 +2,7 @@
 
 ## Serving
 
-NVIDIA models are deployed with KServe **`LLMInferenceService`** (or cloud-specific ServingRuntime + InferenceService where the chart uses that pattern). The stack provisions:
+NVIDIA models are deployed with KServe **`LLMInferenceService`** only. The stack provisions:
 
 - vLLM pods (RawDeployment)
 - InferencePool / InferenceModel (Gateway API Inference Extension)
@@ -14,7 +14,9 @@ NVIDIA models are deployed with KServe **`LLMInferenceService`** (or cloud-speci
 
 The default HuggingFace model is **`Qwen/Qwen3.6-35B-A3B-FP8`**. Leave `model.servedName` empty so the OpenAI API model name equals `model.id` (never point `servedName` at a different model).
 
-Qwen3.6 needs a new enough vLLM (`vllm.useCustomRuntime: true` and `vllm.image`, already set in the chart defaults).
+Qwen3.6 needs a new enough vLLM (`vllm.image`, already set in the chart defaults on the LLMInferenceService).
+
+Workload TLS is a **hard prerequisite**: cluster `enableLLMInferenceServiceTLS=true` (KServe mounts `/var/run/kserve/tls`; the chart hardcodes `--ssl-*` and HTTPS probes). See [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md#prerequisite-llminferenceservice-workload-tls).
 
 ### Choosing a different model
 

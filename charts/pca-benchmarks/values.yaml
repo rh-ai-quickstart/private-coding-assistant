@@ -22,7 +22,7 @@ maxRequests: 50
 # window from stats; with this GuideLLM build an all-warmup run crashes compile().
 warmupPercent: null
 cooldownPercent: null
-# httpx HTTP/2 against the HTTP/1.1 predictor is flaky; keep false.
+# httpx HTTP/2 against the HTTP/1.1 workload Service is flaky; keep false.
 http2: false
 # Also run --rate-type throughput per shape (max aggregate tok/s).
 runThroughputProbe: false

@@ -43,7 +43,7 @@ Each Dev Spaces namespace gets an API key Secret (`pca-ai-gw-apikey`). Break-gla
 
 ## Tool calling (Roo Code / agents)
 
-Agent modes need the model to return OpenAI-style `tool_calls`. For Qwen3 / Qwen3.6 families, vLLM must set the correct `--tool-call-parser` and `--reasoning-parser` (values live in cloud `values-*.yaml` / ServingRuntime args). Wrong parsers show up as “model did not call any of the required tools.”
+Agent modes need the model to return OpenAI-style `tool_calls`. For Qwen3 / Qwen3.6 families, vLLM must set the correct `--tool-call-parser` and `--reasoning-parser` (values live in cloud `values-*.yaml` / `LLMInferenceService` args). Wrong parsers show up as “model did not call any of the required tools.”
 
 See the ARO deploy guide section on tool calling for the current parser matrix.
 
