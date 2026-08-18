@@ -44,7 +44,7 @@ OUTPUT_PATH = (
 
 def _load_yaml_simple(path: Path) -> dict:
     """Minimal YAML loader for overrides (lists only; no PyYAML dependency)."""
-    data: dict[str, list[str]] = {"add": [], "remove": []}
+    data: dict[str, list[str]] = {"add": [], "remove": [], "remove_ids": []}
     current_key: str | None = None
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
@@ -52,7 +52,7 @@ def _load_yaml_simple(path: Path) -> dict:
             continue
         if line.endswith(":") and not line.startswith("-"):
             key = line[:-1].strip()
-            if key in ("add", "remove"):
+            if key in ("add", "remove", "remove_ids"):
                 current_key = key
             continue
         if line.startswith("- ") and current_key:
@@ -85,11 +85,19 @@ def _format_yaml(metadata: dict, patterns: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def extract_gitleaks_regexes(toml_path: Path) -> tuple[list[str], list[tuple[str, str]]]:
+def extract_gitleaks_regexes(
+    toml_path: Path,
+    *,
+    exclude_rule_ids: set[str] | None = None,
+) -> tuple[list[str], list[tuple[str, str]]]:
     """Return (valid_patterns, skipped) where skipped is (pattern, reason)."""
     raw = tomllib.loads(toml_path.read_text(encoding="utf-8"))
+    exclude = exclude_rule_ids or set()
     candidates: list[str] = []
     for rule in raw.get("rules", []):
+        rule_id = rule.get("id")
+        if rule_id in exclude:
+            continue
         regex = rule.get("regex")
         if isinstance(regex, str) and regex.strip():
             candidates.append(regex.strip())
@@ -116,7 +124,10 @@ def extract_gitleaks_regexes(toml_path: Path) -> tuple[list[str], list[tuple[str
 
 def build_pattern_list() -> tuple[list[str], list[tuple[str, str]]]:
     overrides = _load_yaml_simple(OVERRIDES_PATH)
-    patterns, skipped = extract_gitleaks_regexes(GITLEAKS_VENDOR)
+    remove_ids = set(overrides.get("remove_ids", []))
+    patterns, skipped = extract_gitleaks_regexes(
+        GITLEAKS_VENDOR, exclude_rule_ids=remove_ids
+    )
 
     remove_set = set(overrides.get("remove", []))
     patterns = [p for p in patterns if p not in remove_set]
