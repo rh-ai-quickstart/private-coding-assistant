@@ -12,7 +12,7 @@ dependencies = [
 markers = [
   "opencode: OpenCode Web / agent e2e cases (needs Running DevWorkspace)",
   "opencode_calculator: OpenCode calculator power clone/chat e2e",
-  "guardrails: guardrails + OpenCode path (needs guardrails-proxy + guardrails DevSpace URL)",
+  "guardrails: guardrails + OpenCode path (needs guardrails-proxy Service + IDE on pca-ai-gateway)",
   "performance: OpenCode scalability ladder; use make performance",
 ]
 testpaths = ["."]

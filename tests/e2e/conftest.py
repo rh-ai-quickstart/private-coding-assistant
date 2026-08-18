@@ -55,8 +55,8 @@ def require_opencode_guardrails_url(
     dw = oc.find_opencode_devworkspace(require_dev_namespace)
     assert dw is not None, f"no OpenCode DevWorkspace in {require_dev_namespace}"
     base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
-    assert "guardrails-proxy" in base, (
-        f"OPENAI_BASE_URL must route through guardrails-proxy, got {base!r}. "
-        "Redeploy devspace with guardrails.enabled=true and guardrails.endpoint="
-        f"http://guardrails-proxy.{ai_namespace}.svc.cluster.local:8080"
+    host = f"pca-ai-gateway-data-science-gateway-class.{ai_namespace}"
+    assert host in base, (
+        f"OPENAI_BASE_URL must route through pca-ai-gateway ({host}), got {base!r}. "
+        "Redeploy pca-devspaces so chat uses the RHCL gateway (guardrails is an HTTPRoute backend)."
     )

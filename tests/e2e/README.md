@@ -25,7 +25,7 @@ make e2e DEV_USER=dev-user1 PYTEST_ARGS='-k opencode_calculator'
 | Test | What it proves |
 |------|----------------|
 | `test_opencode_adds_power_and_unittest_passes` | OpenCode Web API clone + chat adds `power`; `power(2,4)==16` via unittest (uses deployed OpenCode config) |
-| `test_opencode_secret_blocked_by_guardrails` | OpenCode chat with fake AWS access key is blocked when DevSpace uses `guardrails-proxy` |
+| `test_opencode_secret_blocked_by_guardrails` | OpenCode chat with fake AWS access key is blocked when chat goes IDE → pca-ai-gateway → guardrails-proxy |
 
 Guardrails OpenCode case requires:
 
@@ -33,10 +33,9 @@ Guardrails OpenCode case requires:
 # platform (TrustyAI operator via cluster.trustyai)
 make ai-serving-deploy-existing-openshift
 
-# devspace routed through guardrails (default when guardrails.enabled=true)
+# IDE still uses pca-ai-gateway; HTTPRoute sends /v1/chat/completions to guardrails
 make devspace-deploy-existing-openshift DEV_USER=dev-user1 TYPE=opencode \
-  HELM_ARGS='--set guardrails.enabled=true \
-  --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080'
+  HELM_ARGS='--set guardrails.enabled=true'
 
 make e2e DEV_USER=dev-user1 PYTEST_ARGS='-m guardrails'
 ```
