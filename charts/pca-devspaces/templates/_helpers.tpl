@@ -6,18 +6,28 @@
 {{- printf "https://llm-d-gateway-data-science-gateway-class.%s.svc.cluster.local/v1" $ns -}}
 {{- end -}}
 
+{{- define "pca-devspaces.guardrails.endpoint" -}}
+{{- $ep := .Values.guardrails.endpoint | default "" | trim -}}
+{{- if $ep -}}
+{{- $ep -}}
+{{- else -}}
+{{- $ns := .Values.aiServingNamespace | default "ai-serving" -}}
+{{- printf "http://guardrails-proxy.%s.svc.cluster.local:8080" $ns -}}
+{{- end -}}
+{{- end -}}
+
 {{/*
   Default IDE OpenAI-compatible base URL.
 
   Priority:
-    1. guardrails.enabled → guardrails.endpoint/v1
+    1. guardrails.enabled → guardrails endpoint/v1
     2. escapeHatchToLlmd OR aiGateway disabled → llm-d
     3. else → RHCL pca-ai-gateway /v1
 */}}
 {{- define "pca-devspaces.aiGateway.baseUrl" -}}
 {{- $ai := .Values.aiGateway | default dict -}}
 {{- if .Values.guardrails.enabled -}}
-{{- printf "%s/v1" .Values.guardrails.endpoint -}}
+{{- printf "%s/v1" (include "pca-devspaces.guardrails.endpoint" .) -}}
 {{- else if or ($ai.escapeHatchToLlmd | default false) (not ($ai.enabled | default true)) -}}
 {{- include "pca-devspaces.llmdBaseUrl" . -}}
 {{- else -}}

@@ -17,8 +17,9 @@ devspaces:
       name: PLACEHOLDER
       user: PLACEHOLDER
       password: PLACEHOLDER-run-make-devspace-deploy-N-then-setup-idp
-# Guardrails sub-chart config. Set guardrails.enabled: true in the parent to enable.
-# Secret patterns: files/secret-patterns.yaml (from gitleaks via make sync-guardrails-patterns).
+guardrails:
+  enabled: true
+# Guardrails sub-chart config (enabled by default). Secret patterns: files/secret-patterns.yaml
 # Overrides: files/secret-patterns-overrides.yaml
 pca-guardrails:
   namespace: ai-serving

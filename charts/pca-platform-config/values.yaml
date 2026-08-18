@@ -19,7 +19,7 @@ devspaces:
 hfToken:
   raw: "__overridden_at_deploy_time__"
 guardrails:
-  enabled: false
+  enabled: true
 # Sub-chart: pca-guardrails (TrustyAI guardrails orchestrator + detectors + proxy)
 # Values here are passed to PCA_Deployment_ROSA/charts/pca-platform-config/charts/pca-guardrails/
 pca-guardrails:
