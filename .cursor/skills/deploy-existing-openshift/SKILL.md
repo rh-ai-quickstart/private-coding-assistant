@@ -157,12 +157,7 @@ Guardrails deploy with `make ai-serving-deploy-existing-openshift` when `guardra
 Guardrails pods: `pca-guardrails-*` (2/2), `prompt-injection-detector-*` (1/1), `guardrails-proxy-*` (1/1).
 The proxy forwards `X-PCA-*` identity headers to the orchestrator/LLM.
 
-To route IDE chat through guardrails when deploying DevSpaces:
-```
-make devspace-deploy-existing-openshift N=<n> \
-  HELM_ARGS='--set guardrails.enabled=true --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080'
-```
-Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails needed).
+IDEs always call `pca-ai-gateway` (API key). When guardrails is on, HTTPRoute `/v1/chat/completions` goes to `guardrails-proxy`. Tab autocomplete stays on llm-d (no auth, no detection).
 
 ## Teardown / warm path
 

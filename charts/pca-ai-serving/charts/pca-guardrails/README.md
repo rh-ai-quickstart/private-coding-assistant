@@ -5,18 +5,19 @@ AI security guardrails that intercept traffic between IDE extensions and the LLM
 ## Architecture
 
 ```
-IDE Extension (Continue / Roo Code)
-  → POST /v1/chat/completions (standard OpenAI request)
-    → Guardrails Proxy (injects detectors, disables streaming+thinking, converts to SSE)
-      → TrustyAI Orchestrator (runs detectors)
-        → [Input detectors: prompt injection, PII, secrets]
-          → vLLM Workload Service (HTTPS, inference)
-        ← [Output detectors: secrets in generated code]
-      ← response (blocked or LLM completion)
+IDE Extension (Continue / Roo / OpenCode)
+  → pca-ai-gateway (TLS + API key)
+    → POST /v1/chat/completions
+      → Guardrails Proxy (injects detectors, disables streaming+thinking, converts to SSE)
+        → TrustyAI Orchestrator (runs detectors)
+          → [Input detectors: prompt injection, PII, secrets]
+            → llm-d Gateway → vLLM
+          ← [Output detectors: secrets in generated code]
+        ← response (blocked or LLM completion)
     ← response to IDE
 ```
 
-The proxy accepts standard OpenAI-compatible requests from IDE extensions and:
+The proxy is an HTTPRoute backend of `pca-ai-gateway`, not the IDE `OPENAI_BASE_URL`. It:
 
 1. Injects the configured detectors into every request
 2. Disables streaming and thinking mode (required for Qwen3 with `qwen3_coder` tool-call parser — otherwise responses come back empty)
@@ -65,14 +66,9 @@ Guardrails are a sub-chart of `pca-ai-serving` and deploy with the serving stack
 3. Ensure `cluster.trustyai.enabled: true` in `pca-platform-config` (TrustyAI operator)
 4. Deploy: `make ai-serving-deploy-existing-openshift`
 
-To route IDE chat through guardrails, deploy devspaces with:
-```bash
-make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> \
-  --set guardrails.enabled=true \
-  --set guardrails.endpoint="http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080"
-```
+To enable guardrails on chat (default), keep `guardrails.enabled=true` on ai-serving. DevSpaces always use `pca-ai-gateway`; the HTTPRoute sends `/v1/chat/completions` to the proxy.
 
-Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails needed for completions).
+Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails).
 
 ## Secret patterns (gitleaks)
 
@@ -113,8 +109,8 @@ For detection logic beyond simple regex (Luhn validation, entropy checks, extern
 | `guardrails.enforcement` | `block` | Enforcement mode: `block`, `warn`, `log-only` |
 | `guardrails.proxy.enabled` | `true` | Deploy the guardrails proxy (OpenAI-compatible endpoint) |
 | `guardrails.gateway.enabled` | `false` | Deploy the TrustyAI gateway sidecar (see Known Limitations) |
-| `guardrails.llmService.host` | `qwen3-coder-kserve-workload-svc` | vLLM LLMIS workload service name |
-| `guardrails.llmService.port` | `8000` | Workload Service port |
+| `guardrails.llmService.host` | `llm-d-gateway-data-science-gateway-class` | llm-d Gateway Service name (`{gatewayName}-{gatewayClassName}`) |
+| `guardrails.llmService.port` | `80` | llm-d Gateway HTTP listener (TrustyAI). RHCL still uses HTTPS :443 |
 | `guardrails.replicas` | `1` | Orchestrator replicas |
 | `guardrails.detectors.promptInjection.enabled` | `true` | Enable prompt injection detection |
 | `guardrails.detectors.promptInjection.model` | `protectai/deberta-v3-base-prompt-injection-v2` | HuggingFace model for injection detection |
