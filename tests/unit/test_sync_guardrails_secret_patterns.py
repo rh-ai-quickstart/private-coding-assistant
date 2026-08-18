@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -102,6 +103,13 @@ def test_helm_detectors_json_includes_pii_and_secrets():
     assert "name: LANGFUSE_PUBLIC_KEY" in result.stdout
     assert "kind: ServiceMonitor" in result.stdout
     assert "path: /metrics" in result.stdout
+    svc_docs = [
+        d
+        for d in result.stdout.split("---")
+        if re.search(r"(?m)^kind:\s*Service\s*$", d)
+    ]
+    assert svc_docs, "expected guardrails-proxy Service"
+    assert "matchLabels:" not in svc_docs[0]
     for marker in ("email", "us-social-security-number", "us-phone-number", "ipv4"):
         assert marker in result.stdout
     assert "AKIA" in result.stdout or "akia" in result.stdout.lower()

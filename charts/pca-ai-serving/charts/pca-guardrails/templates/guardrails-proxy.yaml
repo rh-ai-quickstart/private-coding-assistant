@@ -28,6 +28,8 @@ spec:
       app.kubernetes.io/name: guardrails-proxy
   template:
     metadata:
+      annotations:
+        checksum/script: {{ .Files.Get "files/guardrails_proxy.py" | sha256sum }}
       labels:
         app.kubernetes.io/name: guardrails-proxy
         app.kubernetes.io/component: guardrails
@@ -100,8 +102,7 @@ metadata:
     app.kubernetes.io/component: guardrails
 spec:
   selector:
-    matchLabels:
-      app.kubernetes.io/name: guardrails-proxy
+    app.kubernetes.io/name: guardrails-proxy
   ports:
     - name: http
       port: 8080

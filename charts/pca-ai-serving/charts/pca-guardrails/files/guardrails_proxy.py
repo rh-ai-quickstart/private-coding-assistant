@@ -26,7 +26,7 @@ import uuid
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -413,17 +413,21 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/healthz":
+            self.close_connection = True
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.send_header("Content-Length", "2")
+            self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(b"ok")
             return
         if path == "/metrics":
+            self.close_connection = True
             payload = metrics_text().encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(payload)
             return
@@ -450,7 +454,8 @@ if __name__ == "__main__":
     print(f"[proxy] starting on :{LISTEN_PORT}", flush=True)
     print(f"[proxy] orchestrator: {ORCHESTRATOR_URL}", flush=True)
     print(f"[proxy] detectors: {json.dumps(DETECTORS, indent=2)}", flush=True)
-    server = HTTPServer(("0.0.0.0", LISTEN_PORT), ProxyHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", LISTEN_PORT), ProxyHandler)
+    server.daemon_threads = True
     try:
         server.serve_forever()
     except KeyboardInterrupt:
