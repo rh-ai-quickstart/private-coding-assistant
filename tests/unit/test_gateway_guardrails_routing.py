@@ -104,12 +104,9 @@ def test_httproute_chat_goes_to_llmd_when_guardrails_off():
 
 
 def test_devspaces_chat_url_is_gateway_with_api_key_when_guardrails_on():
-    result = subprocess.run(
+    rendered = _helm_template(
+        DEVSPACES,
         [
-            "helm",
-            "template",
-            "test",
-            str(DEVSPACES),
             "--set",
             "guardrails.enabled=true",
             "--set",
@@ -123,13 +120,29 @@ def test_devspaces_chat_url_is_gateway_with_api_key_when_guardrails_on():
             "--set",
             "devspaces[0].type=continue",
         ],
-        check=True,
-        capture_output=True,
-        text=True,
     )
-    text = result.stdout
-    assert "pca-ai-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1" in text
-    assert "guardrails-proxy" not in text
-    assert "kind: Secret" in text
-    assert "pca-ai-gw-apikey" in text
-    assert "llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1" in text
+    docs = _docs(rendered)
+
+    secrets = [
+        doc
+        for doc in docs
+        if doc.get("kind") == "Secret" and doc.get("metadata", {}).get("name") == "pca-ai-gw-apikey"
+    ]
+    assert secrets, "pca-ai-gw-apikey Secret missing"
+
+    continue_cm = None
+    for doc in docs:
+        if doc.get("kind") == "ConfigMap" and doc.get("metadata", {}).get("name") == "continue-config":
+            continue_cm = doc
+            break
+    assert continue_cm is not None, "continue-config ConfigMap missing"
+    config_yaml = continue_cm.get("data", {}).get("config.yaml") or ""
+    assert "pca-ai-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1" in config_yaml
+    assert "llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1" in config_yaml
+    assert "guardrails-proxy" not in config_yaml
+
+    config = yaml.safe_load(config_yaml)
+    assert config["models"][0]["apiKey"] != "EMPTY"
+    # tabAutocompleteModel talks to llm-d directly (unauthenticated) when guardrails is
+    # on, so it must not carry the real gateway key (see continue-configmaps.yaml).
+    assert config["tabAutocompleteModel"]["apiKey"] == "EMPTY"

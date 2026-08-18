@@ -34,6 +34,19 @@
 {{- end -}}
 
 {{/*
+  IDE apiKey for tab autocomplete. Must track tabAutocompleteBaseUrl: EMPTY when
+  that URL is llm-d directly (no auth there), else the real RHCL key.
+  Caller: dict "root" $ "ns" $devNamespace
+*/}}
+{{- define "pca-devspaces.tabAutocompleteApiKey" -}}
+{{- if .root.Values.guardrails.enabled -}}
+EMPTY
+{{- else -}}
+{{- include "pca-devspaces.aiGateway.ideApiKey" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
   Whether IDEs must present an RHCL API key (Bearer).
 */}}
 {{- define "pca-devspaces.aiGateway.requiresApiKey" -}}

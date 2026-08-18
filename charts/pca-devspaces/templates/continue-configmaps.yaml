@@ -7,6 +7,7 @@
 {{- $team := $devspace.team | default "" }}
 {{- $baseUrl := include "pca-devspaces.aiGateway.baseUrl" $ }}
 {{- $apiKey := include "pca-devspaces.aiGateway.ideApiKey" (dict "root" $ "ns" $ns) }}
+{{- $tabApiKey := include "pca-devspaces.tabAutocompleteApiKey" (dict "root" $ "ns" $ns) }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -58,7 +59,7 @@ data:
       provider: openai
       model: {{ $.Values.modelId }}
       apiBase: {{ include "pca-devspaces.tabAutocompleteBaseUrl" $ }}
-      apiKey: {{ $apiKey }}
+      apiKey: {{ $tabApiKey }}
       contextLength: {{ include "pca-devspaces.tokens.total" $ }}
       requestOptions:
         verifySsl: false

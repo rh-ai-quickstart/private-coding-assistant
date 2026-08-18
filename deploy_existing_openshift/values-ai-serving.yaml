@@ -35,11 +35,6 @@ aiGateway:
   kuadrant:
     create: true
 # Guardrails workloads (TrustyAI operator toggle stays in pca-platform-config cluster.trustyai).
+# llmService host/port/tlsSecret: inherited from charts/pca-ai-serving/values.yaml (llm-d-gateway, HTTP).
 guardrails:
   enabled: true
-pca-guardrails:
-  guardrails:
-    llmService:
-      host: llm-d-gateway-data-science-gateway-class
-      port: 80
-      tlsSecret: ""
