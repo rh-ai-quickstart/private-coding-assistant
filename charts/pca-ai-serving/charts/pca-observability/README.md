@@ -70,7 +70,7 @@ Optional values overrides (`grafana.adminPassword`, `langfuse.credentials.salt`,
 |-------|---------|-------------------|
 | A | Users overview (finished inference req/s, running vs queued, input vs output tokens/sec + Langfuse pointer) | yes |
 | B | UX / latency (TTFT, inter-token latency, end-to-end request latency, queue wait) | no |
-| C | Capacity / KV / GPU (KV cache %, GPU util avg+peak, output vs all tokens/sec, finished req/min, PLACEHOLDER $/hr) | no |
+| C | Capacity / KV / GPU (KV cache %, GPU util avg+peak, output vs all tokens/sec, finished req/min, guardrails blocked requests, PLACEHOLDER $/hr) | no |
 | D | Tokens / cost fairness (input vs output tokens/sec, finished req/s, PLACEHOLDER GPU $/hr) | yes |
 
 Panel titles use long, definition-style names (same style as the performance ladder columns). Token naming: **output** = generation/decode only; **input/all** keep prompt visible. Grafana uses rolling 5m `rate()`; the ladder uses total stage time — same token kind, different time base.
@@ -91,7 +91,7 @@ DevSpaces (Roo + Continue + Cline) send:
 - `X-PCA-DevSpace` ← namespace → metadata `devspace`
 - `X-PCA-Team` ← optional `devspaces[].team` → metadata/tag `team`
 
-Guardrails proxy forwards these headers. Full prompt/completion bodies are stored by the **vLLM middleware** when `langfuse.ioCapture=full` (reads the same headers for `userId`/metadata).
+Guardrails proxy forwards these headers. Flagged requests (input skip or output detection) are stored by the proxy as Langfuse traces named `guardrails-flagged` (tags `guardrails:blocked` / `guardrails:warned`). Full prompt/completion bodies for allowed chats are stored by the **vLLM middleware** when `langfuse.ioCapture=full` (reads the same headers for `userId`/metadata).
 
 **Phase 0 risk:** vLLM OTEL span attribute mapping for `X-PCA-*` is still unproven for Boards A/D aggregates from OTEL alone. The full-I/O middleware path does not depend on that.
 

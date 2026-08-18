@@ -151,6 +151,23 @@ data:
               "legendFormat": "finished inference requests per minute"
             }
           ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Guardrails blocked requests (empty-choices input skips)",
+          "description": "IDE requests the proxy withheld from vLLM (TrustyAI empty choices). Absent when guardrails-proxy is not scraped. Output detections that still returned model text are not counted.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(pca_guardrails_blocked_total[5m]))",
+              "legendFormat": "blocked requests/sec"
+            },
+            {
+              "expr": "sum(increase(pca_guardrails_blocked_total[1h]))",
+              "legendFormat": "blocked requests (last 1h)"
+            }
+          ]
         }
       ]
     }
