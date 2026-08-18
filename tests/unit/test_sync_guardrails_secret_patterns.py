@@ -73,6 +73,17 @@ def test_stripe_live_pattern_in_generated_file():
     assert "sk|rk" in text and "live" in text
 
 
+def test_generic_api_key_rule_excluded(sync_mod):
+    """generic-api-key is too broad for block-mode IDE chat (false positives)."""
+    patterns, _ = sync_mod.build_pattern_list()
+    broad = [
+        p
+        for p in patterns
+        if "passw(?:or)?d" in p and "access|auth" in p and "credential" in p
+    ]
+    assert not broad, "generic-api-key pattern should be removed via remove_ids"
+
+
 def test_helm_detectors_json_includes_pii_and_secrets():
     result = subprocess.run(
         [
@@ -88,6 +99,9 @@ def test_helm_detectors_json_includes_pii_and_secrets():
         text=True,
     )
     assert "name: DETECTORS_JSON" in result.stdout
+    assert "name: LANGFUSE_PUBLIC_KEY" in result.stdout
+    assert "kind: ServiceMonitor" in result.stdout
+    assert "path: /metrics" in result.stdout
     for marker in ("email", "us-social-security-number", "us-phone-number", "ipv4"):
         assert marker in result.stdout
     assert "AKIA" in result.stdout or "akia" in result.stdout.lower()
