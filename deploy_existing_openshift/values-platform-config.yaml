@@ -4,6 +4,9 @@
 
 clusterConfig:
   enabled: false
+cluster:
+  trustyai:
+    enabled: true
 devspaces:
   enabled: false
   # instances: PLACEHOLDER — replaced entirely by
@@ -17,35 +20,6 @@ devspaces:
       name: PLACEHOLDER
       user: PLACEHOLDER
       password: PLACEHOLDER-run-make-devspace-deploy-N-then-setup-idp
-guardrails:
-  enabled: true
-# Guardrails sub-chart config (enabled by default). Secret patterns: files/secret-patterns.yaml
-# Overrides: files/secret-patterns-overrides.yaml
-pca-guardrails:
-  namespace: ai-serving
-  guardrails:
-    enforcement: block
-    llmService:
-      host: qwen3-coder-kserve-workload-svc
-      port: 8000
-      tlsSecret: qwen3-coder-kserve-self-signed-certs
-    replicas: 1
-    gateway:
-      enabled: false
-    proxy:
-      enabled: true
-    detectors:
-      promptInjection:
-        enabled: true
-        model: protectai/deberta-v3-base-prompt-injection-v2
-        threshold: 0.5
-        useGpu: false
-      piiRegex:
-        enabled: true
-      secretsRegex:
-        enabled: true
-    otel:
-      enabled: false
 # HTPasswd IDP is not created via Helm on existing clusters (OAuth CR is managed externally).
 # Run `make setup-idp` to configure HTPasswd IDP via the additive patch script.
 auth:

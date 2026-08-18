@@ -3,9 +3,6 @@ name: pca-platform-config
 version: 0.1.0
 description: PCA Platform Configuration — namespaces, RBAC, secrets, DSC
 dependencies:
-  - name: pca-guardrails
-    version: 0.1.0
-    condition: guardrails.enabled
   - name: pca-mcp
     version: 0.1.0
     condition: mcp.enabled

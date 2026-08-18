@@ -6,3 +6,6 @@ dependencies:
   - name: pca-observability
     version: 0.1.0
     condition: observability.enabled
+  - name: pca-guardrails
+    version: 0.1.0
+    condition: guardrails.enabled

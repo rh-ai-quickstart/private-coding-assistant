@@ -72,7 +72,6 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 		--namespace $(AI_NAMESPACE) --create-namespace \
 		-f $(DEPLOY_VALUES_DIR)/values-platform-config.yaml \
 		--set namespace=$(AI_NAMESPACE) \
-		--set pca-guardrails.namespace=$(AI_NAMESPACE) \
 		--set hfToken.raw=$(HF_TOKEN) \
 		$(MCP_FLAGS)
 	helm upgrade --install $(AI_NAMESPACE)-ai-serving $(CHARTS_DIR)/pca-ai-serving \
@@ -80,6 +79,7 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 		-f $(DEPLOY_VALUES_DIR)/values-ai-serving.yaml \
 		--set namespace=$(AI_NAMESPACE) \
 		--set pca-observability.namespace=$(AI_NAMESPACE) \
+		--set pca-guardrails.namespace=$(AI_NAMESPACE) \
 		$(HELM_ARGS)
 
 # Default: helm uninstall only — keeps AI_NAMESPACE + model-cache PVC (warm restart path).

@@ -30,10 +30,10 @@ make e2e DEV_USER=dev-user1 PYTEST_ARGS='-k opencode_calculator'
 Guardrails OpenCode case requires:
 
 ```bash
-# platform (guardrails in AI namespace)
-make ai-serving-deploy-existing-openshift HELM_ARGS='--set guardrails.enabled=true'
+# platform (TrustyAI operator via cluster.trustyai)
+make ai-serving-deploy-existing-openshift
 
-# devspace routed through guardrails
+# devspace routed through guardrails (default when guardrails.enabled=true)
 make devspace-deploy-existing-openshift DEV_USER=dev-user1 TYPE=opencode \
   HELM_ARGS='--set guardrails.enabled=true \
   --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080'

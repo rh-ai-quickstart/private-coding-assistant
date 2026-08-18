@@ -153,7 +153,7 @@ See `deploy_existing_openshift/README.md` and `pca-platform-config/charts/pca-mc
 
 ### Guardrails (optional)
 
-Guardrails deploy automatically with `ai-serving-deploy-existing-openshift` when `guardrails.enabled: true` is set in `deploy_existing_openshift/values-platform-config.yaml` before deploying.
+Guardrails deploy with `make ai-serving-deploy-existing-openshift` when `guardrails.enabled: true` (default in `charts/pca-ai-serving/values.yaml`). TrustyAI operator: `cluster.trustyai.enabled` in platform-config.
 Guardrails pods: `pca-guardrails-*` (2/2), `prompt-injection-detector-*` (1/1), `guardrails-proxy-*` (1/1).
 The proxy forwards `X-PCA-*` identity headers to the orchestrator/LLM.
 

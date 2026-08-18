@@ -2,8 +2,8 @@
 """Sync guardrails secret regex patterns from vendored gitleaks rules.
 
 Reads scripts/vendor/gitleaks-v8.24.2.toml (pinned to .pre-commit-config.yaml),
-merges charts/pca-platform-config/charts/pca-guardrails/files/secret-patterns-overrides.yaml,
-and writes charts/pca-platform-config/charts/pca-guardrails/files/secret-patterns.yaml.
+merges charts/pca-ai-serving/charts/pca-guardrails/files/secret-patterns-overrides.yaml,
+and writes charts/pca-ai-serving/charts/pca-guardrails/files/secret-patterns.yaml.
 
 Usage:
   python scripts/sync-guardrails-secret-patterns.py
@@ -25,7 +25,7 @@ GITLEAKS_VERSION = "v8.24.2"
 OVERRIDES_PATH = (
     REPO_ROOT
     / "charts"
-    / "pca-platform-config"
+    / "pca-ai-serving"
     / "charts"
     / "pca-guardrails"
     / "files"
@@ -34,7 +34,7 @@ OVERRIDES_PATH = (
 OUTPUT_PATH = (
     REPO_ROOT
     / "charts"
-    / "pca-platform-config"
+    / "pca-ai-serving"
     / "charts"
     / "pca-guardrails"
     / "files"

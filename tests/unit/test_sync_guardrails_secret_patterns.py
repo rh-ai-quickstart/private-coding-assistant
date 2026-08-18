@@ -15,7 +15,7 @@ VENDOR_TOML = REPO_ROOT / "scripts" / "vendor" / "gitleaks-v8.24.2.toml"
 OVERRIDES_PATH = (
     REPO_ROOT
     / "charts"
-    / "pca-platform-config"
+    / "pca-ai-serving"
     / "charts"
     / "pca-guardrails"
     / "files"
@@ -24,13 +24,13 @@ OVERRIDES_PATH = (
 OUTPUT_PATH = (
     REPO_ROOT
     / "charts"
-    / "pca-platform-config"
+    / "pca-ai-serving"
     / "charts"
     / "pca-guardrails"
     / "files"
     / "secret-patterns.yaml"
 )
-CHART_PATH = REPO_ROOT / "charts" / "pca-platform-config" / "charts" / "pca-guardrails"
+CHART_PATH = REPO_ROOT / "charts" / "pca-ai-serving" / "charts" / "pca-guardrails"
 
 
 @pytest.fixture(scope="module")

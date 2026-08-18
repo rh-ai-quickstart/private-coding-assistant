@@ -32,4 +32,4 @@ repos:
         entry: python scripts/sync-guardrails-secret-patterns.py --check
         language: system
         pass_filenames: false
-        files: ^(scripts/vendor/gitleaks-v8\.24\.2\.toml|charts/pca-platform-config/charts/pca-guardrails/files/secret-patterns-overrides\.yaml)$
+        files: ^(scripts/vendor/gitleaks-v8\.24\.2\.toml|charts/pca-ai-serving/charts/pca-guardrails/files/secret-patterns-overrides\.yaml)$
