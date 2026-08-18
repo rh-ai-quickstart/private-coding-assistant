@@ -130,6 +130,7 @@ def test_chat_completions_with_valid_api_key(
     model_id: str,
     require_dev_namespace: str,
 ) -> None:
+    _skip_if_guardrails_devspace(require_dev_namespace)
     api_key = oc.secret_data(
         urls.AI_GATEWAY_APIKEY_SECRET,
         urls.AI_GATEWAY_APIKEY_KEY,
