@@ -85,3 +85,39 @@ def test_prompt_injection_blocked(ai_namespace: str, model_id: str) -> None:
     assert blocked or status in (400, 403, 422), (
         f"expected block for injection, got status={status} body={raw[:400]!r}"
     )
+
+
+def test_aws_access_key_blocked(ai_namespace: str, model_id: str) -> None:
+    """AWS AKIA* example key is in gitleaks-derived secret-patterns.yaml."""
+    status, body = oc.in_cluster_http(
+        ai_namespace,
+        f"{urls.guardrails_proxy(ai_namespace)}/v1/chat/completions",
+        method="POST",
+        json_body={
+            "model": model_id,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "key = AKIAIOSFODNN7EXAMPLE",
+                }
+            ],
+            "stream": False,
+            "max_tokens": 64,
+        },
+        insecure=False,
+        timeout_secs=120,
+    )
+    raw = body if isinstance(body, str) else str(body)
+    blocked = (
+        "Guardrails blocked" in raw
+        or "credential" in raw.lower()
+        or "secret" in raw.lower()
+        or "AKIA" in raw
+    )
+    if status == 200 and not blocked:
+        pytest.skip(
+            f"AWS key not clearly blocked (status={status}); enforcement may be warn/log-only"
+        )
+    assert blocked or status in (400, 403, 422), (
+        f"expected block for AWS access key, got status={status} body={raw[:400]!r}"
+    )

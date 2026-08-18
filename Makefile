@@ -48,7 +48,7 @@ DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
 # Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
 DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
 
-.PHONY: build shell run help smoke e2e performance performance-vllm unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable
+.PHONY: build shell run help smoke e2e performance performance-vllm unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable sync-guardrails-patterns
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -138,6 +138,12 @@ smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_USER=, COMPONENT=, N_PARALLEL=
 
 unit: ## Local unit tests (PYTEST_ARGS=)
 	python -m pytest tests/unit -v $(PYTEST_ARGS)
+
+sync-guardrails-patterns: ## Refresh guardrails secret patterns from vendored gitleaks rules
+	python scripts/sync-guardrails-secret-patterns.py
+
+sync-guardrails-patterns-check: ## Fail if secret-patterns.yaml is stale vs vendor TOML
+	python scripts/sync-guardrails-secret-patterns.py --check
 
 e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
 	@if [ -z "$(DEV_USER)" ] && [ -z "$(DEV_NAMESPACE)" ]; then \

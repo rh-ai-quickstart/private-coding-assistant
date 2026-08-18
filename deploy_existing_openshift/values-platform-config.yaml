@@ -18,7 +18,8 @@ devspaces:
       user: PLACEHOLDER
       password: PLACEHOLDER-run-make-devspace-deploy-N-then-setup-idp
 # Guardrails sub-chart config. Set guardrails.enabled: true in the parent to enable.
-# To add secret patterns, append regex to pca-guardrails.guardrails.detectors.secretsRegex.patterns.
+# Secret patterns: files/secret-patterns.yaml (from gitleaks via make sync-guardrails-patterns).
+# Overrides: files/secret-patterns-overrides.yaml
 pca-guardrails:
   namespace: ai-serving
   guardrails:
@@ -42,14 +43,6 @@ pca-guardrails:
         enabled: true
       secretsRegex:
         enabled: true
-        patterns:
-          - '\bAKIA[0-9A-Z]{16}\b'
-          - '\bgh[ps]_[A-Za-z0-9_]{36,}\b'
-          - '\bglpat-[A-Za-z0-9\-_]{20,}\b'
-          - '\bsk-[A-Za-z0-9]{20,}\b'
-          - '\bsk-ant-[A-Za-z0-9\-_]{20,}\b'
-          - '\bxox[baprs]-[A-Za-z0-9\-]{10,}\b'
-          - '-----BEGIN\s+(RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----'
     otel:
       enabled: false
 # HTPasswd IDP is not created via Helm on existing clusters (OAuth CR is managed externally).

@@ -25,6 +25,21 @@ make e2e DEV_USER=dev-user1 PYTEST_ARGS='-k opencode_calculator'
 | Test | What it proves |
 |------|----------------|
 | `test_opencode_adds_power_and_unittest_passes` | OpenCode Web API clone + chat adds `power`; `power(2,4)==16` via unittest (uses deployed OpenCode config) |
+| `test_opencode_secret_blocked_by_guardrails` | OpenCode chat with fake AWS access key is blocked when DevSpace uses `guardrails-proxy` |
+
+Guardrails OpenCode case requires:
+
+```bash
+# platform (guardrails in AI namespace)
+make ai-serving-deploy-existing-openshift HELM_ARGS='--set guardrails.enabled=true'
+
+# devspace routed through guardrails
+make devspace-deploy-existing-openshift DEV_USER=dev-user1 TYPE=opencode \
+  HELM_ARGS='--set guardrails.enabled=true \
+  --set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080'
+
+make e2e DEV_USER=dev-user1 PYTEST_ARGS='-m guardrails'
+```
 
 Add new cases as `test_*.py` beside the OpenCode calculator test.
 

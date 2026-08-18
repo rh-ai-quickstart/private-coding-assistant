@@ -35,8 +35,10 @@ Guardrails blocked your message.
 | Detector | Type | Direction | What It Catches |
 |----------|------|-----------|-----------------|
 | Prompt injection | HuggingFace model (`deberta-v3-base-prompt-injection-v2`) | Input | Jailbreak / prompt injection attempts |
-| PII | Built-in regex (`email`, `us-social-security-number`, `credit-card`) | Input | Email addresses, US SSNs, credit cards (with Luhn check) |
-| Secrets | Inline regex patterns (configurable in `values.yaml`) | Input + Output | AWS keys, GitHub/GitLab tokens, OpenAI/Anthropic keys, Slack tokens, private key blocks |
+| PII | TrustyAI built-in named regex (`email`, `us-social-security-number`, `credit-card`, `us-phone-number`, `ipv4` by default) | Input | Email, US SSN, credit card (Luhn), US phone, IPv4 |
+| Secrets | gitleaks v8.24.2 regex rules (`files/secret-patterns.yaml`) | Input + Output | 179+ credential patterns (AWS, GitHub, Stripe, Slack, private keys, …) |
+
+Secret patterns are **sourced from gitleaks** (same version as `.pre-commit-config.yaml`) and applied by the TrustyAI built-in regex sidecar. This is regex-only fidelity: no gitleaks allowlists, entropy heuristics, or context rules at runtime.
 
 ## Enforcement Modes
 
@@ -65,30 +67,33 @@ make devspace-deploy-existing-openshift DEV_NAMESPACE=<DEV_NS> \
 
 Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails needed for completions).
 
-## Adding Secret Patterns
+## Secret patterns (gitleaks)
 
-Add regex patterns to `values-platform-config.yaml` under `pca-guardrails.guardrails.detectors.secretsRegex.patterns`:
+Patterns live in `files/secret-patterns.yaml` (generated; do not edit by hand). Source of truth:
 
-```yaml
-secretsRegex:
-  enabled: true
-  patterns:
-    - '\bAKIA[0-9A-Z]{16}\b'            # AWS Access Key ID
-    - '\bgh[ps]_[A-Za-z0-9_]{36,}\b'    # GitHub token
-    - '\bmy-custom-prefix-[a-f0-9]+\b'  # Your custom pattern
+- `scripts/vendor/gitleaks-v8.24.2.toml` (pinned to pre-commit gitleaks hook)
+- `files/secret-patterns-overrides.yaml` (`add` / `remove` lists)
+
+Refresh after vendor or override changes:
+
+```bash
+make sync-guardrails-patterns
 ```
 
-Each pattern is a Python-compatible regex applied by the TrustyAI built-in regex detector sidecar. Redeploy with `make ai-serving-deploy-existing-openshift` after editing.
+CI / pre-commit runs `make sync-guardrails-patterns-check` when the vendor TOML or overrides file changes.
+
+Deploy-time overrides without re-sync: set `guardrails.detectors.secretsRegex.extraPatterns` in values.
 
 ### Built-in PII Detectors
 
-These are provided by the TrustyAI sidecar and enabled via `piiRegex.enabled: true`:
+Configure via `guardrails.detectors.piiRegex.detectors` in `values.yaml`:
 
 - `email` — email addresses
 - `us-social-security-number` — US SSNs (XXX-XX-XXXX)
 - `credit-card` — Visa, MasterCard, Amex, Discover, Diners Club, JCB (with Luhn validation)
-- `ipv4` / `ipv6` — IP addresses (available but not enabled by default)
-- `us-phone-number` — US phone numbers (available but not enabled by default)
+- `us-phone-number` — US phone numbers (enabled by default)
+- `ipv4` — IPv4 addresses (enabled by default; may false-positive on version strings)
+- `ipv6` / `uk-post-code` — available but off by default
 
 ### Advanced: Custom Python Detectors
 
@@ -109,8 +114,9 @@ For detection logic beyond simple regex (Luhn validation, entropy checks, extern
 | `guardrails.detectors.promptInjection.threshold` | `0.5` | Detection confidence threshold (0-1) |
 | `guardrails.detectors.promptInjection.useGpu` | `false` | Run detector on GPU instead of CPU |
 | `guardrails.detectors.piiRegex.enabled` | `true` | Enable PII regex detection |
-| `guardrails.detectors.secretsRegex.enabled` | `true` | Enable secret/credential detection |
-| `guardrails.detectors.secretsRegex.patterns` | *(see values.yaml)* | List of regex patterns for secrets |
+| `guardrails.detectors.piiRegex.detectors` | see `values.yaml` | TrustyAI built-in PII detector names |
+| `guardrails.detectors.secretsRegex.enabled` | `true` | Enable secret/credential regex detection |
+| `guardrails.detectors.secretsRegex.extraPatterns` | `[]` | Extra deploy-time regex patterns |
 
 ## Testing
 
@@ -145,6 +151,12 @@ curl -s $PROXY/v1/chat/completions \
 ```
 
 ## Known Limitations
+
+### Regex-only secret detection
+
+Cluster guardrails use **Python regex** extracted from gitleaks rules. Patterns that rely on Go-specific syntax are skipped at sync time (~25 of 200+ gitleaks rules). Runtime does not apply gitleaks allowlists, entropy thresholds, or path constraints.
+
+`ipv4` PII detection may flag version numbers or other dotted quads in code chat.
 
 ### TrustyAI Gateway Sidecar
 

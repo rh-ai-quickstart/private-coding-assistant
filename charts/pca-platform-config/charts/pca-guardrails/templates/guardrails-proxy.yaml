@@ -1,9 +1,4 @@
 {{- if .Values.guardrails.proxy.enabled }}
-{{- $detectorsJson := dict "input" (dict "prompt_injection" (dict)) }}
-{{- if .Values.guardrails.detectors.piiRegex.enabled }}
-  {{- $regexInner := dict "email" (dict) "us-social-security-number" (dict) "credit-card" (dict) }}
-  {{- $_ := set $detectorsJson.input "regex" (dict "regex" $regexInner) }}
-{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
