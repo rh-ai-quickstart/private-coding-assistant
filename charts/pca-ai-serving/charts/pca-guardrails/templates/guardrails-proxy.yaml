@@ -46,6 +46,20 @@ spec:
               value: {{ include "guardrails.detectorsJson" . | quote }}
             - name: LISTEN_PORT
               value: "8080"
+            - name: LANGFUSE_BASE_URL
+              value: "http://pca-langfuse-web.{{ .Values.namespace }}.svc.cluster.local:3000"
+            - name: LANGFUSE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pca-langfuse-credentials
+                  key: init-project-public-key
+                  optional: true
+            - name: LANGFUSE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pca-langfuse-credentials
+                  key: init-project-secret-key
+                  optional: true
           volumeMounts:
             - name: proxy-script
               mountPath: /app
@@ -86,10 +100,31 @@ metadata:
     app.kubernetes.io/component: guardrails
 spec:
   selector:
-    app.kubernetes.io/name: guardrails-proxy
+    matchLabels:
+      app.kubernetes.io/name: guardrails-proxy
   ports:
     - name: http
       port: 8080
       targetPort: 8080
       protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: guardrails-proxy
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  labels:
+    app.kubernetes.io/name: guardrails-proxy
+    app.kubernetes.io/component: guardrails
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: guardrails-proxy
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
 {{- end }}

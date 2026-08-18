@@ -50,6 +50,12 @@ Set via `guardrails.enforcement` in `values.yaml`:
 | `warn` | Detections logged, request passes through | 1.0 |
 | `log-only` | Same as warn; semantic distinction for alerting | 1.0 |
 
+## Monitoring
+
+When the proxy is deployed it exposes `GET /metrics` with `pca_guardrails_blocked_total`. That counter is the number of chat requests TrustyAI returned with empty `choices` (the IDE never got a model completion). Grafana Board C graphs it once OpenShift user-workload monitoring scrapes the `guardrails-proxy` ServiceMonitor.
+
+If Langfuse is installed (`pca-langfuse-credentials` present), each flagged request also becomes a Langfuse trace named `guardrails-flagged`. Filter by tag `guardrails:blocked` (input skip) or `guardrails:warned` (output detection that still returned model text). The trace stores the prompt plus detector hits so you can check false positives. OpenCode often omits `X-PCA-*` headers, so `userId` may be empty.
+
 ## Quick Start
 
 Guardrails are a sub-chart of `pca-ai-serving` and deploy with the serving stack when enabled.
@@ -174,3 +180,4 @@ The guardrails proxy (`proxy.enabled`) replaces the gateway for production use. 
 - **ServingRuntime** — HuggingFace detector runtime for KServe
 - **InferenceService** — prompt injection model (deberta-v3, ~184M params, CPU by default)
 - **PVC** — 2Gi model cache for the detector (avoids HuggingFace re-download on restart)
+- **ServiceMonitor** — scrapes `guardrails-proxy` `/metrics` when user-workload monitoring is on

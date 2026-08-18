@@ -26,7 +26,7 @@ data:
           "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "Per-developer and per-team breakdowns live in **Langfuse** (userId = DevSpace `user`, tag `team`, metadata `devspace`). Open the Langfuse Route and filter by user/team.\n\nAggregate request volume below is from Prometheus (not attributed)."
+            "content": "Per-developer and per-team breakdowns live in **Langfuse** (userId = DevSpace `user`, tag `team`, metadata `devspace`). Open the Langfuse Route and filter by user/team.\n\nGuardrails input skips never reach vLLM. Filter Langfuse by tag `guardrails:blocked` (or `guardrails:flagged`) to review the prompt and detector hit.\n\nAggregate request volume below is from Prometheus (not attributed)."
           }
         },
         {
