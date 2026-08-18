@@ -23,3 +23,10 @@ spec:
     allowedRoutes:
       namespaces:
         from: Same
+  # ClusterIP HTTP for TrustyAI. Operator does not mount tlsSecrets, so HTTPS to llm-d fails CA verify.
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: Same

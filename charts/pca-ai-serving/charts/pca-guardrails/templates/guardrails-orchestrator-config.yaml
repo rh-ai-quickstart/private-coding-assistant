@@ -16,10 +16,12 @@ data:
       service:
         hostname: {{ .Values.guardrails.llmService.host }}.{{ .Values.namespace }}.svc.cluster.local
         port: {{ .Values.guardrails.llmService.port }}
+        {{- if .Values.guardrails.llmService.tlsSecret }}
         tls:
           cert_path: /etc/tls/private/tls.crt
           key_path: /etc/tls/private/tls.key
           client_ca_cert_path: /etc/tls/ca/service-ca.crt
+        {{- end }}
     detectors:
       {{- if .Values.guardrails.detectors.promptInjection.enabled }}
       prompt_injection:

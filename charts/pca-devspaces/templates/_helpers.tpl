@@ -1,34 +1,21 @@
 {{/*
-  llm-d ClusterIP URL (escape hatch / direct path).
+  llm-d ClusterIP URL (escape hatch / tab autocomplete when guardrails is on).
 */}}
 {{- define "pca-devspaces.llmdBaseUrl" -}}
 {{- $ns := .Values.aiServingNamespace | default "ai-serving" -}}
 {{- printf "https://llm-d-gateway-data-science-gateway-class.%s.svc.cluster.local/v1" $ns -}}
 {{- end -}}
 
-{{- define "pca-devspaces.guardrails.endpoint" -}}
-{{- $ep := .Values.guardrails.endpoint | default "" | trim -}}
-{{- if $ep -}}
-{{- $ep -}}
-{{- else -}}
-{{- $ns := .Values.aiServingNamespace | default "ai-serving" -}}
-{{- printf "http://guardrails-proxy.%s.svc.cluster.local:8080" $ns -}}
-{{- end -}}
-{{- end -}}
-
 {{/*
   Default IDE OpenAI-compatible base URL.
 
   Priority:
-    1. guardrails.enabled → guardrails endpoint/v1
-    2. escapeHatchToLlmd OR aiGateway disabled → llm-d
-    3. else → RHCL pca-ai-gateway /v1
+    1. escapeHatchToLlmd OR aiGateway disabled → llm-d
+    2. else → RHCL pca-ai-gateway /v1 (guardrails is an HTTPRoute backend, not a front door)
 */}}
 {{- define "pca-devspaces.aiGateway.baseUrl" -}}
 {{- $ai := .Values.aiGateway | default dict -}}
-{{- if .Values.guardrails.enabled -}}
-{{- printf "%s/v1" (include "pca-devspaces.guardrails.endpoint" .) -}}
-{{- else if or ($ai.escapeHatchToLlmd | default false) (not ($ai.enabled | default true)) -}}
+{{- if or ($ai.escapeHatchToLlmd | default false) (not ($ai.enabled | default true)) -}}
 {{- include "pca-devspaces.llmdBaseUrl" . -}}
 {{- else -}}
 {{- $ns := .Values.aiServingNamespace | default "ai-serving" -}}
@@ -51,7 +38,7 @@
 */}}
 {{- define "pca-devspaces.aiGateway.requiresApiKey" -}}
 {{- $ai := .Values.aiGateway | default dict -}}
-{{- if and ($ai.enabled | default true) (not ($ai.escapeHatchToLlmd | default false)) (not .Values.guardrails.enabled) -}}
+{{- if and ($ai.enabled | default true) (not ($ai.escapeHatchToLlmd | default false)) -}}
 true
 {{- else -}}
 false

@@ -2,9 +2,10 @@ namespace: ai-serving
 guardrails:
   enforcement: block # block | warn | log-only
   llmService:
-    host: qwen3-coder-kserve-workload-svc
-    port: 8000
-    tlsSecret: qwen3-coder-kserve-self-signed-certs
+    # llm-d Gateway Service ({gatewayName}-{gatewayClassName}) HTTP listener.
+    host: llm-d-gateway-data-science-gateway-class
+    port: 80
+    tlsSecret: ""
   replicas: 1
   # The gateway sidecar provides an OpenAI-compatible /v1/chat/completions
   # endpoint with automatic guardrail application. Disabled by default because
@@ -14,10 +15,8 @@ guardrails:
   # fixed gateway image becomes available.
   gateway:
     enabled: false
-  # Lightweight proxy that provides a standard OpenAI-compatible /v1/chat/completions
-  # endpoint with automatic guardrail injection. Unlike the gateway sidecar, the proxy
-  # does not parse LLM responses — it passes them through unchanged.
-  # IDE extensions (Continue, Roo Code) should point to this service.
+  # OpenAI-compatible /v1/chat/completions adapter in front of TrustyAI.
+  # RHCL pca-ai-gateway routes chat here after API-key auth. IDEs do not call this Service.
   proxy:
     enabled: true
   detectors:
