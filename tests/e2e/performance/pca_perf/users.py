@@ -25,11 +25,11 @@ def require_opencode_users(max_n: int) -> list[str]:
                 problems.append("no OpenCode DevWorkspace")
             if not oc.resource_exists("secret", "opencode-web-password", namespace=ns):
                 problems.append("secret/opencode-web-password missing")
-            uses_guardrails = False
+            via_gateway = False
             if dw is not None:
                 base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
-                uses_guardrails = "guardrails-proxy" in base
-            if not uses_guardrails:
+                via_gateway = "pca-ai-gateway" in base
+            if via_gateway:
                 if not oc.resource_exists(
                     "secret", AI_GATEWAY_APIKEY_SECRET, namespace=ns
                 ):
