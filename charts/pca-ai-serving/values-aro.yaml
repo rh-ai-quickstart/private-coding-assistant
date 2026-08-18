@@ -49,6 +49,9 @@ aiGateway:
     secretName: "llm-d-gateway-tls"
 observability:
   enabled: true
+# ARO previously opted out of guardrails on platform-config; keep off on ai-serving.
+guardrails:
+  enabled: false
 pca-observability:
   namespace: ai-serving
   grafana:

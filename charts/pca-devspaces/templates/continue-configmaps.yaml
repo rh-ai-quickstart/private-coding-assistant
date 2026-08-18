@@ -57,7 +57,7 @@ data:
       name: Private model Autocomplete (llm-d)
       provider: openai
       model: {{ $.Values.modelId }}
-      apiBase: {{ $baseUrl }}
+      apiBase: {{ include "pca-devspaces.tabAutocompleteBaseUrl" $ }}
       apiKey: {{ $apiKey }}
       contextLength: {{ include "pca-devspaces.tokens.total" $ }}
       requestOptions:

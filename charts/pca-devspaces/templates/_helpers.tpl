@@ -38,6 +38,14 @@
 {{- end -}}
 {{- end -}}
 
+{{- define "pca-devspaces.tabAutocompleteBaseUrl" -}}
+{{- if .Values.guardrails.enabled -}}
+{{- include "pca-devspaces.llmdBaseUrl" . -}}
+{{- else -}}
+{{- include "pca-devspaces.aiGateway.baseUrl" . -}}
+{{- end -}}
+{{- end -}}
+
 {{/*
   Whether IDEs must present an RHCL API key (Bearer).
 */}}

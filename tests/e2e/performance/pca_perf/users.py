@@ -25,19 +25,24 @@ def require_opencode_users(max_n: int) -> list[str]:
                 problems.append("no OpenCode DevWorkspace")
             if not oc.resource_exists("secret", "opencode-web-password", namespace=ns):
                 problems.append("secret/opencode-web-password missing")
-            if not oc.resource_exists(
-                "secret", AI_GATEWAY_APIKEY_SECRET, namespace=ns
-            ):
-                problems.append(f"secret/{AI_GATEWAY_APIKEY_SECRET} missing")
-            else:
-                try:
-                    key = oc.secret_data(
-                        AI_GATEWAY_APIKEY_SECRET, AI_GATEWAY_APIKEY_KEY, ns
-                    )
-                    if not key.strip():
-                        problems.append(f"secret/{AI_GATEWAY_APIKEY_SECRET} empty")
-                except oc.OcError as exc:
-                    problems.append(str(exc))
+            uses_guardrails = False
+            if dw is not None:
+                base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
+                uses_guardrails = "guardrails-proxy" in base
+            if not uses_guardrails:
+                if not oc.resource_exists(
+                    "secret", AI_GATEWAY_APIKEY_SECRET, namespace=ns
+                ):
+                    problems.append(f"secret/{AI_GATEWAY_APIKEY_SECRET} missing")
+                else:
+                    try:
+                        key = oc.secret_data(
+                            AI_GATEWAY_APIKEY_SECRET, AI_GATEWAY_APIKEY_KEY, ns
+                        )
+                        if not key.strip():
+                            problems.append(f"secret/{AI_GATEWAY_APIKEY_SECRET} empty")
+                    except oc.OcError as exc:
+                        problems.append(str(exc))
         if problems:
             missing.append(ns)
             details.append(f"  - {ns}: {', '.join(problems)}")
