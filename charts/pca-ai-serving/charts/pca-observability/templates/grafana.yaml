@@ -22,6 +22,8 @@ spec:
         app.kubernetes.io/part-of: pca-observability
       annotations:
         checksum/admin-secret: {{ include (print $.Template.BasePath "/grafana-secret.yaml") . | sha256sum }}
+        checksum/dashboard-b: {{ include (print $.Template.BasePath "/dashboards/board-b.yaml") . | sha256sum }}
+        checksum/dashboard-c: {{ include (print $.Template.BasePath "/dashboards/board-c.yaml") . | sha256sum }}
     spec:
       serviceAccountName: pca-grafana
       containers:
