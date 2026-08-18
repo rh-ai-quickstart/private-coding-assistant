@@ -128,3 +128,31 @@ pca-observability:
     storageClass: ""
     postgresSize: 10Gi
     clickhouseSize: 20Gi
+# Guardrails (pca-guardrails subchart) — proxy, orchestrator, detectors.
+guardrails:
+  enabled: true
+pca-guardrails:
+  namespace: ai-serving
+  guardrails:
+    enforcement: block
+    llmService:
+      host: qwen3-coder-kserve-workload-svc
+      port: 8000
+      tlsSecret: qwen3-coder-kserve-self-signed-certs
+    replicas: 1
+    gateway:
+      enabled: false
+    proxy:
+      enabled: true
+    detectors:
+      promptInjection:
+        enabled: true
+        model: protectai/deberta-v3-base-prompt-injection-v2
+        threshold: 0.5
+        useGpu: false
+      piiRegex:
+        enabled: true
+      secretsRegex:
+        enabled: true
+    otel:
+      enabled: false

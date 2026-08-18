@@ -1,6 +1,10 @@
 namespace: ai-serving
 clusterConfig:
   enabled: true
+# TrustyAI operator (guardrails workloads deploy via pca-ai-serving subchart).
+cluster:
+  trustyai:
+    enabled: true
 devspaces:
   enabled: true
   instances:
@@ -18,35 +22,6 @@ devspaces:
       password: ""
 hfToken:
   raw: "__overridden_at_deploy_time__"
-guardrails:
-  enabled: true
-# Sub-chart: pca-guardrails (TrustyAI guardrails orchestrator + detectors + proxy)
-# Values here are passed to PCA_Deployment_ROSA/charts/pca-platform-config/charts/pca-guardrails/
-pca-guardrails:
-  namespace: ai-serving
-  guardrails:
-    enforcement: block
-    llmService:
-      host: qwen3-coder-kserve-workload-svc
-      port: 8000
-      tlsSecret: qwen3-coder-kserve-self-signed-certs
-    replicas: 1
-    gateway:
-      enabled: false
-    proxy:
-      enabled: true
-    detectors:
-      promptInjection:
-        enabled: true
-        model: protectai/deberta-v3-base-prompt-injection-v2
-        threshold: 0.5
-        useGpu: false
-      piiRegex:
-        enabled: true
-      secretsRegex:
-        enabled: true
-    otel:
-      enabled: false
 auth:
   htpasswd:
     enabled: false

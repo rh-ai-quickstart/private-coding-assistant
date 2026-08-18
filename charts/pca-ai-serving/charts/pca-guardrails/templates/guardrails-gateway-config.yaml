@@ -23,16 +23,22 @@ data:
         output: {{ .Values.guardrails.detectors.secretsRegex.enabled }}
         detector_params:
           regex:
-            {{- if .Values.guardrails.detectors.piiRegex.enabled }}
-            - email
-            - us-social-security-number
-            - credit-card
-            {{- end }}
-            {{- if .Values.guardrails.detectors.secretsRegex.enabled }}
-            {{- range .Values.guardrails.detectors.secretsRegex.patterns }}
+            {{- $pii := .Values.guardrails.detectors.piiRegex | default dict -}}
+            {{- if ($pii.enabled | default false) -}}
+            {{- range ($pii.detectors | default list) }}
             - {{ . | quote }}
-            {{- end }}
-            {{- end }}
+            {{- end -}}
+            {{- end -}}
+            {{- $secrets := .Values.guardrails.detectors.secretsRegex | default dict -}}
+            {{- if ($secrets.enabled | default false) -}}
+            {{- $secretFile := fromYaml (.Files.Get "files/secret-patterns.yaml") -}}
+            {{- range ($secretFile.patterns | default list) }}
+            - {{ . | quote }}
+            {{- end -}}
+            {{- range ($secrets.extraPatterns | default list) }}
+            - {{ . | quote }}
+            {{- end -}}
+            {{- end -}}
       {{- end }}
     routes:
       - name: guardrailed

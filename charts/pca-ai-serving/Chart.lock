@@ -2,5 +2,8 @@ dependencies:
 - name: pca-observability
   repository: ""
   version: 0.1.0
-digest: sha256:7db5fde121b849094a4e6bc980dc51eed25200b63e672117c2f3ddb024df3393
-generated: "2026-07-13T14:10:17.671482368+03:00"
+- name: pca-guardrails
+  repository: ""
+  version: 0.1.0
+digest: sha256:f5056f8eb6a770e826d5165dd4b63bfa0688eaf28ab72e03a5f2e21c5a443337
+generated: "2026-08-18T14:03:33.00736761+03:00"

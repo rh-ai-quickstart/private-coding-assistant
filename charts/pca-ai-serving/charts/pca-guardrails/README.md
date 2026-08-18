@@ -52,11 +52,12 @@ Set via `guardrails.enforcement` in `values.yaml`:
 
 ## Quick Start
 
-Guardrails are a sub-chart of `pca-platform-config` and deploy automatically when enabled.
+Guardrails are a sub-chart of `pca-ai-serving` and deploy with the serving stack when enabled.
 
-1. Set `guardrails.enabled: true` in `deploy_existing_openshift/values-platform-config.yaml`
-2. Configure detectors and enforcement mode under the `pca-guardrails:` section
-3. Deploy: `make ai-serving-deploy-existing-openshift`
+1. Set `guardrails.enabled: true` in `charts/pca-ai-serving/values.yaml` (default) or `deploy_existing_openshift/values-ai-serving.yaml`
+2. Configure detectors under the `pca-guardrails:` section
+3. Ensure `cluster.trustyai.enabled: true` in `pca-platform-config` (TrustyAI operator)
+4. Deploy: `make ai-serving-deploy-existing-openshift`
 
 To route IDE chat through guardrails, deploy devspaces with:
 ```bash

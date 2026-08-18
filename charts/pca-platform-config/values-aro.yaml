@@ -1,7 +1,8 @@
 auth:
   htpasswd:
     enabled: true
-guardrails:
-  enabled: true
+cluster:
+  trustyai:
+    enabled: true
 mcp:
   enabled: false
