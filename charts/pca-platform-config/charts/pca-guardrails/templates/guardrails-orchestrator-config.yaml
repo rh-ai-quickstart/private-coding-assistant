@@ -25,7 +25,7 @@ data:
       prompt_injection:
         type: text_contents
         service:
-          hostname: prompt-injection-detector-predictor.{{ .Values.namespace }}.svc.cluster.local
+          hostname: {{ include "guardrails.promptInjectionServiceName" . }}-predictor.{{ .Values.namespace }}.svc.cluster.local
           port: 80
         chunker_id: whole_doc_chunker
         {{- if or (eq $enforcement "warn") (eq $enforcement "log-only") }}

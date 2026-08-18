@@ -2,7 +2,7 @@
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: prompt-injection-detector
+  name: {{ include "guardrails.promptInjectionServiceName" . }}
   namespace: {{ .Values.namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
@@ -10,7 +10,7 @@ metadata:
     security.opendatahub.io/enable-auth: "false"
     serving.kserve.io/deploymentMode: RawDeployment
   labels:
-    app.kubernetes.io/name: prompt-injection-detector
+    app.kubernetes.io/name: {{ include "guardrails.promptInjectionServiceName" . }}
     app.kubernetes.io/component: guardrails-detector
 spec:
   predictor:

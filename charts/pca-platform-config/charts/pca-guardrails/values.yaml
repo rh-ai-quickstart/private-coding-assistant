@@ -23,26 +23,26 @@ guardrails:
   detectors:
     promptInjection:
       enabled: true
+      # Short KServe InferenceService name — long namespaces exceed DNS label limits
+      # ({name}-predictor-{namespace} must be <= 63 chars).
+      inferenceServiceName: pi-detector
       model: protectai/deberta-v3-base-prompt-injection-v2
       threshold: 0.5
       useGpu: false
-    # Built-in PII detectors: email, US SSN, credit card (with Luhn check).
-    # These use the TrustyAI sidecar's regex registry — no custom code needed.
+    # TrustyAI built-in named PII detectors (regex sidecar registry).
     piiRegex:
       enabled: true
-    # Secret/credential detectors using inline regex patterns.
-    # Add or remove patterns below — each is a regex applied to input and output.
-    # The sidecar's regex engine handles matching; no custom code needed.
+      detectors:
+        - email
+        - us-social-security-number
+        - credit-card
+        - us-phone-number
+        - ipv4
+    # Secret patterns from gitleaks v8.24.2 (files/secret-patterns.yaml).
+    # Refresh: make sync-guardrails-patterns
     secretsRegex:
       enabled: true
-      patterns:
-        - '\bAKIA[0-9A-Z]{16}\b' # AWS Access Key ID
-        - '\bgh[ps]_[A-Za-z0-9_]{36,}\b' # GitHub token (ghp_, ghs_)
-        - '\bglpat-[A-Za-z0-9\-_]{20,}\b' # GitLab token
-        - '\bsk-[A-Za-z0-9]{20,}\b' # OpenAI API key
-        - '\bsk-ant-[A-Za-z0-9\-_]{20,}\b' # Anthropic API key
-        - '\bxox[baprs]-[A-Za-z0-9\-]{10,}\b' # Slack token
-        - '-----BEGIN\s+(RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----' # Private key block
+      extraPatterns: []
   otel:
     enabled: false
     protocol: http

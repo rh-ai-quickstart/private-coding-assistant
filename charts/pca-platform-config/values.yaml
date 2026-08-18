@@ -45,14 +45,6 @@ pca-guardrails:
         enabled: true
       secretsRegex:
         enabled: true
-        patterns:
-          - '\bAKIA[0-9A-Z]{16}\b'
-          - '\bgh[ps]_[A-Za-z0-9_]{36,}\b'
-          - '\bglpat-[A-Za-z0-9\-_]{20,}\b'
-          - '\bsk-[A-Za-z0-9]{20,}\b'
-          - '\bsk-ant-[A-Za-z0-9\-_]{20,}\b'
-          - '\bxox[baprs]-[A-Za-z0-9\-]{10,}\b'
-          - '-----BEGIN\s+(RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----'
     otel:
       enabled: false
 auth:

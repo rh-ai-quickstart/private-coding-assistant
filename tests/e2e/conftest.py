@@ -29,3 +29,34 @@ def dev_namespace(oc_user: str) -> str:
 @pytest.fixture(scope="session")
 def require_dev_namespace(dev_namespace: str) -> str:
     return dev_namespace
+
+
+@pytest.fixture(scope="session")
+def ai_namespace() -> str:
+    return os.environ.get("AI_NAMESPACE", "private-assistant-ai-serving").strip()
+
+
+@pytest.fixture(scope="session")
+def require_guardrails_proxy(ai_namespace: str) -> str:
+    if not oc.resource_exists("svc", "guardrails-proxy", namespace=ai_namespace):
+        pytest.exit(
+            f"guardrails-proxy Service missing in {ai_namespace} — "
+            "deploy with guardrails.enabled=true",
+            returncode=1,
+        )
+    return ai_namespace
+
+
+@pytest.fixture(scope="session")
+def require_opencode_guardrails_url(
+    require_dev_namespace: str,
+    ai_namespace: str,
+) -> None:
+    dw = oc.find_opencode_devworkspace(require_dev_namespace)
+    assert dw is not None, f"no OpenCode DevWorkspace in {require_dev_namespace}"
+    base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
+    assert "guardrails-proxy" in base, (
+        f"OPENAI_BASE_URL must route through guardrails-proxy, got {base!r}. "
+        "Redeploy devspace with guardrails.enabled=true and guardrails.endpoint="
+        f"http://guardrails-proxy.{ai_namespace}.svc.cluster.local:8080"
+    )

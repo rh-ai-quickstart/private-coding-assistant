@@ -127,6 +127,20 @@ def find_running_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
     return None
 
 
+def devworkspace_env(devworkspace: dict[str, Any]) -> dict[str, str]:
+    """Flatten container env name→value from a DevWorkspace spec."""
+    env: dict[str, str] = {}
+    for component in (
+        (devworkspace.get("spec") or {}).get("template") or {}
+    ).get("components") or []:
+        for entry in (component.get("container") or {}).get("env") or []:
+            name = entry.get("name")
+            if not name or "value" not in entry:
+                continue
+            env[str(name)] = str(entry.get("value") or "")
+    return env
+
+
 def ensure_devworkspace_started(
     namespace: str,
     name: str,
