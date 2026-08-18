@@ -38,6 +38,21 @@ Expect `"enableLLMInferenceServiceTLS": true`. The workload Service is HTTPS
 `qwen3-coder-kserve-workload-svc:8000`; clients (GuideLLM, smoke, guardrails) trust
 secret `qwen3-coder-kserve-self-signed-certs`.
 
+### Prerequisite: TrustyAI operator (guardrails)
+
+Guardrails workloads ship with `pca-ai-serving` (`guardrails.enabled` defaults to true). They require the **TrustyAI** operator and `InferenceService` / `ServingRuntime` CRDs.
+
+On ROSA/ARO, `pca-platform-config` enables TrustyAI on the DataScienceCluster when `cluster.trustyai.enabled` is true. On **existing OpenShift**, `deploy_existing_openshift/values-platform-config.yaml` sets `clusterConfig.enabled: false`, so that Helm toggle is a no-op — TrustyAI must already be enabled on the cluster (or patch manually before guardrails):
+
+```bash
+oc patch datasciencecluster default-dsc -n redhat-ods-applications --type merge \
+  -p '{"spec":{"components":{"trustyai":{"managementState":"Managed"}}}}'
+```
+
+### Upgrading: guardrails moved to ai-serving
+
+If you previously deployed guardrails under `pca-platform-config`, upgrade **ai-serving before platform-config** so guardrails are recreated in the AI namespace before the old platform release prunes them. ArgoCD wave order (platform wave 2, ai-serving wave 3) already does this; for `make ai-serving-deploy-existing-openshift`, run that target before any platform-config upgrade that removes the old subchart.
+
 ### Demo DevSpaces (`dev-user1..N`)
 
 ```bash

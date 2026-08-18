@@ -11,6 +11,17 @@ pytestmark = pytest.mark.ai_gateway
 AI_GATEWAY_APIKEY_LABEL = "app.kubernetes.io/component=pca-ai-gateway-apikey"
 
 
+def _skip_if_guardrails_devspace(ns: str) -> None:
+    dw = oc.find_opencode_devworkspace(ns)
+    if dw is None:
+        return
+    base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
+    if "guardrails-proxy" in base:
+        pytest.skip(
+            f"{ns} routes chat through guardrails-proxy (no RHCL API key Secret)"
+        )
+
+
 @pytest.fixture(autouse=True)
 def _require_ai_gateway(require_ai_gateway: str) -> None:
     del require_ai_gateway
@@ -74,6 +85,7 @@ def test_chat_completions_rejects_invalid_api_key(
 
 def test_dev_namespace_apikey_secret(require_dev_namespace: str) -> None:
     ns = require_dev_namespace
+    _skip_if_guardrails_devspace(ns)
     assert oc.resource_exists(
         "secret", urls.AI_GATEWAY_APIKEY_SECRET, namespace=ns
     ), f"secret/{urls.AI_GATEWAY_APIKEY_SECRET} missing in {ns}"
@@ -89,6 +101,7 @@ def test_dev_namespace_apikey_secret(require_dev_namespace: str) -> None:
 def test_ai_namespace_mirror_apikey_secret(
     ai_namespace: str, require_dev_namespace: str
 ) -> None:
+    _skip_if_guardrails_devspace(require_dev_namespace)
     del require_dev_namespace
     names = oc.list_resource_names(
         "secret", ai_namespace, label_selector=AI_GATEWAY_APIKEY_LABEL
@@ -192,6 +205,7 @@ def test_continue_config_ai_gateway_api_key(
     require_dev_namespace: str, ai_namespace: str
 ) -> None:
     ns = require_dev_namespace
+    _skip_if_guardrails_devspace(ns)
     if not oc.resource_exists("configmap", "continue-config", namespace=ns):
         pytest.skip(f"continue-config missing in {ns} (OpenCode workspace)")
     yaml_text = oc.configmap_data("continue-config", ns).get("config.yaml") or ""
@@ -202,6 +216,7 @@ def test_roo_code_config_ai_gateway_api_key(
     require_dev_namespace: str, ai_namespace: str
 ) -> None:
     ns = require_dev_namespace
+    _skip_if_guardrails_devspace(ns)
     if not oc.resource_exists("configmap", "roo-code-provider-config", namespace=ns):
         pytest.skip(f"roo-code-provider-config missing in {ns} (OpenCode workspace)")
     joined = "\n".join(oc.configmap_data("roo-code-provider-config", ns).values())
@@ -214,6 +229,7 @@ def test_cline_config_ai_gateway_api_key(
     require_dev_namespace: str, ai_namespace: str
 ) -> None:
     ns = require_dev_namespace
+    _skip_if_guardrails_devspace(ns)
     if not oc.resource_exists("configmap", "cline-provider-config", namespace=ns):
         pytest.skip(f"cline-provider-config missing in {ns}")
     joined = "\n".join(oc.configmap_data("cline-provider-config", ns).values())
@@ -230,6 +246,7 @@ def test_ide_harness_chat_via_ai_gateway(
 ) -> None:
     """E2E: IDE-style chat with attribution headers through the AI Gateway."""
     ns = require_dev_namespace
+    _skip_if_guardrails_devspace(ns)
     api_key = oc.secret_data(
         urls.AI_GATEWAY_APIKEY_SECRET, urls.AI_GATEWAY_APIKEY_KEY, ns
     )
@@ -268,6 +285,7 @@ def test_opencode_devworkspace_ai_gateway_api_key(
     Runs on stopped workspaces (started: false) — reads CR spec, not a live pod.
     """
     ns = require_dev_namespace
+    _skip_if_guardrails_devspace(ns)
     env = oc.devworkspace_env(require_opencode_devworkspace)
     base_url = env.get("OPENAI_BASE_URL") or env.get("VLLM_ENDPOINT") or ""
     api_key = env.get("OPENAI_API_KEY") or ""
@@ -304,6 +322,7 @@ def test_opencode_chat_completions_with_api_key(
     """
     del require_opencode_devworkspace  # presence gated by fixture
     ns = require_dev_namespace
+    _skip_if_guardrails_devspace(ns)
     api_key = oc.secret_data(
         urls.AI_GATEWAY_APIKEY_SECRET, urls.AI_GATEWAY_APIKEY_KEY, ns
     )

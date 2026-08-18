@@ -3,6 +3,6 @@ auth:
     enabled: true
 cluster:
   trustyai:
-    enabled: true
+    enabled: false
 mcp:
   enabled: false
