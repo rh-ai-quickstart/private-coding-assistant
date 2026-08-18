@@ -160,21 +160,16 @@ def main() -> int:
         "synced_at": date.today().isoformat(),
         "pattern_count": len(patterns),
     }
-    new_text = _format_yaml(metadata, patterns)
-
-    if skipped and not args.check:
-        print(f"Skipped {len(skipped)} patterns (not valid Python regex):")
-        for pattern, reason in skipped[:10]:
-            preview = pattern[:80] + ("..." if len(pattern) > 80 else "")
-            print(f"  - {preview!r}: {reason}")
-        if len(skipped) > 10:
-            print(f"  ... and {len(skipped) - 10} more")
 
     if args.check:
         if not OUTPUT_PATH.is_file():
             print(f"ERROR: {OUTPUT_PATH} does not exist; run make sync-guardrails-patterns", file=sys.stderr)
             return 1
         current = OUTPUT_PATH.read_text(encoding="utf-8")
+        synced_match = re.search(r"^  synced_at: (.+)$", current, re.MULTILINE)
+        if synced_match:
+            metadata["synced_at"] = synced_match.group(1).strip()
+        new_text = _format_yaml(metadata, patterns)
         if current != new_text:
             print(
                 "ERROR: secret-patterns.yaml is stale; run make sync-guardrails-patterns",
@@ -183,6 +178,16 @@ def main() -> int:
             return 1
         print(f"OK: secret-patterns.yaml is up to date ({len(patterns)} patterns)")
         return 0
+
+    new_text = _format_yaml(metadata, patterns)
+
+    if skipped:
+        print(f"Skipped {len(skipped)} patterns (not valid Python regex):")
+        for pattern, reason in skipped[:10]:
+            preview = pattern[:80] + ("..." if len(pattern) > 80 else "")
+            print(f"  - {preview!r}: {reason}")
+        if len(skipped) > 10:
+            print(f"  ... and {len(skipped) - 10} more")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(new_text, encoding="utf-8")
