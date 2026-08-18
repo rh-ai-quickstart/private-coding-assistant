@@ -10,6 +10,7 @@ User-facing docs: [README.md](README.md) and [docs/](docs/).
 flowchart TD
   IDE[DevSpaces]
   RHCL[RHCL AI Gateway]
+  GR[guardrails when enabled]
   Local[llm-d]
   Other[Other cluster]
   Ext[External APIs]
@@ -17,11 +18,15 @@ flowchart TD
   VLLM[vLLM]
 
   IDE --> RHCL
+  RHCL --> GR
   RHCL --> Local
+  GR --> Local
   RHCL -.-> Other
   RHCL -.-> Ext
   Local --> EPP --> VLLM
 ```
+
+Chat with guardrails on: IDE → `pca-ai-gateway` (API key) → `guardrails-proxy` → TrustyAI → llm-d → vLLM. Chat with guardrails off: IDE → `pca-ai-gateway` → llm-d → vLLM. Tab autocomplete with guardrails on skips to llm-d.
 
 ## Charts (waves)
 

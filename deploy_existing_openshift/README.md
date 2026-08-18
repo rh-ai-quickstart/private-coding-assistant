@@ -99,7 +99,6 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 | `--set opencodeBuild.enabled=false` | 2nd+ opencode developer — avoids Helm ownership conflict on the shared `opencode-build` namespace (Makefile detects this automatically) |
 | `--set pca-observability.langfuse.enabled=true` | Opt in Langfuse (+ OTel) with AI serving |
 | `--set guardrails.enabled=false` | Disable guardrails subchart on ai-serving (default is enabled) |
-| `--set guardrails.endpoint=http://guardrails-proxy.<AI_NS>.svc.cluster.local:8080` | Override DevSpace guardrails URL (default derives from `aiServingNamespace`) |
 | `--set aiGateway.escapeHatchToLlmd=true` | Skip RHCL; IDEs call llm-d Gateway directly |
 | `--set aiGateway.enabled=false` | Disable RHCL front door resources / IDE RHCL URL |
 
