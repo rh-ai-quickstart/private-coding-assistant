@@ -1,9 +1,9 @@
 {{- if and .Values.aiGateway.enabled .Values.aiGateway.backends.local.enabled }}
 {{/*
-  Route /v1 from the RHCL front door to the existing llm-d Gateway Service.
-  Service name follows Gateway API convention: {gatewayName}-{gatewayClassName}
+  RHCL front door. AuthPolicy on this HTTPRoute runs before any backend.
+  Chat goes through guardrails-proxy when enabled; /v1/models and the rest stay on llm-d.
 */}}
-{{- $llmdSvc := printf "%s-%s" (.Values.gatewayName | default "llm-d-gateway") (.Values.aiGateway.gatewayClassName | default "data-science-gateway-class") }}
+{{- $llmdSvc := include "pca-ai-serving.llmdGatewayService" . }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -19,6 +19,18 @@ spec:
   - name: {{ .Values.aiGateway.name }}
     namespace: {{ .Values.namespace }}
   rules:
+  {{- if .Values.guardrails.enabled }}
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /v1/chat/completions
+    backendRefs:
+    - name: guardrails-proxy
+      port: 8080
+    timeouts:
+      request: "0s"
+      backendRequest: "0s"
+  {{- end }}
   - matches:
     - path:
         type: PathPrefix

@@ -37,3 +37,9 @@ aiGateway:
 # Guardrails workloads (TrustyAI operator toggle stays in pca-platform-config cluster.trustyai).
 guardrails:
   enabled: true
+pca-guardrails:
+  guardrails:
+    llmService:
+      host: llm-d-gateway-data-science-gateway-class
+      port: 80
+      tlsSecret: ""

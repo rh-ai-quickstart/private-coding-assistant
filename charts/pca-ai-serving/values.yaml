@@ -136,9 +136,10 @@ pca-guardrails:
   guardrails:
     enforcement: block
     llmService:
-      host: qwen3-coder-kserve-workload-svc
-      port: 8000
-      tlsSecret: qwen3-coder-kserve-self-signed-certs
+      # llm-d Gateway HTTP listener (TrustyAI). HTTPS :443 stays for RHCL.
+      host: llm-d-gateway-data-science-gateway-class
+      port: 80
+      tlsSecret: ""
     replicas: 1
     gateway:
       enabled: false

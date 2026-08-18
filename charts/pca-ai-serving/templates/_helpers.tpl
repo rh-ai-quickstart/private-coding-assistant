@@ -53,3 +53,11 @@ populates the PVC before vLLM starts; no HF Hub access needed at runtime).
 {{- define "pca-ai-serving.hfHubOffline" -}}
 1
 {{- end -}}
+
+{{/*
+  llm-d Gateway Service name: {gatewayName}-{gatewayClassName}.
+  HTTPRoute backends and TrustyAI llmService.host must use this same name.
+*/}}
+{{- define "pca-ai-serving.llmdGatewayService" -}}
+{{- printf "%s-%s" (.Values.gatewayName | default "llm-d-gateway") (.Values.aiGateway.gatewayClassName | default "data-science-gateway-class") -}}
+{{- end -}}
