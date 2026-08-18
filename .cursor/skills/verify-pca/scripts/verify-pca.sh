@@ -396,6 +396,9 @@ cmd_doctor() {
 		elif [[ $dw_ok != true ]]; then
 			err="DevWorkspace code-workspace-1 missing in $dns"
 			ok=false
+		elif [[ $ide_via == gateway && $key_present != true ]]; then
+			err="IDE_VIA=gateway but API_KEY_PRESENT=$key_present in $dns (chat needs secret/$APIKEY_SECRET)"
+			ok=false
 		fi
 	fi
 	if [[ -n $err ]]; then
