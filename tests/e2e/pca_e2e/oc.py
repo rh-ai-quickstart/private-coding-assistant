@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import shlex
 import socket
 import subprocess
 import time
@@ -141,6 +142,12 @@ def devworkspace_env(devworkspace: dict[str, Any]) -> dict[str, str]:
     return env
 
 
+def is_maas_openai_base_url(base: str) -> bool:
+    """True if IDE OPENAI_BASE_URL is the MaaS front door (ClusterIP or apps hostname)."""
+    value = (base or "").lower()
+    return "maas-default-gateway" in value or "maas.apps." in value
+
+
 def ensure_devworkspace_started(
     namespace: str,
     name: str,
@@ -223,6 +230,89 @@ def exec_in_pod(
     args.append("--")
     args.extend(command)
     return run_oc(*args, check=check, timeout=timeout)
+
+
+def workspace_openai_curl(
+    namespace: str,
+    pod: str,
+    *,
+    path: str,
+    method: str = "POST",
+    json_body: dict[str, Any] | None = None,
+    timeout: int = 90,
+) -> dict[str, Any]:
+    """POST/GET MaaS from the workspace using the pod's OPENAI_API_KEY.
+
+    Returns {status: int, body: str, ttfb: float, total: float}.
+    """
+    if not path.startswith("/"):
+        raise OcError(f"path must start with /, got {path!r}")
+    body_b64 = ""
+    if json_body is not None:
+        body_b64 = base64.b64encode(
+            json.dumps(json_body).encode("utf-8")
+        ).decode("ascii")
+    script = f"""
+set -euo pipefail
+test -n "${{OPENAI_BASE_URL:-}}" || {{ echo "missing OPENAI_BASE_URL" >&2; exit 2; }}
+test -n "${{OPENAI_API_KEY:-}}" || {{ echo "missing OPENAI_API_KEY" >&2; exit 2; }}
+base="${{OPENAI_BASE_URL%/}}"
+origin="$base"
+if [[ "$base" == */v1 ]]; then
+  origin="${{base%/v1}}"
+fi
+url="${{origin}}{path}"
+body_file=/tmp/pca-e2e-body
+args=(curl -k -sS -o "$body_file"
+  -w '%{{http_code}} %{{time_starttransfer}} %{{time_total}}'
+  --max-time {int(timeout)}
+  -X {shlex.quote(method.upper())}
+  -H "Authorization: Bearer ${{OPENAI_API_KEY}}"
+  "$url")
+body_b64={shlex.quote(body_b64)}
+if [ -n "$body_b64" ]; then
+  printf '%s' "$body_b64" | base64 -d > /tmp/pca-e2e-req
+  args+=(-H "Content-Type: application/json" --data-binary @/tmp/pca-e2e-req)
+fi
+metrics="$("${{args[@]}}")"
+echo "$metrics"
+echo "---PCA_E2E_BODY---"
+cat "$body_file"
+"""
+    result = exec_in_pod(
+        namespace,
+        pod,
+        "bash",
+        "-lc",
+        script,
+        timeout=timeout + 30,
+        check=False,
+    )
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or "").strip()[:500]
+        raise OcError(
+            f"workspace_openai_curl {method.upper()} {path} failed "
+            f"(rc={result.returncode}): {err}"
+        )
+    text = result.stdout or ""
+    marker = "---PCA_E2E_BODY---\n"
+    if marker not in text:
+        raise OcError(
+            f"workspace_openai_curl missing body marker: {text[:300]!r}"
+        )
+    metrics_line, body = text.split(marker, 1)
+    parts = metrics_line.strip().split()
+    if len(parts) != 3:
+        raise OcError(f"workspace_openai_curl bad metrics: {metrics_line!r}")
+    try:
+        status = int(parts[0])
+        ttfb = float(parts[1])
+        total = float(parts[2])
+    except ValueError as exc:
+        raise OcError(
+            f"workspace_openai_curl bad metrics: {metrics_line!r}"
+        ) from exc
+    return {"status": status, "body": body, "ttfb": ttfb, "total": total}
 
 
 def oc_cp_to_pod(

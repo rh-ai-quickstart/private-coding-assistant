@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 import pytest
 
@@ -31,6 +32,33 @@ def require_dev_namespace(dev_namespace: str) -> str:
     return dev_namespace
 
 
+@pytest.fixture
+def opencode_workspace(require_dev_namespace: str) -> tuple[str, str]:
+    ns = require_dev_namespace
+    dw = oc.find_opencode_devworkspace(ns)
+    assert dw is not None, (
+        f"no OpenCode DevWorkspace in {ns}. OpenCode must be deployed "
+        "(make e2e assumes TYPE=opencode / OpenCode DW present)"
+    )
+    name = (dw.get("metadata") or {}).get("name") or ""
+    assert name, "DevWorkspace missing metadata.name"
+    dw = oc.ensure_devworkspace_started(ns, name, timeout_secs=600)
+    deadline = time.time() + 120
+    last_err: oc.OcError | None = None
+    while time.time() < deadline:
+        dw = oc.get_json("devworkspace", name, namespace=ns)
+        workspace_id = (dw.get("status") or {}).get("devworkspaceId") or ""
+        if workspace_id:
+            try:
+                return ns, oc.find_workspace_pod(ns, workspace_id)
+            except oc.OcError as exc:
+                last_err = exc
+        time.sleep(3)
+    raise AssertionError(
+        f"no Running workspace pod in {ns} within 120s ({last_err})"
+    )
+
+
 @pytest.fixture(scope="session")
 def ai_namespace() -> str:
     return os.environ.get("AI_NAMESPACE", "private-assistant-ai-serving").strip()
@@ -55,8 +83,9 @@ def require_opencode_guardrails_url(
     dw = oc.find_opencode_devworkspace(require_dev_namespace)
     assert dw is not None, f"no OpenCode DevWorkspace in {require_dev_namespace}"
     base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
-    host = f"pca-ai-gateway-data-science-gateway-class.{ai_namespace}"
-    assert host in base, (
-        f"OPENAI_BASE_URL must route through pca-ai-gateway ({host}), got {base!r}. "
-        "Redeploy pca-devspaces so chat uses the RHCL gateway (guardrails is an HTTPRoute backend)."
+    assert oc.is_maas_openai_base_url(base), (
+        f"OPENAI_BASE_URL must route through maas-default-gateway "
+        f"(ClusterIP or maas.apps hostname), got {base!r}. "
+        "Redeploy pca-devspaces so chat uses the MaaS / RHCL gateway "
+        "(guardrails is an HTTPRoute backend)."
     )
