@@ -62,7 +62,14 @@ spec:
       from:
         kind: DockerImage
         name: registry.redhat.io/devspaces/udi-rhel8:latest
-  triggers: []
+  # ConfigChange fires a build automatically the first time this BuildConfig is
+  # created (and on any subsequent spec change from a Helm upgrade). Without a
+  # trigger, OpenShift never starts a build on its own — GitOps only creates the
+  # declarative BuildConfig/ImageStream objects, so the ImageStreamTag stays
+  # empty and every DevWorkspace pod that references it fails with
+  # ImagePullBackOff until someone manually runs `oc start-build`.
+  triggers:
+    - type: ConfigChange
 ---
 # Grant image-puller so DevSpaces workspaces can pull the custom OpenCode image.
 # Granted to all authenticated SAs to cover auto-provisioned user namespaces.
