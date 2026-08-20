@@ -1,10 +1,7 @@
-"""Unit tests for MaaS e2e helpers (no cluster)."""
-
 from __future__ import annotations
 
 import shlex
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -82,13 +79,6 @@ def test_json_body_for_disables_thinking_on_chat_payloads() -> None:
 def test_json_body_for_none_payload_has_no_body() -> None:
     case = next(c for c in routes.ROUTE_CASES if c.payload == "none")
     assert routes.json_body_for(case, "Qwen/test") is None
-
-
-def test_json_body_for_rejects_unknown_payload() -> None:
-    case = next(c for c in routes.ROUTE_CASES if c.payload == "pong")
-    bogus = replace(case, payload="nope")  # type: ignore[arg-type]
-    with pytest.raises(ValueError, match="unknown payload"):
-        routes.json_body_for(bogus, "m")
 
 
 def test_route_class_paths_and_skips_match_table() -> None:

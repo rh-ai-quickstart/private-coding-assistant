@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, assert_never
 
 from pca_e2e import oc
 
@@ -79,7 +79,7 @@ def json_body_for(case: RouteCase, model_id: str) -> dict[str, Any] | None:
         )
         max_tokens = 16
     else:
-        raise ValueError(f"unknown payload {case.payload!r}")
+        assert_never(case.payload)
     return {
         "model": model_id,
         "messages": [{"role": "user", "content": content}],
