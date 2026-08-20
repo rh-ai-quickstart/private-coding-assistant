@@ -9,8 +9,15 @@ import shlex
 import socket
 import subprocess
 import time
+from typing import Any, TypedDict
 from urllib.parse import urlparse
-from typing import Any
+
+
+class WorkspaceCurlResult(TypedDict):
+    status: int
+    body: str
+    ttfb: float
+    total: float
 
 
 class OcError(RuntimeError):
@@ -150,7 +157,6 @@ def _http_hostname(value: str) -> str:
 
 
 def is_maas_openai_base_url(base: str) -> bool:
-    """True if IDE OPENAI_BASE_URL is the MaaS front door (ClusterIP or apps hostname)."""
     value = (base or "").strip()
     if not value:
         return False
@@ -262,7 +268,6 @@ def workspace_curl_script(
     body_b64: str,
     timeout: int,
 ) -> str:
-    """Bash executed in the workspace pod. Path is shell-quoted."""
     if not path.startswith("/") or "\n" in path or "\r" in path:
         raise OcError(f"path must be a single-line absolute path, got {path!r}")
     quoted_path = shlex.quote(path)
@@ -299,8 +304,7 @@ cat "$body_file"
 """
 
 
-def parse_workspace_curl_output(text: str) -> dict[str, Any]:
-    """Parse metrics + body from workspace_openai_curl pod stdout."""
+def parse_workspace_curl_output(text: str) -> WorkspaceCurlResult:
     marker = PCA_E2E_BODY_MARKER
     if marker not in text:
         raise OcError(
@@ -329,11 +333,7 @@ def workspace_openai_curl(
     method: str = "POST",
     json_body: dict[str, Any] | None = None,
     timeout: int = 90,
-) -> dict[str, Any]:
-    """POST/GET MaaS from the workspace using the pod's OPENAI_API_KEY.
-
-    Returns {status: int, body: str, ttfb: float, total: float}.
-    """
+) -> WorkspaceCurlResult:
     body_b64 = ""
     if json_body is not None:
         body_b64 = base64.b64encode(
