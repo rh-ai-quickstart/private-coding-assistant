@@ -29,7 +29,9 @@ class RouteCase:
 
 
 def origin_from_base_url(base: str) -> str:
-    value = (base or "").rstrip("/")
+    value = base or ""
+    while value.endswith("/"):
+        value = value[:-1]
     if value.endswith("/v1"):
         return value[: -len("/v1")]
     return value
@@ -83,6 +85,7 @@ def json_body_for(case: RouteCase, model_id: str) -> dict[str, Any] | None:
         "messages": [{"role": "user", "content": content}],
         "stream": case.stream,
         "max_tokens": max_tokens,
+        "chat_template_kwargs": {"enable_thinking": False},
     }
 
 
@@ -128,6 +131,7 @@ ROUTE_CASES: tuple[RouteCase, ...] = (
         payload="secret",
         expect_status=200,
         expect_blocked=False,
+        skip_if=skip_unless_guardrails,
     ),
     RouteCase(
         id="passthrough-models",
