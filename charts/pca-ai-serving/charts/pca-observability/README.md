@@ -79,7 +79,7 @@ Optional values overrides (`grafana.adminPassword`, `langfuse.credentials.salt`,
 |-------|---------|-------------------|
 | **Overview** | Single-pane combination of Boards E + B + C — gateway request rate/errors/latency/auth, model UX/latency, capacity/KV/GPU — for the whole inference path on one screen | no |
 | A | Users overview (finished inference req/s, running vs queued, input vs output tokens/sec + Langfuse pointer) | yes |
-| B | UX / latency (TTFT, inter-token latency, end-to-end request latency, queue wait) | no |
+| B | UX / latency (TTFT, inter-token latency, end-to-end request latency, queue wait, output vs all tokens/sec) | no |
 | C | Capacity / KV / GPU (KV cache %, GPU util avg+peak, GPU temp/power, output vs all tokens/sec, finished req/min, preemptions/min, model up + restarts, guardrails blocked requests, PLACEHOLDER $/hr) | no |
 | D | Tokens / cost fairness (input vs output tokens/sec, finished req/s, PLACEHOLDER GPU $/hr) | yes |
 | E | AI Gateway (request rate by response class, error rate, gateway latency, auth denials, Kuadrant allow/deny, gateway pod health) | no |
