@@ -13,10 +13,10 @@ data:
     {
       "uid": "pca-board-b",
       "title": "PCA B — UX / latency",
-      "tags": ["pca", "latency", "ttft"],
+      "tags": ["pca", "latency", "ttft", "tokens"],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 2,
+      "version": 3,
       "refresh": "30s",
       "time": { "from": "now-6h", "to": "now" },
       "panels": [
@@ -95,6 +95,23 @@ data:
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "vLLM output tokens/sec (decode) vs all tokens/sec (prompt + output)",
+          "description": "The tok/s number people actually care about while watching live traffic. Output = generation/decode only; all = prompt/prefill + output.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))",
+              "legendFormat": "output tokens/sec (decode / generation only)"
+            },
+            {
+              "expr": "(sum(rate(vllm:prompt_tokens_total[5m])) + sum(rate(vllm:generation_tokens_total[5m]))) or (sum(rate(vllm_prompt_tokens_total[5m])) + sum(rate(vllm_generation_tokens_total[5m])))",
+              "legendFormat": "all tokens/sec (prompt/prefill + output)"
+            }
+          ]
         }
       ]
     }
