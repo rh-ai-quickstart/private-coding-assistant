@@ -55,6 +55,13 @@ resource "null_resource" "install_gitops_operator" {
       oc wait --for=condition=Available deployment/openshift-gitops-server \
         -n openshift-gitops --timeout=300s
 
+      echo "Switching ArgoCD to annotation+label resource tracking..."
+      # argocd-cm is templated by the GitOps operator from the ArgoCD CR, so it
+      # must be set here, not by patching the ConfigMap directly (the operator
+      # reconciles argocd-cm back to the CR's value on every pass).
+      oc patch argocd openshift-gitops -n openshift-gitops --type merge \
+        -p '{"spec":{"resourceTrackingMethod":"annotation+label"}}'
+
       echo "Granting ArgoCD cluster-admin permissions..."
       cat <<'YAML' | oc apply -f -
       apiVersion: rbac.authorization.k8s.io/v1
