@@ -27,6 +27,7 @@ spec:
         checksum/dashboard-e: {{ include (print $.Template.BasePath "/dashboards/board-e.yaml") . | sha256sum }}
         checksum/dashboard-f: {{ include (print $.Template.BasePath "/dashboards/board-f.yaml") . | sha256sum }}
         checksum/dashboard-g: {{ include (print $.Template.BasePath "/dashboards/board-g.yaml") . | sha256sum }}
+        checksum/dashboard-overview: {{ include (print $.Template.BasePath "/dashboards/board-overview.yaml") . | sha256sum }}
     spec:
       serviceAccountName: pca-grafana
       containers:
@@ -79,6 +80,9 @@ spec:
             - name: dashboard-g
               mountPath: /var/lib/grafana/dashboards/pca/board-g.json
               subPath: board-g.json
+            - name: dashboard-overview
+              mountPath: /var/lib/grafana/dashboards/pca/board-overview.json
+              subPath: board-overview.json
             {{- if .Values.langfuse.enabled }}
             - name: dashboard-a
               mountPath: /var/lib/grafana/dashboards/pca/board-a.json
@@ -131,6 +135,9 @@ spec:
         - name: dashboard-g
           configMap:
             name: pca-grafana-dashboard-g
+        - name: dashboard-overview
+          configMap:
+            name: pca-grafana-dashboard-overview
         {{- if .Values.langfuse.enabled }}
         - name: dashboard-a
           configMap:

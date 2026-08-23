@@ -1,0 +1,266 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+{{- $gpu := .Values.cost.gpuHourlyUsd -}}
+{{- $ph := .Values.cost.gpuHourlyUsdIsPlaceholder -}}
+{{- $gpuDs := "prometheus" -}}
+{{- if eq .Values.prometheus.accessMode "namespace" -}}
+{{- $gpuDs = "prometheus-gpu" -}}
+{{- end -}}
+# Single-pane view combining Boards B (UX/latency), C (capacity/KV/GPU), and E
+# (AI Gateway) for anyone who wants the whole inference path — client request
+# in through the gateway, through vLLM, to GPU — on one screen instead of
+# switching boards. The per-topic boards stay as-is for focused drill-down.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-overview
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-overview.json: |
+    {
+      "uid": "pca-board-overview",
+      "title": "PCA — AI Overview (Gateway + UX + Capacity + GPU)",
+      "tags": ["pca", "overview", "gateway", "latency", "capacity", "gpu", "kv"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-6h", "to": "now" },
+      "panels": [
+        {
+          "type": "row",
+          "title": "AI Gateway",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway request rate by response class",
+          "description": "Requests/sec at the gateway split into 2xx/4xx/5xx. Requests that never reach vLLM (auth denied, rate limited, routing errors) show up here, not on the model panels below.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"2..\"}[5m]))", "legendFormat": "2xx/sec" },
+            { "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"4..\"}[5m]))", "legendFormat": "4xx/sec" },
+            { "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"5..\"}[5m]))", "legendFormat": "5xx/sec" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway error rate (% of requests that are 4xx or 5xx)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"4..|5..\"}[5m])) / clamp_min(sum(rate(istio_requests_total{reporter=\"source\"}[5m])), 1)", "legendFormat": "error rate" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway request latency (Envoy/Istio) — p50 / p95 / p99",
+          "description": "Compare against the vLLM end-to-end latency below — a large gap points at the gateway/auth/rate-limit hop, not the model.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "histogram_quantile(0.50, sum(rate(istio_request_duration_milliseconds_bucket{reporter=\"source\"}[5m])) by (le))", "legendFormat": "gateway latency p50 (ms)" },
+            { "expr": "histogram_quantile(0.95, sum(rate(istio_request_duration_milliseconds_bucket{reporter=\"source\"}[5m])) by (le))", "legendFormat": "gateway latency p95 (ms)" },
+            { "expr": "histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket{reporter=\"source\"}[5m])) by (le))", "legendFormat": "gateway latency p99 (ms)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Auth denials and Kuadrant policy decisions",
+          "description": "401/403 = AuthPolicy rejected the request. denied = RateLimitPolicy/AuthPolicy WASM filter decisions (superset of auth denials, also covers rate-limiting).",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"401|403\"}[5m]))", "legendFormat": "auth denials/sec" },
+            { "expr": "sum(rate(kuadrant_allowed[5m]))", "legendFormat": "kuadrant allowed/sec" },
+            { "expr": "sum(rate(kuadrant_denied[5m]))", "legendFormat": "kuadrant denied/sec" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway pod health — replicas live",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 17 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(envoy_server_live)", "legendFormat": "gateway replicas live" },
+            { "expr": "count(envoy_server_live)", "legendFormat": "gateway replicas total" }
+          ]
+        },
+        {
+          "type": "row",
+          "title": "Model — UX / Latency",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }
+        },
+        {
+          "type": "timeseries",
+          "title": "Time to first token (TTFT) — p50 / p95 / p99",
+          "description": "Seconds from vLLM request start until the first output token. Higher under queueing or long prefills.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "histogram_quantile(0.50, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))", "legendFormat": "TTFT p50 (sec)" },
+            { "expr": "histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))", "legendFormat": "TTFT p95 (sec)" },
+            { "expr": "histogram_quantile(0.99, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le)) or histogram_quantile(0.99, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))", "legendFormat": "TTFT p99 (sec)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Time between output tokens (inter-token latency) — p50 / p95",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "histogram_quantile(0.50, sum(rate(vllm:inter_token_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_time_per_output_token_seconds_bucket[5m])) by (le))", "legendFormat": "inter-token latency p50 (sec)" },
+            { "expr": "histogram_quantile(0.95, sum(rate(vllm:inter_token_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_time_per_output_token_seconds_bucket[5m])) by (le))", "legendFormat": "inter-token latency p95 (sec)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "End-to-end vLLM request latency — p50 / p95",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "histogram_quantile(0.50, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "request latency p50 (sec)" },
+            { "expr": "histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "request latency p95 (sec)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Time waiting in vLLM scheduler queue — p50 / p95",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "histogram_quantile(0.50, sum(rate(vllm:request_queue_time_seconds_bucket[5m])) by (le)) or histogram_quantile(0.50, sum(rate(vllm_request_queue_time_seconds_bucket[5m])) by (le))", "legendFormat": "queue wait p50 (sec)" },
+            { "expr": "histogram_quantile(0.95, sum(rate(vllm:request_queue_time_seconds_bucket[5m])) by (le)) or histogram_quantile(0.95, sum(rate(vllm_request_queue_time_seconds_bucket[5m])) by (le))", "legendFormat": "queue wait p95 (sec)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "row",
+          "title": "Model — Capacity / KV Cache / GPU",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 }
+        },
+        {
+          "type": "timeseries",
+          "title": "KV cache memory used (% of allocated)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 39 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "avg(vllm:kv_cache_usage_perc) or avg(vllm_kv_cache_usage_perc) or avg(vllm_gpu_cache_usage_perc)", "legendFormat": "KV cache used (% of capacity)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "GPU compute utilization (%) — live average and peak over last 5m",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
+          "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
+          "targets": [
+            { "expr": "avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle)", "legendFormat": "GPU compute utilization (%) — live average" },
+            { "expr": "max_over_time((avg(DCGM_FI_DEV_GPU_UTIL) or avg(nvidia_gpu_duty_cycle))[5m:30s])", "legendFormat": "GPU compute utilization (%) — peak over last 5m" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "GPU framebuffer memory used",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 47 },
+          "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
+          "targets": [
+            { "expr": "avg(DCGM_FI_DEV_FB_USED) or avg(nvidia_gpu_memory_used_bytes)", "legendFormat": "GPU framebuffer memory used" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "vLLM requests currently running vs waiting in queue",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 47 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(vllm:num_requests_running) or sum(vllm_num_requests_running)", "legendFormat": "requests currently running (in-flight)" },
+            { "expr": "sum(vllm:num_requests_waiting) or sum(vllm_num_requests_waiting)", "legendFormat": "requests waiting in scheduler queue" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "GPU prefix-cache hit rate (hits ÷ queries)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 55 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(vllm:prefix_cache_hits_total[5m])) / clamp_min(sum(rate(vllm:prefix_cache_queries_total[5m])), 1) or sum(rate(vllm_prefix_cache_hits_total[5m])) / clamp_min(sum(rate(vllm_prefix_cache_queries_total[5m])), 1)", "legendFormat": "prefix-cache hit rate" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "vLLM output tokens/sec (decode) vs all tokens/sec (prompt + output)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 55 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(vllm:generation_tokens_total[5m])) or sum(rate(vllm_generation_tokens_total[5m]))", "legendFormat": "output tokens/sec (decode / generation only)" },
+            { "expr": "(sum(rate(vllm:prompt_tokens_total[5m])) + sum(rate(vllm:generation_tokens_total[5m]))) or (sum(rate(vllm_prompt_tokens_total[5m])) + sum(rate(vllm_generation_tokens_total[5m])))", "legendFormat": "all tokens/sec (prompt/prefill + output)" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "vLLM finished inference requests per minute",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 63 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "60 * (sum(rate(vllm:request_success_total[5m])) or sum(rate(vllm_request_success_total[5m])))", "legendFormat": "finished inference requests per minute" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "GPU temperature and power draw",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 63 },
+          "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
+          "targets": [
+            { "expr": "avg(DCGM_FI_DEV_GPU_TEMP)", "legendFormat": "GPU temperature (°C)" },
+            { "expr": "avg(DCGM_FI_DEV_POWER_USAGE)", "legendFormat": "GPU power draw (W)" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "vLLM request preemptions per minute",
+          "description": "Requests evicted mid-generation to free KV-cache. Rising preemptions signal the engine is oversubscribed for current traffic.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 71 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "60 * sum(rate(vllm:num_preemptions_total[5m]))", "legendFormat": "preemptions per minute" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "PLACEHOLDER — illustrative GPU cost ($/hour) for sizing context only",
+          "description": "Illustrative L40S on-demand from sizing doc — NOT billing truth. Set cost.gpuHourlyUsd / cost.gpuHourlyUsdIsPlaceholder in values.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 71 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "expr": "{{ $gpu }}", "instant": true, "legendFormat": "{{ if $ph }}PLACEHOLDER {{ end }}$/GPU-hour (illustrative)" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Model engine availability and restarts",
+          "description": "Up = vLLM engine scrape target reachable, per replica. Restarts = container restarts over the last hour, per pod.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 79 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "min(up{job=\"ai-serving/kserve-llm-isvc-vllm-engine-default\"})", "legendFormat": "all model replicas up (1 = yes)" },
+            { "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"{{ $ns }}\",pod=~\".*kserve.*\"}[1h])) by (pod)", "legendFormat": "restarts (last 1h) — {{`{{pod}}`}}" }
+          ]
+        }
+      ]
+    }
+{{- end }}
