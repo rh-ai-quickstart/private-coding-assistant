@@ -13,7 +13,7 @@
 apiVersion: inference.networking.k8s.io/v1
 kind: InferencePool
 metadata:
-  name: {{ .Values.model.poolName }}
+  name: {{ include "pca-ai-serving.model.poolName" . }}
   namespace: {{ .Values.namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "4"
@@ -23,7 +23,7 @@ spec:
     - number: 8000
   selector:
     matchLabels:
-      serving.kserve.io/inferenceservice: {{ .Values.model.name }}
+      serving.kserve.io/inferenceservice: {{ include "pca-ai-serving.model.name" . }}
   endpointPickerRef:
     name: llm-d-epp
     port:
@@ -38,14 +38,14 @@ spec:
 apiVersion: inference.networking.x-k8s.io/v1alpha2
 kind: InferenceModel
 metadata:
-  name: {{ .Values.model.name }}-model
+  name: {{ include "pca-ai-serving.model.name" . }}-model
   namespace: {{ .Values.namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
-  modelName: {{ .Values.model.id | quote }}
+  modelName: {{ include "pca-ai-serving.model.id" . | quote }}
   criticality: Critical
   poolRef:
-    name: {{ .Values.model.poolName }}
+    name: {{ include "pca-ai-serving.model.poolName" . }}
 {{- end }}

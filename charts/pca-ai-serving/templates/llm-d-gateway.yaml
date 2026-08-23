@@ -18,7 +18,7 @@ spec:
     tls:
       mode: Terminate
       certificateRefs:
-      - name: {{ .Values.aiGateway.tls.secretName | default "qwen3-coder-kserve-self-signed-certs" }}
+      - name: {{ .Values.aiGateway.tls.secretName | default "ai-gateway-self-signed-certs" }}
         kind: Secret
     allowedRoutes:
       namespaces:

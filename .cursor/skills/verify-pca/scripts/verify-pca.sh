@@ -39,6 +39,8 @@ Env:
   DEV_USER       maps to DEV_NAMESPACE=<user>-devspaces; inferred from oc whoami
                  when <whoami>-devspaces exists
   DEV_NAMESPACE  override DevSpaces namespace
+  DW_NAME        DevWorkspace name; default code-workspace-<N> inferred from
+                 DEV_USER=dev-user<N> (falls back to code-workspace-1)
   VIA            gateway (RHCL), llmd, or opencode
   RUN_ID         evidence + pod label (lowercase DNS-safe)
   EVIDENCE_DIR   default .cursor/skills/verify-pca/artifacts/\$RUN_ID
@@ -77,6 +79,21 @@ dev_namespace() {
 		return
 	fi
 	echo ""
+}
+
+# DevWorkspace naming convention is code-workspace-<N> matching dev-user<N>
+# (dev-user2 -> code-workspace-2, not code-workspace-1). Override with DW_NAME
+# for non-standard usernames/workspace names.
+dw_name() {
+	if [[ -n ${DW_NAME:-} ]]; then
+		echo "$DW_NAME"
+		return
+	fi
+	if [[ ${DEV_USER:-} =~ ^dev-user([0-9]+)$ ]]; then
+		echo "code-workspace-${BASH_REMATCH[1]}"
+		return
+	fi
+	echo "code-workspace-1"
 }
 
 need_oc() {
@@ -251,7 +268,7 @@ in_cluster_http() {
 	local shell_cmd="code=\$(${inner}); echo \"\$code\"; cat /tmp/body"
 
 	local pod="pca-v-${RUN_ID}-$(printf '%04x' "$RANDOM")"
-	pod="${pod,,}"
+	pod="$(printf '%s' "$pod" | tr '[:upper:]' '[:lower:]')"
 	if ((${#pod} > 63)); then
 		pod="pca-v-${RANDOM}${RANDOM}"
 	fi
@@ -356,12 +373,13 @@ cmd_doctor() {
 		done
 	fi
 
-	local dns
+	local dns dwn
 	dns=$(dev_namespace)
+	dwn=$(dw_name)
 	if [[ -n $dns ]]; then
-		if oc get dw code-workspace-1 -n "$dns" >/dev/null 2>&1; then
+		if oc get dw "$dwn" -n "$dns" >/dev/null 2>&1; then
 			dw_ok="true"
-			ide_url=$(ide_base_url_from_dw "$dns" code-workspace-1)
+			ide_url=$(ide_base_url_from_dw "$dns" "$dwn")
 			ide_via=$(ide_via_from_url "$ide_url")
 		fi
 		if oc get secret "$APIKEY_SECRET" -n "$dns" >/dev/null 2>&1; then
@@ -394,7 +412,7 @@ cmd_doctor() {
 			err="OC_USER=$OC_USER cannot see $AI_NAMESPACE (Forbidden) and has no ${OC_USER}-devspaces. Log in as a serving admin or a user that owns a DevSpace. Do not helm-deploy."
 			ok=false
 		elif [[ $dw_ok != true ]]; then
-			err="DevWorkspace code-workspace-1 missing in $dns"
+			err="DevWorkspace $dwn missing in $dns"
 			ok=false
 		elif [[ $ide_via == gateway && $key_present != true ]]; then
 			err="IDE_VIA=gateway but API_KEY_PRESENT=$key_present in $dns (chat needs secret/$APIKEY_SECRET)"
@@ -556,7 +574,8 @@ cmd_devspace_status() {
 	local ns
 	ns=$(dev_namespace)
 	[[ -n $ns ]] || die "devspace-status needs DEV_USER or DEV_NAMESPACE (or oc whoami user with <user>-devspaces)"
-	local dw="code-workspace-1"
+	local dw
+	dw=$(dw_name)
 	oc get dw "$dw" -n "$ns" >/dev/null 2>&1 || die "DevWorkspace $dw not found in $ns"
 	local phase started route ide_url
 	phase=$(oc get dw "$dw" -n "$ns" -o jsonpath='{.status.phase}')
@@ -647,8 +666,9 @@ print("vllm"); print(model or "unknown")'
 cmd_opencode_chat() {
 	need_login
 	ensure_evidence
-	local ns dw="code-workspace-1"
+	local ns dw
 	ns=$(dev_namespace)
+	dw=$(dw_name)
 	[[ -n $ns ]] || die "opencode-chat needs DEV_USER (or oc whoami with <user>-devspaces)"
 	oc get dw "$dw" -n "$ns" >/dev/null 2>&1 || die "DevWorkspace $dw not found in $ns"
 	ensure_devworkspace_running "$ns" "$dw" >/dev/null

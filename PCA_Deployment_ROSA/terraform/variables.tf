@@ -171,6 +171,20 @@ variable "gpu_pool_max_replicas" {
 }
 
 # ──────────────────────────────────────────────
+# Model Selection
+# ──────────────────────────────────────────────
+variable "model_variant" {
+  description = "Which coding model to deploy on the GPU pool: qwen3.6 (Qwen3.6-35B-A3B-FP8, sparse MoE) or qwen3.8 (Qwen3.8-27B-FP8, dense, Apache-2.0). Only one model runs at a time — this automation does not support serving both concurrently behind the same AI Gateway, which triggers a known Kuadrant EnvoyFilter-ordering bug that OOM-crashes llm-d-gateway."
+  type        = string
+  default     = "qwen3.6"
+
+  validation {
+    condition     = contains(["qwen3.6", "qwen3.8"], var.model_variant)
+    error_message = "model_variant must be one of: qwen3.6, qwen3.8."
+  }
+}
+
+# ──────────────────────────────────────────────
 # Inferentia Machine Pool (optional)
 # ──────────────────────────────────────────────
 variable "inferentia_pool_enabled" {

@@ -116,6 +116,10 @@ resource "null_resource" "argocd_app_of_apps" {
                 value: aro
               - name: hfToken.raw
                 value: ${var.huggingface_token}
+              - name: aiServing.modelVariant
+                value: ${var.model_variant}
+              - name: devSpaces.modelVariant
+                value: ${var.model_variant}
         destination:
           server: https://kubernetes.default.svc
           namespace: openshift-gitops

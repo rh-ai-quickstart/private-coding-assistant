@@ -119,6 +119,9 @@ spec:
       valueFiles:
         - values.yaml
         - values-{{ .Values.gitops.cloud }}.yaml
+      parameters:
+        - name: model.variant
+          value: {{ .Values.aiServing.modelVariant | quote }}
   destination:
     server: https://kubernetes.default.svc
     namespace: ai-serving
@@ -156,6 +159,9 @@ spec:
       valueFiles:
         - values.yaml
         - values-{{ .Values.gitops.cloud }}.yaml
+      parameters:
+        - name: modelVariant
+          value: {{ .Values.devSpaces.modelVariant | quote }}
   destination:
     server: https://kubernetes.default.svc
   ignoreDifferences:

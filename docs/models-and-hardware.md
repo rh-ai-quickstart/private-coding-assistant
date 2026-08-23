@@ -4,6 +4,32 @@ How to swap the served model or the GPU accelerator without forking the platform
 
 ## Changing the model
 
+### Fast path (ROSA / ARO): `model_variant` Terraform variable
+
+For the two curated, pre-validated presets — `qwen3.6` (Qwen3.6-35B-A3B-FP8, sparse MoE, default) and `qwen3.8`
+(Qwen3.8-27B-FP8, dense, Apache-2.0) — set `model_variant` in `terraform.tfvars` instead of editing chart values by
+hand:
+
+```hcl
+# PCA_Deployment_ROSA/terraform/terraform.tfvars (or PCA_Deployment_ARO)
+model_variant = "qwen3.8"
+```
+
+This flows through the existing `pca-root` → `pca-app-of-apps` → child-Application Helm parameter chain (the same
+mechanism `huggingface_token` uses) and overrides `model.id`, `model.name`, `model.poolName`, `vllm.image`,
+`vllm.toolCallParser`, `vllm.gpuMemoryUtilization`, and `vllm.extraArgs` on `pca-ai-serving`, plus `modelId` on
+`pca-devspaces` — see `templates/_helpers.tpl` in both charts for the exact preset values. Hardware (`hardware.*`)
+does not need to change between these two presets on either cloud.
+
+**Only one model runs at a time.** Serving both `qwen3.6` and `qwen3.8` concurrently behind the same AI Gateway is
+not supported by this automation: multiple `AuthPolicy`/`HTTPRoute` objects trigger a Kuadrant EnvoyFilter-ordering
+bug that OOM-crashes `llm-d-gateway`.
+
+For any other model (not one of the two presets above), or for the Existing OpenShift Helm-only path, use the
+manual value-editing workflow below.
+
+### Manual value editing (any model, any deployment path)
+
 Two values must always match — the serving chart and the DevSpaces chart each need the same HuggingFace model identifier.
 
 | Chart | Key | Role |

@@ -31,7 +31,7 @@ data:
     models:
       - name: Private model (llm-d)
         provider: openai
-        model: {{ $.Values.modelId }}
+        model: {{ include "pca-devspaces.modelId" $ }}
         apiBase: {{ $baseUrl }}
         apiKey: {{ $apiKey }}
         contextLength: {{ include "pca-devspaces.tokens.total" $ }}
@@ -57,7 +57,7 @@ data:
     tabAutocompleteModel:
       name: Private model Autocomplete (llm-d)
       provider: openai
-      model: {{ $.Values.modelId }}
+      model: {{ include "pca-devspaces.modelId" $ }}
       apiBase: {{ include "pca-devspaces.tabAutocompleteBaseUrl" $ }}
       apiKey: {{ $tabApiKey }}
       contextLength: {{ include "pca-devspaces.tokens.total" $ }}

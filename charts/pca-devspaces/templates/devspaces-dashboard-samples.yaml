@@ -19,7 +19,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "3"
     che.eclipse.org/display-name: "OpenCode - Private AI Code Assistant"
-    che.eclipse.org/description: "AI-powered coding workspace with OpenCode extension + Web UI, pre-configured for private {{ .Values.modelId }} model via llm-d Gateway."
+    che.eclipse.org/description: "AI-powered coding workspace with OpenCode extension + Web UI, pre-configured for private {{ include "pca-devspaces.modelId" . }} model via llm-d Gateway."
     che.eclipse.org/tags: '["AI","OpenCode","Private"]'
     che.eclipse.org/icon: "https://opencode.ai/favicon.ico"
 data:
@@ -48,7 +48,7 @@ data:
             - name: VLLM_ENDPOINT
               value: {{ $baseUrl | quote }}
             - name: VLLM_MODEL_ID
-              value: {{ .Values.modelId | quote }}
+              value: {{ include "pca-devspaces.modelId" . | quote }}
             # EMPTY here: cluster-wide sample; overwritten at provision time by
             # setup-devspaces-users.sh (OPENAI_API_KEY) + postStart auth.json write.
             - name: OPENAI_API_KEY

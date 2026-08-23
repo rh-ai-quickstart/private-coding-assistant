@@ -31,6 +31,10 @@ gpu_pool_enabled  = true
 gpu_instance_type = "g6e.2xlarge"
 gpu_pool_replicas = 1
 
+# Model to deploy: "qwen3.6" (sparse MoE, default) or "qwen3.8" (dense, Apache-2.0).
+# Only one runs at a time — see variables.tf for why.
+model_variant = "qwen3.6"
+
 # Inferentia pool (disabled by default)
 inferentia_pool_enabled  = false
 inferentia_instance_type = "inf2.24xlarge"
