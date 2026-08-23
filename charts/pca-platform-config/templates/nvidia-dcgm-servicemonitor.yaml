@@ -1,0 +1,28 @@
+{{- if .Values.clusterConfig.enabled }}
+# The GPU Operator's ClusterPolicy (nvidia-cluster-policy.yaml) starts
+# nvidia-dcgm-exporter but does not register a ServiceMonitor for it — only
+# the operator's own controller metrics get scraped by default. Without this,
+# GPU utilization/temperature/power/framebuffer metrics never reach
+# Prometheus and Grafana Board C (Capacity/KV/GPU) shows no data for any GPU
+# panel. nvidia-gpu-operator already carries the openshift.io/cluster-monitoring
+# label, so this is picked up by platform Prometheus regardless of whether
+# User Workload Monitoring is enabled.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nvidia-dcgm-exporter
+  namespace: nvidia-gpu-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  labels:
+    app: nvidia-dcgm-exporter
+spec:
+  selector:
+    matchLabels:
+      app: nvidia-dcgm-exporter
+  endpoints:
+    - port: gpu-metrics
+      path: /metrics
+      interval: 30s
+{{- end }}

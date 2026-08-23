@@ -9,7 +9,7 @@ Nested under `pca-ai-serving` — deploys with the same Helm release as llm-d/vL
 | Flag | Default | Effect |
 |------|---------|--------|
 | `observability.enabled` (parent) | `true` | Installs this subchart |
-| `grafana.enabled` | `true` | Grafana 1-pod + boards B/C (A/D when Langfuse on) |
+| `grafana.enabled` | `true` | Grafana 1-pod + boards B/C/E/F/G (A/D when Langfuse on) |
 | `langfuse.enabled` | `false` | Langfuse + OTel Collector + OTLP on LLMInferenceService (set as `pca-observability.langfuse.*` from parent) |
 | `langfuse.ioCapture` | `full` | `full` = vLLM middleware stores prompt/completion in Langfuse; `metadata` = OTEL tokens/latency only |
 | `otelCollector.debugExporter` | `true` | OTel Collector also logs every span to stdout; set `false` to silence under load |
@@ -41,6 +41,15 @@ HELM_ARGS='--set pca-observability.langfuse.enabled=true \
 
 In **namespace** mode, Board C GPU panels use a second datasource (`prometheus-gpu`) that queries `prometheus.gpuMetricsNamespace` (default `nvidia-gpu-operator`). Override if your DCGM exporter lives elsewhere (e.g. `openshift-nvidia-gpu-operator`).
 
+### Cluster prerequisites (ROSA/ARO full provision only)
+
+These are provisioned automatically by `pca-platform-config` when `clusterConfig.enabled: true` (the ROSA/ARO default):
+
+- **User Workload Monitoring** — without it, Prometheus never scrapes the PodMonitor/ServiceMonitor objects that KServe creates for vLLM or that this chart creates for the AI Gateway, and every model/gateway board renders with no data.
+- **`nvidia-dcgm-exporter` ServiceMonitor** — the GPU Operator starts the DCGM exporter but does not register a ServiceMonitor for it; without one, all GPU panels on Board C (utilization, framebuffer, temperature, power) render with no data.
+
+On existing OpenShift (`clusterConfig.enabled: false`), enable both manually — see `deploy_existing_openshift/README.md`.
+
 ## Routes
 
 ```bash
@@ -64,16 +73,21 @@ Optional values overrides (`grafana.adminPassword`, `langfuse.credentials.salt`,
 
 **Salt note:** `salt` is plain text in `stringData` (Kubernetes base64-encodes once). If an older install double-encoded it, delete `pca-langfuse-credentials` and redeploy, or set `langfuse.credentials.salt` explicitly.
 
-## Dashboards (A–D)
+## Dashboards (A–G)
 
 | Board | Content | Requires Langfuse |
 |-------|---------|-------------------|
 | A | Users overview (finished inference req/s, running vs queued, input vs output tokens/sec + Langfuse pointer) | yes |
 | B | UX / latency (TTFT, inter-token latency, end-to-end request latency, queue wait) | no |
-| C | Capacity / KV / GPU (KV cache %, GPU util avg+peak, output vs all tokens/sec, finished req/min, guardrails blocked requests, PLACEHOLDER $/hr) | no |
+| C | Capacity / KV / GPU (KV cache %, GPU util avg+peak, GPU temp/power, output vs all tokens/sec, finished req/min, preemptions/min, model up + restarts, guardrails blocked requests, PLACEHOLDER $/hr) | no |
 | D | Tokens / cost fairness (input vs output tokens/sec, finished req/s, PLACEHOLDER GPU $/hr) | yes |
+| E | AI Gateway (request rate by response class, error rate, gateway latency, auth denials, Kuadrant allow/deny, gateway pod health) | no |
+| F | DevSpaces (active workspace pods per developer, start success rate, startup time, per-developer CPU/memory) | no |
+| G | Platform Health (ArgoCD app health/sync, GPU node capacity, pod restarts, PVC usage) | no |
 
 Panel titles use long, definition-style names (same style as the performance ladder columns). Token naming: **output** = generation/decode only; **input/all** keep prompt visible. Grafana uses rolling 5m `rate()`; the ladder uses total stage time — same token kind, different time base.
+
+Boards E–G need the cluster prerequisites above (UWM + DCGM ServiceMonitor). Board E also needs the `pca-ai-gateway` PodMonitor this chart creates against the Istio-managed AI Gateway/llm-d gateway pods (`gateway.istio.io/managed=istio.io-gateway-controller`).
 
 ## GPU cost PLACEHOLDER
 

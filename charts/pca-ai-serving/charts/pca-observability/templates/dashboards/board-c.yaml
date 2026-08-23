@@ -116,7 +116,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(vllm:gpu_prefix_cache_hits[5m])) / clamp_min(sum(rate(vllm:gpu_prefix_cache_queries[5m])), 1) or sum(rate(vllm_gpu_prefix_cache_hits_total[5m])) / clamp_min(sum(rate(vllm_gpu_prefix_cache_queries_total[5m])), 1)",
+              "expr": "sum(rate(vllm:prefix_cache_hits_total[5m])) / clamp_min(sum(rate(vllm:prefix_cache_queries_total[5m])), 1) or sum(rate(vllm_prefix_cache_hits_total[5m])) / clamp_min(sum(rate(vllm_prefix_cache_queries_total[5m])), 1)",
               "legendFormat": "prefix-cache hit rate"
             }
           ],
@@ -166,6 +166,53 @@ data:
             {
               "expr": "sum(increase(pca_guardrails_blocked_total[1h]))",
               "legendFormat": "blocked requests (last 1h)"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "GPU temperature and power draw",
+          "description": "DCGM device temperature (°C) and power draw (W). Sustained highs indicate thermal/power throttling risk under load.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+          "datasource": { "type": "prometheus", "uid": "{{ $gpuDs }}" },
+          "targets": [
+            {
+              "expr": "avg(DCGM_FI_DEV_GPU_TEMP)",
+              "legendFormat": "GPU temperature (°C)"
+            },
+            {
+              "expr": "avg(DCGM_FI_DEV_POWER_USAGE)",
+              "legendFormat": "GPU power draw (W)"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "vLLM request preemptions per minute",
+          "description": "Requests evicted mid-generation to free KV-cache for higher-priority work. Rising preemptions signal the engine is oversubscribed for current traffic.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "60 * sum(rate(vllm:num_preemptions_total[5m]))",
+              "legendFormat": "preemptions per minute"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Model engine availability and restarts",
+          "description": "Up = vLLM engine scrape target reachable, per replica. Restarts = container restarts (OOM, crash, redeploy) over the last hour, per pod.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "min(up{job=\"ai-serving/kserve-llm-isvc-vllm-engine-default\"})",
+              "legendFormat": "all model replicas up (1 = yes)"
+            },
+            {
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"{{ $ns }}\",pod=~\".*kserve.*\"}[1h])) by (pod)",
+              "legendFormat": "restarts (last 1h) — {{`{{pod}}`}}"
             }
           ]
         }

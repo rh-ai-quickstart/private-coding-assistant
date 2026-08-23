@@ -10,6 +10,47 @@ Helm value overrides for deploying onto an existing OpenShift cluster (RHOAI, GP
 
 `ai-serving-deploy-existing-openshift` must run first. With `N=`, the first user owns global ConfigMaps in `openshift-devspaces`; later users get `devspacesGlobalConfig.enabled=false` automatically. `N` creates N namespaces (`dev-userN-devspaces`), each with one DevWorkspace named `code-workspace-1` (separate Helm release per user — not one release with N workspaces). Do **not** use `private-assistant-*` as a DevSpace namespace (that prefix is only for AI serving).
 
+### Prerequisite: monitoring (Grafana boards need data to show)
+
+`clusterConfig.enabled: false` on existing OpenShift skips the two cluster-scoped resources `pca-platform-config` would otherwise create for you. Without them, Grafana deploys fine but every model/gateway/GPU panel renders with no data:
+
+- **User Workload Monitoring** — enable it if not already on (`oc get pods -n openshift-user-workload-monitoring` to check):
+
+  ```bash
+  oc apply -f - <<'EOF'
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: cluster-monitoring-config
+    namespace: openshift-monitoring
+  data:
+    config.yaml: |
+      enableUserWorkload: true
+  EOF
+  ```
+
+- **`nvidia-dcgm-exporter` ServiceMonitor** — the GPU Operator starts the exporter but never registers a ServiceMonitor for it:
+
+  ```bash
+  oc apply -f - <<'EOF'
+  apiVersion: monitoring.coreos.com/v1
+  kind: ServiceMonitor
+  metadata:
+    name: nvidia-dcgm-exporter
+    namespace: nvidia-gpu-operator
+  spec:
+    selector:
+      matchLabels:
+        app: nvidia-dcgm-exporter
+    endpoints:
+      - port: gpu-metrics
+        path: /metrics
+        interval: 30s
+  EOF
+  ```
+
+See `charts/pca-ai-serving/charts/pca-observability/README.md` for what each Grafana board needs.
+
 ### Prerequisite: Red Hat Connectivity Link (RHCL)
 
 Existing OpenShift does **not** install RHCL via make. Before enabling the AI Gateway front door, ensure:

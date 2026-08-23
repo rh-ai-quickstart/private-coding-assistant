@@ -1,0 +1,25 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+# The RHCL AI Gateway and the llm-d routing gateway are Istio-managed Envoy
+# proxies (Gateway API), not KServe workloads — nothing else in this repo
+# scrapes them. They expose Istio/Envoy request, latency, and Kuadrant
+# allow/deny counters on the http-envoy-prom port. Without this PodMonitor,
+# Board E (AI Gateway) has no data.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: pca-ai-gateway
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+spec:
+  namespaceSelector: {}
+  selector:
+    matchLabels:
+      gateway.istio.io/managed: istio.io-gateway-controller
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      interval: 30s
+{{- end }}
