@@ -110,3 +110,16 @@ EMPTY
 8192
 {{- end -}}
 {{- end -}}
+
+{{/*
+  Model variant switch — must stay in sync with pca-ai-serving.modelVariant
+  (same "qwen3.6" default / "qwen3.8" override pattern). Terraform sets both
+  via the same model_variant value (see PCA_Deployment_ROSA|ARO/terraform).
+*/}}
+{{- define "pca-devspaces.modelId" -}}
+{{- if eq (.Values.modelVariant | default "qwen3.6") "qwen3.8" -}}
+Qwen/Qwen3.8-27B-FP8
+{{- else -}}
+{{- .Values.modelId -}}
+{{- end -}}
+{{- end -}}

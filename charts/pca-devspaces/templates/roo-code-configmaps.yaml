@@ -55,7 +55,7 @@ data:
           "apiProvider": "openai",
           "openAiBaseUrl": {{ $baseUrl | quote }},
           "openAiApiKey": {{ $apiKey | quote }},
-          "openAiModelId": {{ $.Values.modelId | quote }},
+          "openAiModelId": {{ include "pca-devspaces.modelId" $ | quote }},
           "openAiStreamingEnabled": false,
           "modelMaxTokens": {{ include "pca-devspaces.tokens.output" $ }},
           "openAiHeaders": {

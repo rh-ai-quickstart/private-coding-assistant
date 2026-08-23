@@ -1,6 +1,14 @@
 namespace: ai-serving
 clusterResources: true
 model:
+  # Which coding model to deploy. "qwen3.6" (default) is a pure passthrough of
+  # the id/name/poolName/vllm.* fields below — set to "qwen3.8" to switch to
+  # Qwen/Qwen3.8-27B-FP8, which overrides those fields via chart-native presets
+  # (see templates/_helpers.tpl). Only one model runs at a time: concurrently
+  # serving both behind the same AI Gateway triggers a Kuadrant EnvoyFilter-
+  # ordering bug that OOM-crashes llm-d-gateway. Terraform surfaces this as
+  # `model_variant` (see PCA_Deployment_ROSA|ARO/terraform/variables.tf).
+  variant: "qwen3.6"
   id: "Qwen/Qwen3.6-35B-A3B-FP8"
   servedName: "" # empty = use model.id as the vLLM --served-model-name
   name: "qwen3-coder"
@@ -76,7 +84,11 @@ aiGateway:
   # When true, DevSpaces IDEs skip RHCL and call llm-d directly (break-glass).
   escapeHatchToLlmd: false
   tls:
-    secretName: qwen3-coder-kserve-self-signed-certs
+    # Independent self-signed cert (see templates/tls-secret-job.yaml) shared by
+    # both Gateways' HTTPS listeners. Not derived from or owned by any
+    # LLMInferenceService/model — the name is deployment-wide, not model-specific,
+    # so switching model.variant never requires changing this.
+    secretName: ai-gateway-self-signed-certs
   # ROSA/ARO: pca-operators already owns Namespace + Kuadrant CR (default false).
   # Existing OpenShift: override create=true (see deploy_existing_openshift/values-ai-serving.yaml).
   kuadrant:

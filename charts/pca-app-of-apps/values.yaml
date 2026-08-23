@@ -5,3 +5,11 @@ gitops:
   cloud: ""
 hfToken:
   raw: "__overridden_at_deploy_time__"
+# Model selection — forwarded to pca-ai-serving's model.variant and
+# pca-devspaces' modelVariant (Terraform's model_variant sets both from a
+# single source of truth). "qwen3.6" matches both charts' own defaults, so
+# this is a safe no-op for Helm-only installs of this chart that skip Terraform.
+aiServing:
+  modelVariant: "qwen3.6"
+devSpaces:
+  modelVariant: "qwen3.6"

@@ -8,7 +8,7 @@
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
-  name: {{ .Values.model.name }}
+  name: {{ include "pca-ai-serving.model.name" . }}
   namespace: {{ .Values.namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -17,8 +17,8 @@ metadata:
 spec:
   replicas: 1
   model:
-    uri: hf://{{ .Values.model.id }}
-    name: {{ .Values.model.id }}
+    uri: hf://{{ include "pca-ai-serving.model.id" . }}
+    name: {{ include "pca-ai-serving.model.id" . }}
   router:
     route: {}
     gateway:
@@ -42,7 +42,7 @@ spec:
     containers:
       - name: main
         {{- if .Values.vllm.image }}
-        image: {{ .Values.vllm.image }}
+        image: {{ include "pca-ai-serving.vllm.image" . }}
         {{- end }}
         command:
           - python3
@@ -53,19 +53,19 @@ spec:
           # storage-initializer writes the flat model tree to the PVC root;
           # vLLM loads from that local path (HF_HUB_OFFLINE=1).
           - --model=/model-cache
-          - --served-model-name={{ .Values.model.servedName | default .Values.model.id }}
+          - --served-model-name={{ .Values.model.servedName | default (include "pca-ai-serving.model.id" .) }}
           - --trust-remote-code
           - --tensor-parallel-size={{ .Values.hardware.gpuCount }}
           - --max-model-len={{ include "pca-ai-serving.tokens.total" . }}
           - --enable-prefix-caching
           - --enable-auto-tool-choice
-          - --tool-call-parser={{ .Values.vllm.toolCallParser }}
+          - --tool-call-parser={{ include "pca-ai-serving.vllm.toolCallParser" . }}
           - --reasoning-parser={{ .Values.vllm.reasoningParser }}
           {{- if .Values.vllm.kvCacheDtype }}
           - --kv-cache-dtype={{ .Values.vllm.kvCacheDtype }}
           {{- end }}
-          {{- if .Values.vllm.gpuMemoryUtilization }}
-          - --gpu-memory-utilization={{ .Values.vllm.gpuMemoryUtilization }}
+          {{- if include "pca-ai-serving.vllm.gpuMemoryUtilization" . }}
+          - --gpu-memory-utilization={{ include "pca-ai-serving.vllm.gpuMemoryUtilization" . }}
           {{- end }}
           {{- if not .Values.vllm.enableThinking }}
           # vLLM >= 0.19: --default-chat-template-kwargs (not --chat-template-kwargs).
@@ -79,7 +79,7 @@ spec:
           - --middleware
           - pca_langfuse_io.langfuse_io_middleware
           {{- end }}
-          {{- range .Values.vllm.extraArgs }}
+          {{- range (include "pca-ai-serving.vllm.extraArgs" . | fromJsonArray) }}
           - {{ . | quote }}
           {{- end }}
           # Cluster enableLLMInferenceServiceTLS=true injects HTTPS probes +
@@ -89,7 +89,7 @@ spec:
         env:
           {{- if $langfuseEnabled }}
           - name: OTEL_SERVICE_NAME
-            value: vllm-{{ .Values.model.name }}
+            value: vllm-{{ include "pca-ai-serving.model.name" . }}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: http://pca-otel-collector.{{ .Values.namespace }}.svc.cluster.local:4317
           - name: OTEL_TRACES_SAMPLER

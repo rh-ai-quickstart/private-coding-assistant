@@ -1,4 +1,8 @@
 aiServingNamespace: ai-serving
+# Must stay in sync with pca-ai-serving's model.variant (Terraform's
+# model_variant sets both). "qwen3.6" is a passthrough of modelId below;
+# "qwen3.8" overrides it to Qwen/Qwen3.8-27B-FP8 (see templates/_helpers.tpl).
+modelVariant: "qwen3.6"
 modelId: "Qwen/Qwen3.6-35B-A3B-FP8"
 # Align with pca-ai-serving tokens.* (vLLM --max-model-len + OpenCode/IDE completion).
 tokens:

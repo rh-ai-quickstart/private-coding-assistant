@@ -278,7 +278,7 @@ spec:
         - name: epp
           image: registry.redhat.io/rhoai/odh-llm-d-inference-scheduler-rhel9@sha256:c7abb4c34c70096fcf00db80cfbff09625c0bb9b58d271fe04cf51efdd591c31
           args:
-            - -pool-name={{ .Values.model.poolName }}
+            - -pool-name={{ include "pca-ai-serving.model.poolName" . }}
             - -pool-namespace={{ .Values.namespace }}
             - -grpc-port=9002
             - -metrics-port=9090

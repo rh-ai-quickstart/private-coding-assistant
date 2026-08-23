@@ -56,7 +56,7 @@ spec:
             - name: VLLM_ENDPOINT
               value: {{ include "pca-devspaces.aiGateway.baseUrl" $ | quote }}
             - name: VLLM_MODEL_ID
-              value: {{ $.Values.modelId | quote }}
+              value: {{ include "pca-devspaces.modelId" $ | quote }}
             - name: OPENAI_API_KEY
               value: {{ include "pca-devspaces.aiGateway.ideApiKey" (dict "root" $ "ns" $ns) | quote }}
             - name: OPENAI_BASE_URL
@@ -175,7 +175,7 @@ spec:
             - name: VLLM_ENDPOINT
               value: {{ include "pca-devspaces.aiGateway.baseUrl" $ | quote }}
             - name: VLLM_MODEL_ID
-              value: {{ $.Values.modelId | quote }}
+              value: {{ include "pca-devspaces.modelId" $ | quote }}
             - name: OPENAI_API_KEY
               value: {{ include "pca-devspaces.aiGateway.ideApiKey" (dict "root" $ "ns" $ns) | quote }}
             - name: OPENAI_BASE_URL

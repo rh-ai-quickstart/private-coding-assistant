@@ -61,3 +61,78 @@ populates the PVC before vLLM starts; no HF Hub access needed at runtime).
 {{- define "pca-ai-serving.llmdGatewayService" -}}
 {{- printf "%s-%s" (.Values.gatewayName | default "llm-d-gateway") (.Values.aiGateway.gatewayClassName | default "data-science-gateway-class") -}}
 {{- end -}}
+
+{{/*
+  Model variant switch — only one model is deployed at a time. "qwen3.6" (the
+  default) is a pure passthrough of the model.* / vllm.* values below, so
+  existing deployments that never set model.variant are unaffected. Setting
+  model.variant=qwen3.8 overrides the six fields that differ for
+  Qwen/Qwen3.8-27B-FP8 (validated config — see docs/qwen3.8-model-migration.md).
+  Deploying both variants concurrently behind one AI Gateway is unsupported:
+  it triggers a Kuadrant EnvoyFilter-ordering bug that OOM-crashes llm-d-gateway.
+*/}}
+{{- define "pca-ai-serving.modelVariant" -}}
+{{- .Values.model.variant | default "qwen3.6" -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.model.id" -}}
+{{- if eq (include "pca-ai-serving.modelVariant" .) "qwen3.8" -}}
+Qwen/Qwen3.8-27B-FP8
+{{- else -}}
+{{- .Values.model.id -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.model.name" -}}
+{{- if eq (include "pca-ai-serving.modelVariant" .) "qwen3.8" -}}
+qwen3-8-coder
+{{- else -}}
+{{- .Values.model.name -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.model.poolName" -}}
+{{- if eq (include "pca-ai-serving.modelVariant" .) "qwen3.8" -}}
+qwen3-8-coder-inference-pool
+{{- else -}}
+{{- .Values.model.poolName -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.vllm.image" -}}
+{{- if eq (include "pca-ai-serving.modelVariant" .) "qwen3.8" -}}
+vllm/vllm-openai:v0.27.0
+{{- else -}}
+{{- .Values.vllm.image -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.vllm.toolCallParser" -}}
+{{- if eq (include "pca-ai-serving.modelVariant" .) "qwen3.8" -}}
+qwen3_coder
+{{- else -}}
+{{- .Values.vllm.toolCallParser -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.vllm.gpuMemoryUtilization" -}}
+{{- if eq (include "pca-ai-serving.modelVariant" .) "qwen3.8" -}}
+0.92
+{{- else -}}
+{{- .Values.vllm.gpuMemoryUtilization -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+  Qwen3.6's extraArgs are Mamba/MoE-specific (max-num-batched-tokens sized to
+  Mamba block_size, cudagraph capture tuned to its activation footprint) and
+  don't apply to Qwen3.8's dense architecture — see docs/qwen3.8-model-migration.md.
+  Returns a JSON array string; consume with `fromJsonArray`.
+*/}}
+{{- define "pca-ai-serving.vllm.extraArgs" -}}
+{{- if eq (include "pca-ai-serving.modelVariant" .) "qwen3.8" -}}
+{{- list "--max-num-seqs=128" | toJson -}}
+{{- else -}}
+{{- .Values.vllm.extraArgs | toJson -}}
+{{- end -}}
+{{- end -}}
