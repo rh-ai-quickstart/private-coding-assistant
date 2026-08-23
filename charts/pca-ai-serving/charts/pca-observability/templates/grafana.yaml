@@ -24,6 +24,9 @@ spec:
         checksum/admin-secret: {{ include (print $.Template.BasePath "/grafana-secret.yaml") . | sha256sum }}
         checksum/dashboard-b: {{ include (print $.Template.BasePath "/dashboards/board-b.yaml") . | sha256sum }}
         checksum/dashboard-c: {{ include (print $.Template.BasePath "/dashboards/board-c.yaml") . | sha256sum }}
+        checksum/dashboard-e: {{ include (print $.Template.BasePath "/dashboards/board-e.yaml") . | sha256sum }}
+        checksum/dashboard-f: {{ include (print $.Template.BasePath "/dashboards/board-f.yaml") . | sha256sum }}
+        checksum/dashboard-g: {{ include (print $.Template.BasePath "/dashboards/board-g.yaml") . | sha256sum }}
     spec:
       serviceAccountName: pca-grafana
       containers:
@@ -67,6 +70,15 @@ spec:
             - name: dashboard-c
               mountPath: /var/lib/grafana/dashboards/pca/board-c.json
               subPath: board-c.json
+            - name: dashboard-e
+              mountPath: /var/lib/grafana/dashboards/pca/board-e.json
+              subPath: board-e.json
+            - name: dashboard-f
+              mountPath: /var/lib/grafana/dashboards/pca/board-f.json
+              subPath: board-f.json
+            - name: dashboard-g
+              mountPath: /var/lib/grafana/dashboards/pca/board-g.json
+              subPath: board-g.json
             {{- if .Values.langfuse.enabled }}
             - name: dashboard-a
               mountPath: /var/lib/grafana/dashboards/pca/board-a.json
@@ -110,6 +122,15 @@ spec:
         - name: dashboard-c
           configMap:
             name: pca-grafana-dashboard-c
+        - name: dashboard-e
+          configMap:
+            name: pca-grafana-dashboard-e
+        - name: dashboard-f
+          configMap:
+            name: pca-grafana-dashboard-f
+        - name: dashboard-g
+          configMap:
+            name: pca-grafana-dashboard-g
         {{- if .Values.langfuse.enabled }}
         - name: dashboard-a
           configMap:

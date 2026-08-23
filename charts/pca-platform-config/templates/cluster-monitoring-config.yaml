@@ -1,0 +1,22 @@
+{{- if .Values.clusterConfig.enabled }}
+# Enables OpenShift User Workload Monitoring (UWM) cluster-wide. Without it,
+# Prometheus never scrapes the PodMonitor/ServiceMonitor objects that KServe
+# creates for vLLM (kserve-llm-isvc-*, ai-serving namespace) or the ones
+# pca-observability creates for the AI Gateway — Grafana boards render with
+# no data even though everything else is configured correctly.
+#
+# Safe on ROSA/ARO full-provision: Terraform builds these clusters from
+# scratch, so there is no pre-existing cluster-monitoring-config to clobber.
+# On existing OpenShift (clusterConfig.enabled: false), this is skipped —
+# enable UWM manually if not already on; see deploy_existing_openshift/README.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  config.yaml: |
+    enableUserWorkload: true
+{{- end }}

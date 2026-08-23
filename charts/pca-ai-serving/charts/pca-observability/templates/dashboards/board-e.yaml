@@ -1,0 +1,140 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-e
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-e.json: |
+    {
+      "uid": "pca-board-e",
+      "title": "PCA E — AI Gateway",
+      "tags": ["pca", "gateway", "kuadrant", "auth"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-6h", "to": "now" },
+      "panels": [
+        {
+          "type": "text",
+          "title": "About this board",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Traffic through the RHCL AI Gateway (Envoy/Istio data plane + Kuadrant AuthPolicy/RateLimitPolicy) in front of the model. Requests that never reach vLLM (auth denied, rate limited, routing errors) will not show up on the model boards — this is where to look for those."
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway request rate by response class",
+          "description": "Requests/sec at the gateway split into 2xx/4xx/5xx. A rising 4xx/5xx share while model boards look healthy usually means the problem is at the gateway (auth, rate limit, routing), not the model.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 3 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"2..\"}[5m]))",
+              "legendFormat": "2xx/sec"
+            },
+            {
+              "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"4..\"}[5m]))",
+              "legendFormat": "4xx/sec"
+            },
+            {
+              "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"5..\"}[5m]))",
+              "legendFormat": "5xx/sec"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway error rate (% of requests that are 4xx or 5xx)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 3 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"4..|5..\"}[5m])) / clamp_min(sum(rate(istio_requests_total{reporter=\"source\"}[5m])), 1)",
+              "legendFormat": "error rate"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway request latency (Envoy/Istio) — p50 / p95 / p99",
+          "description": "Time the gateway itself takes to proxy a request end-to-end, including AuthPolicy/RateLimitPolicy evaluation. Compare against the vLLM end-to-end latency on Board B — a large gap here points at the gateway/auth/rate-limit hop, not the model.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 11 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(istio_request_duration_milliseconds_bucket{reporter=\"source\"}[5m])) by (le))",
+              "legendFormat": "gateway latency p50 (ms)"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(istio_request_duration_milliseconds_bucket{reporter=\"source\"}[5m])) by (le))",
+              "legendFormat": "gateway latency p95 (ms)"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket{reporter=\"source\"}[5m])) by (le))",
+              "legendFormat": "gateway latency p99 (ms)"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Auth denials (AuthPolicy 401/403 responses)",
+          "description": "Requests the gateway's AuthPolicy (Authorino) rejected before they reached the model — missing/invalid API key or unauthorized caller.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 11 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(istio_requests_total{reporter=\"source\",response_code=~\"401|403\"}[5m]))",
+              "legendFormat": "auth denials/sec"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Kuadrant policy decisions — allowed vs denied",
+          "description": "RateLimitPolicy/AuthPolicy WASM filter decisions at the gateway. Denied includes both rate-limited and policy-rejected requests. Sustained denials under normal load usually mean a limit is set too low for real usage.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(kuadrant_allowed[5m]))",
+              "legendFormat": "allowed/sec"
+            },
+            {
+              "expr": "sum(rate(kuadrant_denied[5m]))",
+              "legendFormat": "denied/sec"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Gateway pod health — replicas live and uptime",
+          "description": "envoy_server_live per gateway replica (RHCL AI Gateway + llm-d routing gateway). A dip below the replica count means a proxy pod is failing readiness.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(envoy_server_live)",
+              "legendFormat": "gateway replicas live"
+            },
+            {
+              "expr": "count(envoy_server_live)",
+              "legendFormat": "gateway replicas total"
+            }
+          ]
+        }
+      ]
+    }
+{{- end }}

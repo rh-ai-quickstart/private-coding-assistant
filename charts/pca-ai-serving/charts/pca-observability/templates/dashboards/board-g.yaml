@@ -1,0 +1,107 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-g
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-g.json: |
+    {
+      "uid": "pca-board-g",
+      "title": "PCA G — Platform Health",
+      "tags": ["pca", "platform", "gitops", "argocd"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-24h", "to": "now" },
+      "panels": [
+        {
+          "type": "table",
+          "title": "ArgoCD Application health and sync status",
+          "description": "Every PCA Application ArgoCD manages. sync_status = OutOfSync means the live cluster no longer matches Git — expected briefly after a manual/intentional live change, a problem if it persists.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "argocd_app_info",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "includeByName": { "Value": false, "name": true, "health_status": true, "sync_status": true, "project": true } } }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Applications not Healthy",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "count(argocd_app_info{health_status!=\"Healthy\"}) or vector(0)", "instant": true }
+          ],
+          "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } }
+        },
+        {
+          "type": "stat",
+          "title": "Applications OutOfSync",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "count(argocd_app_info{sync_status!=\"Synced\"}) or vector(0)", "instant": true }
+          ],
+          "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } } }
+        },
+        {
+          "type": "stat",
+          "title": "GPU nodes ready",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "count(kube_node_status_allocatable{resource=\"nvidia_com_gpu\"} > bool 0) or vector(0)", "instant": true }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Total allocatable GPUs",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(kube_node_status_allocatable{resource=\"nvidia_com_gpu\"}) or vector(0)", "instant": true }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Pod restarts — ai-serving and DevSpaces namespaces",
+          "description": "Container restarts per pod over the last hour (OOM, crash, node eviction). Isolated single restarts after a deploy are normal; repeated restarts on the same pod are not.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"ai-serving|dev-.*-devspaces|openshift-devspaces\"}[1h])) by (namespace, pod)",
+              "legendFormat": "{{`{{namespace}}`}} / {{`{{pod}}`}}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "PVC usage (% of capacity) — ai-serving",
+          "description": "Model weights, Grafana/Langfuse persistence. Approaching 100% risks pod scheduling/write failures.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kubelet_volume_stats_used_bytes{namespace=\"{{ $ns }}\"} / kubelet_volume_stats_capacity_bytes{namespace=\"{{ $ns }}\"}",
+              "legendFormat": "{{`{{persistentvolumeclaim}}`}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        }
+      ]
+    }
+{{- end }}

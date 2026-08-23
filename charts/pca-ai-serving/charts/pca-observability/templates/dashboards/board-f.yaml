@@ -1,0 +1,98 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "pca-observability.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-grafana-dashboard-f
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: pca-grafana
+    app.kubernetes.io/part-of: pca-observability
+data:
+  board-f.json: |
+    {
+      "uid": "pca-board-f",
+      "title": "PCA F — DevSpaces",
+      "tags": ["pca", "devspaces", "che"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-24h", "to": "now" },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Active DevWorkspace pods per developer namespace",
+          "description": "Running IDE workspace pods per dev-*-devspaces namespace. Confirms who is actively using the platform right now.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count(kube_pod_labels{namespace=~\"dev-.*-devspaces\", label_controller_devfile_io_devworkspace_id!=\"\"}) by (namespace)",
+              "legendFormat": "{{`{{namespace}}`}}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "DevWorkspace start success rate",
+          "description": "Fraction of DevWorkspace start attempts (che-server/devworkspace-controller) that completed successfully since the controller last restarted. A drop signals provisioning failures (image pull, quota, PVC, IDP) affecting new sessions.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(devworkspace_started_success_total) / clamp_min(sum(devworkspace_started_total), 1)",
+              "legendFormat": "start success rate"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } }
+        },
+        {
+          "type": "timeseries",
+          "title": "DevWorkspace startup time — p50 / p95",
+          "description": "Seconds from DevWorkspace start request to ready (image pull + container start + IDE bootstrap). Rising p95 is the first signal of registry/storage pressure before users complain.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(devworkspace_startup_time_bucket[30m])) by (le))",
+              "legendFormat": "startup time p50 (sec)"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(devworkspace_startup_time_bucket[30m])) by (le))",
+              "legendFormat": "startup time p95 (sec)"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Per-developer workspace CPU usage",
+          "description": "Aggregate CPU (cores) consumed by each developer's workspace pod (IDE + tooling containers).",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"dev-.*-devspaces\",container!=\"\",container!=\"POD\"}[5m])) by (namespace)",
+              "legendFormat": "{{`{{namespace}}`}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Per-developer workspace memory usage",
+          "description": "Aggregate working-set memory used by each developer's workspace pod. Useful for right-sizing the DevWorkspace resource limits/requests.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{namespace=~\"dev-.*-devspaces\",container!=\"\",container!=\"POD\"}) by (namespace)",
+              "legendFormat": "{{`{{namespace}}`}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        }
+      ]
+    }
+{{- end }}
