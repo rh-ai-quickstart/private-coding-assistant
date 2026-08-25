@@ -1,0 +1,111 @@
+{{- $maas := .Values.maas | default dict }}
+{{- if $maas.enabled | default true }}
+{{- $llmdSvc := include "pca-ai-serving.llmdGatewayService" . }}
+{{/* MaaS Envoy talks HTTP to backends. Use llm-d :80 (HTTP listener), not :443. */}}
+{{- $llmdPort := 80 }}
+{{- $chatName := include "pca-ai-serving.maasChatBackend.name" . }}
+{{- $chatPort := include "pca-ai-serving.maasChatBackend.port" . | int }}
+{{- $public := include "pca-ai-serving.maasPublicHostname" . }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: pca-maas-front-door
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: pca-maas-front-door
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parentRefs:
+  - name: {{ $maas.gatewayName | default "maas-default-gateway" }}
+    namespace: {{ $maas.gatewayNamespace | default "openshift-ingress" }}
+  {{- if $public }}
+  hostnames:
+  - {{ $public | quote }}
+  {{- end }}
+  {{/* Rule order + auth flags: files/maas-front-door-rules.yaml */}}
+  {{- $bundle := .Files.Get "files/maas-front-door-rules.yaml" | fromYaml }}
+  rules:
+  {{- range $bundle.rules }}
+  - matches:
+    {{- range .paths }}
+    - path:
+        type: {{ .type }}
+        value: {{ .value }}
+    {{- end }}
+    {{- if .replacePrefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: {{ .replacePrefix }}
+    {{- end }}
+    backendRefs:
+    {{- if eq .backend "chat" }}
+    - name: {{ $chatName }}
+      port: {{ $chatPort }}
+    {{- else }}
+    - name: {{ $llmdSvc }}
+      port: {{ $llmdPort }}
+    {{- end }}
+    timeouts:
+      request: "0s"
+      backendRequest: "0s"
+  {{- end }}
+---
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: pca-maas-apikey
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: pca-maas-front-door
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: pca-maas-front-door
+  # overrides: Gateway-level MaaS AuthPolicy uses atomic defaults that allow
+  # unauthenticated traffic. HTTPRoute overrides replace those for this route.
+  overrides:
+    strategy: atomic
+    rules:
+      authentication:
+        "pca-maas-apikey":
+          apiKey:
+            allNamespaces: true
+            selector:
+              matchLabels:
+                app.kubernetes.io/component: pca-maas-apikey
+                authorino.kuadrant.io/managed-by: authorino
+---
+# Override Gateway-level MaaS deny-all TokenRateLimitPolicy for this HTTPRoute.
+apiVersion: kuadrant.io/v1alpha1
+kind: TokenRateLimitPolicy
+metadata:
+  name: pca-maas-tokens
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: pca-maas-front-door
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: pca-maas-front-door
+  overrides:
+    limits:
+      pca-ide:
+        rates:
+          - limit: {{ ($maas.tokenLimit).hourly | default 5000000 }}
+            window: "1h"
+          - limit: {{ ($maas.tokenLimit).daily | default 50000000 }}
+            window: "24h"
+{{- end }}

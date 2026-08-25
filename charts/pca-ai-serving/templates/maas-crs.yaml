@@ -1,0 +1,58 @@
+{{- $maas := .Values.maas | default dict }}
+{{- if $maas.enabled | default true }}
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: {{ $maas.virtualModel | default "pca-auto" }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  modelRef:
+    kind: LLMInferenceService
+    name: {{ include "pca-ai-serving.model.name" . }}
+  {{- if $maas.hostname }}
+  endpointOverride: https://{{ $maas.hostname }}/v1
+  {{- else }}
+  endpointOverride: https://{{ include "pca-ai-serving.maasGatewayService" . }}/v1
+  {{- end }}
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: pca-ide
+  namespace: models-as-a-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  owner:
+    groups:
+      - name: {{ $maas.groupName | default "pca-developers" }}
+  modelRefs:
+    - name: {{ $maas.virtualModel | default "pca-auto" }}
+      namespace: {{ .Values.namespace }}
+      tokenRateLimits:
+        - limit: {{ ($maas.tokenLimit).hourly | default 5000000 }}
+          window: "1h"
+        - limit: {{ ($maas.tokenLimit).daily | default 50000000 }}
+          window: "24h"
+  priority: 10
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: pca-ide
+  namespace: models-as-a-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  subjects:
+    groups:
+      - name: {{ $maas.groupName | default "pca-developers" }}
+  modelRefs:
+    - name: {{ $maas.virtualModel | default "pca-auto" }}
+      namespace: {{ .Values.namespace }}
+{{- end }}

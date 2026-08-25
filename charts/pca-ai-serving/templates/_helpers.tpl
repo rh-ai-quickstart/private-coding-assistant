@@ -136,3 +136,51 @@ qwen3_coder
 {{- .Values.vllm.extraArgs | toJson -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "pca-ai-serving.maasGatewayService" -}}
+{{- $m := .Values.maas | default dict -}}
+{{- $name := $m.gatewayName | default "maas-default-gateway" -}}
+{{- $class := $m.gatewayClassName | default (.Values.aiGateway.gatewayClassName | default "data-science-gateway-class") -}}
+{{- $ns := $m.gatewayNamespace | default "openshift-ingress" -}}
+{{- printf "%s-%s.%s.svc.cluster.local" $name $class $ns -}}
+{{- end -}}
+
+{{/*
+  Public MaaS vhost. When maas.hostname is set, HTTPRoute hostnames, AuthConfig
+  hosts, and EnvoyFilter SNI/vhost all use this string. When empty (existing
+  OpenShift default), HTTPRoute omits hostnames and EnvoyFilter matches Istio
+  catch-all *:443. Do not fall back to maasGatewayService (Host / SNI mismatch).
+*/}}
+{{- define "pca-ai-serving.maasPublicHostname" -}}
+{{- $m := .Values.maas | default dict -}}
+{{- $m.hostname | default "" | toString | trim -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.llmUpstreamHost" -}}
+{{- if .Values.semanticRouter.enabled -}}
+pca-semantic-router
+{{- else -}}
+{{- include "pca-ai-serving.llmdGatewayService" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+  MaaS HTTPRoute chat backend: guardrails → semantic-router → llm-d :80.
+*/}}
+{{- define "pca-ai-serving.maasChatBackend.name" -}}
+{{- if .Values.guardrails.enabled -}}
+guardrails-proxy
+{{- else if .Values.semanticRouter.enabled -}}
+pca-semantic-router
+{{- else -}}
+{{- include "pca-ai-serving.llmdGatewayService" . -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.maasChatBackend.port" -}}
+{{- if .Values.guardrails.enabled -}}
+8080
+{{- else -}}
+80
+{{- end -}}
+{{- end -}}

@@ -1,0 +1,31 @@
+# Source of truth for pca-maas-front-door HTTPRoute rules and which
+# Istio indices get ext_authz (auth: true). Istio names routes
+# {namespace}.{httproute}.{index}. Keep /v1/models public (auth: false).
+rules:
+  - id: chat
+    auth: true
+    backend: chat
+    paths:
+      - type: PathPrefix
+        value: /v1/chat/completions
+  - id: local
+    auth: true
+    backend: llmd
+    replacePrefix: /v1
+    paths:
+      - type: PathPrefix
+        value: /local/v1
+  - id: models
+    auth: false
+    backend: llmd
+    paths:
+      - type: Exact
+        value: /v1/models
+      - type: PathPrefix
+        value: /v1/models/
+  - id: v1
+    auth: true
+    backend: llmd
+    paths:
+      - type: PathPrefix
+        value: /v1

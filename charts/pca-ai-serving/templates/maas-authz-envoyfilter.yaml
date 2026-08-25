@@ -1,0 +1,172 @@
+{{- $maas := .Values.maas | default dict }}
+{{- if $maas.enabled | default true }}
+{{- $gwNs := $maas.gatewayNamespace | default "openshift-ingress" }}
+{{- $gwName := $maas.gatewayName | default "maas-default-gateway" }}
+{{- $public := include "pca-ai-serving.maasPublicHostname" . }}
+{{- $envoyVhost := printf "%s:443" ($public | default "*") }}
+{{- $kuadrant := $maas.kuadrant | default dict }}
+{{- $kuadrantNs := $kuadrant.namespace | default "kuadrant-system" }}
+{{- $authorinoSvc := printf "authorino-authorino-authorization.%s.svc.cluster.local" $kuadrantNs }}
+{{/*
+  Kuadrant WasmPlugin on openshift-default stays phase STATS, so AuthPolicy
+  denials never become HTTP 401 (fail-open to the backend). Honour Authorino
+  with envoy ext_authz on PCA chat/local routes only. AuthConfig hosts must
+  match Authorino lookup: the public hostname when set, else Istio catch-all
+  *:443 with HTTP_ROUTE context_extensions.host (not the cluster FQDN).
+  Filter default-off so /v1/models and /maas-api stay unauthenticated.
+
+  MaaS payload-processing (ext_proc.bbr) defaults to FULL_DUPLEX_STREAMED but
+  allow_mode_override lets it BUFFER the response to scrape usage. That holds
+  SSE until generation ends (TTFB ≈ total). Disable BBR and Kuadrant WASM on
+  PCA chat/local routes. WASM on /v1/models already swallowed bodies with no
+  usage.total_tokens; OpenCode wrap-up sat ~3.4s after [DONE] with BBR off.
+*/}}
+apiVersion: authorino.kuadrant.io/v1beta3
+kind: AuthConfig
+metadata:
+  name: pca-maas-envoy-apikey
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: pca-maas-front-door
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  hosts:
+    {{- if $public }}
+    - {{ $public | quote }}
+    {{- else }}
+    {{/* Authorino keys on Host, not Istio vhost. Empty maas.hostname: pin
+         *:443 and set context_extensions.host on HTTP_ROUTE so apps Host
+         matches. Do not index only the in-cluster gateway FQDN. */}}
+    - "*:443"
+    {{- end }}
+  authentication:
+    pca-maas-apikey:
+      apiKey:
+        allNamespaces: true
+        selector:
+          matchLabels:
+            app.kubernetes.io/component: pca-maas-apikey
+            authorino.kuadrant.io/managed-by: authorino
+      credentials:
+        authorizationHeader:
+          prefix: Bearer
+  response:
+    unauthenticated:
+      code: 401
+      headers:
+        content-type:
+          value: application/json
+      body:
+        value: '{"error":{"message":"unauthorized","type":"invalid_request_error"}}'
+    unauthorized:
+      code: 403
+      headers:
+        content-type:
+          value: application/json
+      body:
+        value: '{"error":{"message":"forbidden","type":"invalid_request_error"}}'
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: pca-maas-authorino-check
+  namespace: {{ $gwNs }}
+  labels:
+    app.kubernetes.io/component: pca-maas-front-door
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: {{ $gwName | quote }}
+  configPatches:
+    - applyTo: CLUSTER
+      patch:
+        operation: ADD
+        value:
+          name: pca-authorino-grpc
+          type: STRICT_DNS
+          connect_timeout: 1s
+          lb_policy: ROUND_ROBIN
+          http2_protocol_options: {}
+          load_assignment:
+            cluster_name: pca-authorino-grpc
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: {{ $authorinoSvc | quote }}
+                          port_value: 50051
+          {{/* Authorino CR listener.tls.enabled is false (Kuadrant default).
+               UpstreamTlsContext against plaintext gRPC fails handshake →
+               Envoy UAEX ext_authz_error empty 403 (status_on_error). */}}
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          portNumber: 443
+          filterChain:
+            {{- if $public }}
+            sni: {{ $public | quote }}
+            {{- end }}
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: istio.metadata_exchange
+      patch:
+        operation: INSERT_AFTER
+        value:
+          name: envoy.filters.http.ext_authz
+          disabled: true
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+            transport_api_version: V3
+            failure_mode_allow: false
+            status_on_error:
+              code: Forbidden
+            grpc_service:
+              envoy_grpc:
+                cluster_name: pca-authorino-grpc
+              timeout: 2s
+    {{/* Istio names HTTPRoute rules {namespace}.{httproute}.{index}.
+         Auth indices come from files/maas-front-door-rules.yaml (auth: true). */}}
+    {{- $bundle := .Files.Get "files/maas-front-door-rules.yaml" | fromYaml }}
+    {{- range $idx, $rule := $bundle.rules }}
+    {{- if $rule.auth }}
+    - applyTo: HTTP_ROUTE
+      match:
+        context: GATEWAY
+        routeConfiguration:
+          vhost:
+            name: {{ $envoyVhost | quote }}
+            route:
+              name: {{ printf "%s.pca-maas-front-door.%d" $.Values.namespace $idx | quote }}
+      patch:
+        operation: MERGE
+        value:
+          typed_per_filter_config:
+            envoy.filters.http.ext_authz:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+              {{- if $public }}
+              disabled: false
+              {{- else }}
+              {{/* ExtAuthzPerRoute oneof: check_settings enables the filter
+                   (disabled: false cannot be set with it). Lookup host *:443
+                   matches AuthConfig spec.hosts when maas.hostname is empty. */}}
+              check_settings:
+                context_extensions:
+                  host: "*:443"
+              {{- end }}
+            envoy.filters.http.ext_proc.bbr:
+              "@type": type.googleapis.com/envoy.config.route.v3.FilterConfig
+              disabled: true
+            extensions.istio.io/wasmplugin/{{ $gwNs }}.kuadrant-{{ $gwName }}:
+              "@type": type.googleapis.com/envoy.config.route.v3.FilterConfig
+              disabled: true
+    {{- end }}
+    {{- end }}
+{{- end }}
