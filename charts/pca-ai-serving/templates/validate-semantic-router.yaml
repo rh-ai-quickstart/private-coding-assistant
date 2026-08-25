@@ -1,0 +1,5 @@
+{{- $sr := ((.Values.semanticRouter).enabled | default false) }}
+{{- $g := (((.Values.global).semanticRouter).enabled | default false) }}
+{{- if ne ($sr | toString) ($g | toString) }}
+{{- fail "semanticRouter.enabled and global.semanticRouter.enabled must match (pca-guardrails reads global.semanticRouter.enabled)" }}
+{{- end }}
