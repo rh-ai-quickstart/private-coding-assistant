@@ -47,6 +47,8 @@ tlsJob:
 aiGateway:
   tls:
     secretName: "llm-d-gateway-tls"
+semanticRouter:
+  enabled: false
 observability:
   enabled: true
 guardrails:
