@@ -10,3 +10,6 @@ terraform.tfvars
 tfplan
 graphify-out/
 local-docs/
+__pycache__/
+*.py[cod]
+
