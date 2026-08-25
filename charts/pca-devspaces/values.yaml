@@ -13,13 +13,16 @@ opencodeBuild:
   opencodeVersion: "1.15.13"
 devspacesGlobalConfig:
   enabled: true
-# RHCL AI Gateway — default IDE base URL (see _helpers.tpl aiGateway.baseUrl).
-aiGateway:
+# MaaS / RHCL front door — default IDE base URL (see _helpers.tpl ideMode).
+maas:
   enabled: true
-  name: pca-ai-gateway
+  gatewayName: maas-default-gateway
+  gatewayNamespace: openshift-ingress
   gatewayClassName: data-science-gateway-class
+  groupName: pca-developers
+aiGateway:
   escapeHatchToLlmd: false
-  apiKeySecretName: pca-ai-gw-apikey
+  apiKeySecretName: pca-maas-apikey
 guardrails:
   enabled: true
 mcp:

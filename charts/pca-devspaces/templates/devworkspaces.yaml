@@ -86,32 +86,7 @@ spec:
           label: "Write OpenCode Config"
           component: dev-tools
           commandLine: |
-            mkdir -p ~/.config/opencode ~/.local/share/opencode
-            python3 -c "
-            import json, os
-            config = {
-                '\x24schema': 'https://opencode.ai/config.json',
-                'provider': {
-                    'vllm': {
-                        'npm': '@ai-sdk/openai-compatible',
-                        'name': 'Private AI Gateway (llm-d)',
-                        'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
-                        # tokens.total / tokens.output must align with pca-ai-serving.
-                        'models': {os.environ['VLLM_MODEL_ID']: {
-                            'name': os.environ['VLLM_MODEL_ID'],
-                            'limit': {
-                                'context': {{ include "pca-devspaces.tokens.total" $ }},
-                                'output': {{ include "pca-devspaces.tokens.output" $ }},
-                            },
-                        }}
-                    }
-                },
-                'model': 'vllm/' + os.environ['VLLM_MODEL_ID']
-            }
-            open(os.path.expanduser('~/.config/opencode/opencode.json'), 'w').write(json.dumps(config, indent=2))
-            "
-            echo "{\"vllm\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
-            echo "OpenCode config written"
+{{ include "pca-devspaces.opencodeWriteConfigScript" $ | indent 12 }}
       - id: download-opencode-extension
         exec:
           label: "Download OpenCode Extension"
