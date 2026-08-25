@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import os
 
-AI_GATEWAY_NAME = "pca-ai-gateway"
-AI_GATEWAY_APIKEY_SECRET = "pca-ai-gw-apikey"
+AI_GATEWAY_NAME = "maas-default-gateway"
+AI_GATEWAY_NAMESPACE = "openshift-ingress"
+AI_GATEWAY_APIKEY_SECRET = "pca-maas-apikey"
 AI_GATEWAY_APIKEY_KEY = "api_key"
 REPO_URL = "https://github.com/rh-ai-quickstart/multimodal-compliance-monitor"
 REPO_DIR = "/projects/multimodal-compliance-monitor"

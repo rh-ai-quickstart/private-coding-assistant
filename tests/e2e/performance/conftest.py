@@ -37,10 +37,15 @@ def n_list(oc_user: str) -> list[int]:
 def ai_ns(oc_user: str) -> str:
     del oc_user
     ns = perf_config.ai_namespace()
-    if not oc.resource_exists("gateway", perf_config.AI_GATEWAY_NAME, namespace=ns):
+    if not oc.resource_exists(
+        "gateway",
+        perf_config.AI_GATEWAY_NAME,
+        namespace=perf_config.AI_GATEWAY_NAMESPACE,
+    ):
         pytest.fail(
-            f"Gateway/{perf_config.AI_GATEWAY_NAME} not found in {ns}. "
-            "Deploy AI serving (pca-ai-gateway) before make performance."
+            f"Gateway/{perf_config.AI_GATEWAY_NAME} not found in "
+            f"{perf_config.AI_GATEWAY_NAMESPACE}. "
+            "Deploy AI serving (maas-default-gateway) before make performance."
         )
     return ns
 
