@@ -23,18 +23,19 @@ vllm:
     DG_JIT_CACHE_DIR: "/model-cache/deep-gemm"
     VLLM_CACHE_ROOT: "/model-cache/vllm-cache"
     # PYTORCH_CUDA_ALLOC_CONF: inherited from charts/pca-ai-serving/values.yaml
-# Self-signed cert for llm-d / RHCL gateways (LLMInferenceService no longer creates kserve-self-signed-certs).
+# Self-signed cert for llm-d gateway (LLMInferenceService no longer creates kserve-self-signed-certs).
 tlsJob:
   enabled: true
-# RHCL front door (requires RHCL operator already on cluster; chart creates Kuadrant CR).
-aiGateway:
+# MaaS front door. pca-platform-config owns Gateway+TLS (maas.gateway.create).
+# Pass --set maas.hostname=<Gateway/Route host> via HELM_ARGS when known (do not commit it here).
+maas:
   enabled: true
-  escapeHatchToLlmd: false
-  tls:
-    secretName: llm-d-gateway-tls
   kuadrant:
     create: true
+aiGateway:
+  tls:
+    secretName: llm-d-gateway-tls
 # Guardrails workloads (TrustyAI operator toggle stays in pca-platform-config cluster.trustyai).
-# llmService host/port/tlsSecret: inherited from charts/pca-ai-serving/values.yaml (llm-d-gateway, HTTP).
+# llmService host/port/tlsSecret: inherited (pca-llm-upstream → llm-d HTTP :80, or SR when enabled).
 guardrails:
   enabled: true
