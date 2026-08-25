@@ -22,6 +22,9 @@ from sse_http import SSE_STREAM_BYTES, read_request_body, stream_sse_content_len
 
 LISTEN_PORT = int(os.environ.get("LISTEN_PORT", "8080"))
 LOCAL_BASE = os.environ.get("LOCAL_BASE_URL", "http://127.0.0.1:80/v1").rstrip("/")
+# vLLM native endpoints sit next to /v1, not under it. TrustyAI POSTs /tokenize
+# to the orchestrator's LLM hostname.
+_VLLM_ROOT_PREFIXES = ("/tokenize", "/detokenize")
 EXTERNAL_BASE = os.environ.get("EXTERNAL_BASE_URL", "").rstrip("/")
 EXTERNAL_API_KEY = os.environ.get("EXTERNAL_API_KEY", "")
 LOCAL_MODEL = os.environ.get("LOCAL_MODEL", "")
@@ -103,6 +106,31 @@ def decide(
     if any(k in text for k in keywords):
         return "local"
     return "external"
+
+
+def local_root(openai_base: str) -> str:
+    base = openai_base.rstrip("/")
+    if base.endswith("/v1"):
+        return base[: -len("/v1")]
+    return base
+
+
+def openai_path(request_path: str) -> str:
+    path = request_path.split("?", 1)[0]
+    if path.startswith("/v1/") or path == "/v1":
+        rest = path[3:]
+        return rest if rest.startswith("/") else f"/{rest}"
+    if not path.startswith("/"):
+        return f"/{path}"
+    return path
+
+
+def split_local_upstream(openai_base: str, request_path: str) -> tuple[str, str]:
+    """Join OpenAI /v1 chat onto LOCAL_BASE; send /tokenize to the vLLM root."""
+    path = openai_path(request_path)
+    if any(path == prefix or path.startswith(prefix + "/") for prefix in _VLLM_ROOT_PREFIXES):
+        return local_root(openai_base), path
+    return openai_base.rstrip("/"), path
 
 
 def record_decision(backend: str) -> None:
@@ -196,8 +224,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/metrics":
             self._write(200, metrics_text().encode(), "text/plain; version=0.0.4")
             return
-        if self.path.startswith("/v1/"):
-            upstream = _forward_stream(LOCAL_BASE, self.path[3:], "GET", None, {})
+        if self.path.startswith("/v1/") or openai_path(self.path) in _VLLM_ROOT_PREFIXES:
+            base, path = split_local_upstream(LOCAL_BASE, self.path)
+            upstream = _forward_stream(base, path, "GET", None, {})
             try:
                 self._write(
                     upstream.status, upstream.body.read(), upstream.content_type
@@ -228,7 +257,10 @@ class Handler(BaseHTTPRequestHandler):
         else:
             base = LOCAL_BASE
             headers = {"Content-Type": "application/json"}
-        path = self.path[3:] if self.path.startswith("/v1") else self.path
+        if backend == "local":
+            base, path = split_local_upstream(LOCAL_BASE, self.path)
+        else:
+            path = openai_path(self.path)
         if not path.startswith("/"):
             path = f"/{path}"
         upstream = _forward_stream(
