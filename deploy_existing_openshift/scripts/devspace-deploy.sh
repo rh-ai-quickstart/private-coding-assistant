@@ -135,6 +135,27 @@ deploy_one() {
 	echo "==> Deployed DevSpace for ${user} in ${ns}"
 }
 
+# true when this release should install vscode-extensions-config in
+# openshift-devspaces. GitOps (and any non-Helm owner) already has that
+# ConfigMap; claiming it here fails Helm ownership checks.
+should_manage_global_config() {
+	local user="$1"
+	local ns="${user}-devspaces"
+	local release="${ns}-devspaces"
+	if ! oc get configmap vscode-extensions-config -n openshift-devspaces >/dev/null 2>&1; then
+		echo true
+		return
+	fi
+	local owner
+	owner=$(oc get configmap vscode-extensions-config -n openshift-devspaces \
+		-o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || true)
+	if [ "$owner" = "$release" ]; then
+		echo true
+	else
+		echo false
+	fi
+}
+
 ensure_pca_developers_user() {
 	local user="$1"
 	if oc get group pca-developers >/dev/null 2>&1; then
@@ -172,14 +193,9 @@ if [ -n "$N" ]; then
 	users=()
 	for i in $(seq 1 "$N"); do
 		user="dev-user${i}"
-		ns="${user}-devspaces"
 		global="false"
 		if [ "$i" -eq 1 ]; then
-			owner=$(oc get configmap vscode-extensions-config -n openshift-devspaces \
-				-o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || true)
-			if [ -z "$owner" ] || [ "$owner" = "${ns}-devspaces" ]; then
-				global="true"
-			fi
+			global=$(should_manage_global_config "$user")
 		fi
 		deploy_one "$user" "$global" >"${log_dir}/${user}.log" 2>&1 &
 		pids+=("$!")
@@ -212,13 +228,7 @@ if [ -z "$DEV_USER" ]; then
 	exit 1
 fi
 
-ns="${DEV_USER}-devspaces"
-global="true"
-owner=$(oc get configmap vscode-extensions-config -n openshift-devspaces \
-	-o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || true)
-if [ -n "$owner" ] && [ "$owner" != "${ns}-devspaces" ]; then
-	global="false"
-fi
+global=$(should_manage_global_config "$DEV_USER")
 # MaaSSubscription / MaaSAuthPolicy select Group/pca-developers. N= re-helms
 # platform-config (Helm owns the Group). DEV_USER= patches live membership
 # until the next N= sync.
