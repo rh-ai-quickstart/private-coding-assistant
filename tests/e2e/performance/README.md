@@ -38,6 +38,10 @@ All aggregates use **successful (`ok`) workers only**. Rates use **completion / 
 | `non-generation overhead (sec)` | total stage time − active generation window (clone/setup, etc.) |
 | `avg prefill time per user (sec)` | mean of per-user prefill (TTFT) over ok workers |
 | `avg decode time per user (sec)` | mean of per-user decode (first text → turn end) over ok workers |
+| `avg first LLM call per user (sec)` | mean of OpenCode `completed − created` on the first assistant/model step with output tokens, over ok workers that have timestamps. `-` when absent |
+| `avg last LLM call per user (sec)` | same clock on the last such step when the turn made at least two LLM calls. Isolates wrap-up vs write. `-` when the turn has fewer than two timed calls |
+| `avg guardrails overhead per conversation (sec)` | stage delta of `pca_guardrails_overhead_seconds_total` (TrustyAI probe + SSE Content-Length pad, not the llm-d token stream) divided by ok workers. `-` when `/metrics` scrape fails |
+| `avg semantic-router hop per conversation (sec)` | stage delta of `pca_semantic_router_hop_seconds_total` (parse, decide, connect, upstream headers, optional SSE pad; not the token stream) divided by ok workers. `-` when `/metrics` scrape fails |
 | `total output tokens` | `sum(completion_tokens)` |
 | `avg output tokens per user` | mean completion tokens per ok worker |
 | `total LLM model calls` | Sum of assistant/model messages with `output tokens > 0` |
@@ -54,6 +58,9 @@ As `N` grows:
 3. Watch **total stage time / overhead / generation window** — whether slowdowns are setup vs generation.
 4. Watch **avg prefill / decode time** — TTFT vs post-first-token turn time under load.
 5. Watch **LLM model calls** — how deep the agent loop gets (many model steps per user).
+6. Watch **avg first vs last LLM call** — if last is seconds while first and vLLM decode are fine, wrap-up is the stall, not GPU.
+7. Watch **avg guardrails overhead per conversation** — TrustyAI probe + SSE pad only. A small value next to a slow last call means OpenCode is waiting after the proxy finished.
+8. Watch **avg semantic-router hop per conversation** — parse/decide/connect/headers (and optional SSE pad), not GPU decode. `-` when SR is off or scrape fails. After streaming, this should stay milliseconds. Inflated OpenCode gen tok/s plus huge prefill is the old full-body buffer.
 
 ## What it does
 
@@ -66,7 +73,7 @@ For each `N` in `N_LIST`:
 ## Prerequisites
 
 - `oc` logged in, `uv` available
-- AI serving with `pca-ai-gateway` in `AI_NAMESPACE`
+- AI serving with `maas-default-gateway` in `openshift-ingress`
 - OpenCode DevSpaces already deployed for the max N:
 
 ```bash
