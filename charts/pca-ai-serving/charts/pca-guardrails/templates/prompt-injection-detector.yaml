@@ -5,7 +5,16 @@ metadata:
   name: {{ include "guardrails.promptInjectionServiceName" . }}
   namespace: {{ .Values.namespace }}
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    # Must stay in the same sync-wave as detector-model-cache-pvc.yaml (wave 0).
+    # The PVC uses WaitForFirstConsumer binding, so it can only reach Bound once
+    # this InferenceService's pod is scheduled and mounts it. If this resource is
+    # deployed in a *later* wave than the PVC, ArgoCD waits for the PVC to become
+    # Healthy (Bound) before applying this wave — but the PVC never binds without
+    # this pod, and this pod is never created until the PVC's wave is healthy.
+    # That's a permanent deadlock. Keeping both in wave 0 lets them apply together
+    # so the pod can trigger the PVC bind. See model-cache + LLMInferenceService in
+    # charts/pca-ai-serving/templates/pvcs.yaml, which follow the same same-wave rule.
+    argocd.argoproj.io/sync-wave: "0"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     security.opendatahub.io/enable-auth: "false"
     serving.kserve.io/deploymentMode: RawDeployment
