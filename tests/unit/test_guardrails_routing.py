@@ -241,3 +241,26 @@ def test_aro_overlays_keep_guardrails_on():
     assert overlay.get("guardrails", {}).get("enabled") is True
     assert f"{MAAS_HOST}/v1" in spaces
     assert "name: guardrails-proxy" not in spaces
+
+
+def test_rosa_overlay_enables_langfuse_and_semantic_router():
+    rendered = _helm_template(
+        AI_SERVING,
+        [
+            "-f",
+            str(AI_SERVING / "values-rosa.yaml"),
+            "--set",
+            "observability.enabled=true",
+            "--set",
+            "tlsJob.enabled=false",
+        ],
+    )
+    docs = _docs(rendered)
+    backends = _backend_names(_httproute(docs))
+    assert "/v1/chat/completions->guardrails-proxy:8080" in backends
+    _named(docs, "Deployment", "pca-semantic-router")
+    _named(docs, "Service", "pca-semantic-router")
+    assert "hostname: pca-semantic-router." in _orchestrator_host(docs)
+    kinds = {(d.get("kind"), d.get("metadata", {}).get("name")) for d in docs}
+    assert ("Deployment", "pca-otel-collector") in kinds
+    assert any(name and str(name).startswith("pca-langfuse") for _, name in kinds)
