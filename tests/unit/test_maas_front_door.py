@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import subprocess
 
+import yaml
+
 from helm_pca import (
     AI_SERVING,
+    DEVSPACES,
     MAAS_HOST,
     PLATFORM,
     REPO_ROOT,
@@ -260,3 +263,106 @@ def test_maas_empty_hostname_agrees_on_catchall_vhost():
     ]
     assert models_vhost["name"] == "*:443"
     assert models_vhost["name"] != f"{MAAS_HOST}:443"
+
+
+def test_devspaces_chat_url_is_maas_with_api_key():
+    rendered = _helm_template(
+        DEVSPACES,
+        [
+            "--set",
+            "guardrails.enabled=true",
+            "--set",
+            "aiServingNamespace=ai-serving",
+            "--set",
+            "devspacesGlobalConfig.enabled=false",
+            "--set",
+            "opencodeBuild.enabled=false",
+            "--set",
+            "dashboardSamples.enabled=false",
+            "--set",
+            "devspaces[0].type=continue",
+            "--set",
+            "devspaces[0].user=dev-user1",
+            "--set",
+            "devspaces[0].namespace=dev-user1-devspaces",
+        ],
+    )
+    docs = _docs(rendered)
+
+    secrets = [
+        doc
+        for doc in docs
+        if doc.get("kind") == "Secret" and doc.get("metadata", {}).get("name") == "pca-maas-apikey"
+    ]
+    assert secrets, "pca-maas-apikey Secret missing"
+    mirror = [
+        doc
+        for doc in docs
+        if doc.get("kind") == "Secret"
+        and doc.get("metadata", {}).get("labels", {}).get("app.kubernetes.io/component")
+        == "pca-maas-apikey"
+        and doc.get("metadata", {}).get("namespace") == "ai-serving"
+    ]
+    assert mirror, "Authorino mirror Secret missing"
+
+    continue_cm = _named(docs, "ConfigMap", "continue-config")
+    config_yaml = continue_cm.get("data", {}).get("config.yaml") or ""
+    assert f"{MAAS_HOST}/v1" in config_yaml
+    assert f"{MAAS_HOST}/local/v1" in config_yaml
+    assert "pca-ai-gateway-data-science-gateway-class" not in config_yaml
+    assert "guardrails-proxy" not in config_yaml
+
+    config = yaml.safe_load(config_yaml)
+    assert config["models"][0]["apiKey"] != "EMPTY"
+    assert config["tabAutocompleteModel"]["apiKey"] != "EMPTY"
+    assert config["tabAutocompleteModel"]["apiBase"].endswith("/local/v1")
+
+
+def test_opencode_config_allows_tools_and_disables_thinking():
+    rendered = _helm_template(
+        DEVSPACES,
+        [
+            "--set",
+            "aiServingNamespace=ai-serving",
+            "--set",
+            "devspacesGlobalConfig.enabled=false",
+            "--set",
+            "opencodeBuild.enabled=false",
+            "--set",
+            "dashboardSamples.enabled=false",
+            "--set",
+            "devspaces[0].type=opencode",
+            "--set",
+            "devspaces[0].user=dev-user1",
+            "--set",
+            "devspaces[0].namespace=dev-user1-devspaces",
+        ],
+    )
+    assert '"permission":"allow"' in rendered
+    assert '"default_agent":"build"' in rendered
+    assert '"bash":false' in rendered
+    assert "enable_thinking" in rendered
+    assert "$OPENAI_BASE_URL" in rendered
+    assert "$VLLM_MODEL_ID" in rendered
+    dash = _helm_template(
+        DEVSPACES,
+        [
+            "--set",
+            "aiServingNamespace=ai-serving",
+            "--set",
+            "devspacesGlobalConfig.enabled=false",
+            "--set",
+            "opencodeBuild.enabled=false",
+            "--set",
+            "dashboardSamples.enabled=true",
+            "--set",
+            "devspaces[0].type=opencode",
+            "--set",
+            "devspaces[0].user=dev-user1",
+            "--set",
+            "devspaces[0].namespace=dev-user1-devspaces",
+        ],
+    )
+    assert dash.count("enable_thinking") >= 2
+    assert '"permission":"allow"' in dash
+    assert '"default_agent":"build"' in dash
