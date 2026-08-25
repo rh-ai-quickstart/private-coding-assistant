@@ -258,3 +258,16 @@ def test_parse_workspace_curl_output_bad_metrics() -> None:
         oc.parse_workspace_curl_output("200 onlytwo\n---PCA_E2E_BODY---\n")
     with pytest.raises(oc.OcError, match="bad metrics"):
         oc.parse_workspace_curl_output("xx 0.1 0.2\n---PCA_E2E_BODY---\n")
+
+
+def test_run_oc_timeout_becomes_ocerror(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    import pca_oc
+
+    def _boom(*_a, **_k):
+        raise subprocess.TimeoutExpired(cmd=["oc", "exec"], timeout=12)
+
+    monkeypatch.setattr(pca_oc.subprocess, "run", _boom)
+    with pytest.raises(oc.OcError, match="timed out after 12 seconds"):
+        oc.run_oc("exec", "pod/foo", timeout=12)

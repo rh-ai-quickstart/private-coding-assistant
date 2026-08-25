@@ -242,3 +242,20 @@ def test_parse_hop_seconds_reads_prometheus_counter() -> None:
     )
     assert parse_hop_seconds(text) == 0.08
     assert parse_hop_seconds("# TYPE pca_semantic_router_decisions_total counter\n") is None
+
+
+def test_ensure_repo_retries_then_succeeds(monkeypatch) -> None:
+    from pca_e2e import oc
+    from pca_perf import opencode_run
+
+    calls = {"n": 0}
+
+    def _exec(*_a, **_k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise oc.OcError("timed out after 300 seconds")
+        return None
+
+    monkeypatch.setattr(opencode_run.oc, "exec_in_pod", _exec)
+    opencode_run._ensure_repo("dev-user2-devspaces", "workspace-pod")
+    assert calls["n"] == 2
