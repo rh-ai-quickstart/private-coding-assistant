@@ -1,15 +1,28 @@
-{{- if .Values.clusterConfig.enabled }}
-# MaaS default gateway — required by RHOAI 3.4 ModelsAsService controller
+{{- $maas := .Values.maas | default dict }}
+{{- if ($maas.gateway).create | default false }}
+{{- $gwName := $maas.gatewayName | default "maas-default-gateway" }}
+{{- $gwNs := $maas.gatewayNamespace | default "openshift-ingress" }}
+{{- $gwClass := $maas.gatewayClassName | default "data-science-gateway-class" }}
+{{- $tlsSecret := ($maas.tls).secretName | default "maas-default-gateway-tls" }}
+# MaaS default gateway — required by RHOAI 3.4 ModelsAsService controller.
+# allowedRoutes is a label selector (not from: All) because of RHOAIENG-80360.
+# Gated on maas.gateway.create (not clusterConfig.enabled) so existing OpenShift
+# still gets Gateway+TLS when DSC/NFD stay off.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: maas-default-gateway
-  namespace: openshift-ingress
+  name: {{ $gwName }}
+  namespace: {{ $gwNs }}
+  labels:
+    istio.io/rev: openshift-gateway
+    kuadrant.io/gateway: "true"
+    app.kubernetes.io/component: pca-maas-front-door
   annotations:
+    helm.sh/resource-policy: keep
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
-  gatewayClassName: data-science-gateway-class
+  gatewayClassName: {{ $gwClass }}
   listeners:
     - name: https
       port: 443
@@ -17,9 +30,23 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: maas-default-gateway-tls
+          - name: {{ $tlsSecret }}
             kind: Secret
       allowedRoutes:
         namespaces:
-          from: All
+          from: Selector
+          selector:
+            matchLabels:
+              pca.ai/allow-maas-routes: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: models-as-a-service
+  labels:
+    app.kubernetes.io/part-of: private-code-assistant
+    pca.ai/allow-maas-routes: "true"
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-wave: "0"
 {{- end }}

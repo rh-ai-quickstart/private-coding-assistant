@@ -1,0 +1,21 @@
+{{- $users := list }}
+{{- range ((.Values.devspaces).instances | default list) }}
+{{- $user := .user | default "" }}
+{{- if and $user (ne $user "PLACEHOLDER") }}
+{{- $users = append $users $user }}
+{{- end }}
+{{- end }}
+{{- if $users }}
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: pca-developers
+  labels:
+    app.kubernetes.io/part-of: private-code-assistant
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+users:
+{{- range $users }}
+  - {{ . | quote }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,68 @@
+{{- $maas := .Values.maas | default dict }}
+{{- if ($maas.gateway).create | default false }}
+{{- $gwNs := $maas.gatewayNamespace | default "openshift-ingress" }}
+{{- $secretName := ($maas.tls).secretName | default "maas-default-gateway-tls" }}
+{{- $gwName := $maas.gatewayName | default "maas-default-gateway" }}
+{{- $gwClass := $maas.gatewayClassName | default "data-science-gateway-class" }}
+# Self-signed TLS for Gateway/maas-default-gateway in openshift-ingress.
+# Separate from the AI-ns llm-d cert Job. Gated on maas.gateway.create.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pca-maas-tls
+  namespace: {{ $gwNs }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pca-maas-tls
+  namespace: {{ $gwNs }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pca-maas-tls
+  namespace: {{ $gwNs }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+subjects:
+  - kind: ServiceAccount
+    name: pca-maas-tls
+    namespace: {{ $gwNs }}
+roleRef:
+  kind: Role
+  name: pca-maas-tls
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pca-maas-tls
+  namespace: {{ $gwNs }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: pca-maas-tls
+      containers:
+        - name: create-tls
+          image: registry.access.redhat.com/ubi9/ubi:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+{{- include "pca-platform-config.upsertTlsSecretScript" (dict "namespace" $gwNs "secretName" $secretName "cn" "maas-gateway" "san" (printf "DNS:%s-%s.%s.svc.cluster.local" $gwName $gwClass $gwNs)) | nindent 14 }}
+{{- end }}

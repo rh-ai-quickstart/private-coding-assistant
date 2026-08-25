@@ -28,6 +28,17 @@ auth:
     providerName: "pca-htpasswd"
 mcp:
   enabled: false
+# MaaS Gateway identity. This chart owns Gateway+TLS when maas.gateway.create
+# (default true). Independent of clusterConfig.enabled so existing OpenShift
+# still gets the Gateway when DSC/NFD stay off.
+maas:
+  gateway:
+    create: true
+  gatewayName: maas-default-gateway
+  gatewayNamespace: openshift-ingress
+  gatewayClassName: data-science-gateway-class
+  tls:
+    secretName: maas-default-gateway-tls
 # Sub-chart: pca-mcp (MCP Lifecycle Operator CRs + MCP Gateway — RHOAI 3.4, Developer/Tech Preview)
 # Values here are passed to PCA_Deployment_ROSA/charts/pca-platform-config/charts/pca-mcp/
 pca-mcp:
