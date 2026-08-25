@@ -13,15 +13,15 @@ Before deploying, verify these automatically (do NOT ask the user unless somethi
 2. **Cluster access** — run `oc whoami` directly on the host (not inside the container). If it fails, ask the user to log in.
 3. **AI serving namespace** — always use `private-assistant-ai-serving` (the default). Do not ask.
 4. **DevSpaces count (N)** — ask how many demo DevSpaces to create (positive integer). Do **not** invent custom namespaces or `private-assistant-<name>` DevSpace namespaces. Users are always `dev-user1..N` in namespaces `dev-userN-devspaces` (N separate Helm releases; each ns has one DevWorkspace `code-workspace-1`, not `devspaces[0..N-1]` in one release). Demo passwords are `DevN@PCA2026!`.
-5. **RHCL (AI Gateway)** — existing OpenShift does not install the RHCL *operator* via make. Confirm `oc get crd authpolicies.kuadrant.io`. The ai-serving chart creates a `Kuadrant` CR in `kuadrant-system` when `aiGateway.kuadrant.create=true` (the default for existing OCP). IDE traffic defaults to `pca-ai-gateway` with per-DevSpaces API keys. llm-d Gateway is annotated `opendatahub.io/managed=false` so ODH does not attach conflicting AuthPolicies.
+5. **RHCL + MaaS** — existing OpenShift does not install the RHCL *operator* via make. Confirm `oc get crd authpolicies.kuadrant.io`. The ai-serving chart creates a `Kuadrant` CR in `kuadrant-system` when `maas.kuadrant.create=true` (the default for existing OCP). IDE traffic defaults to `maas-default-gateway` with per-DevSpaces API keys. llm-d Gateway is annotated `opendatahub.io/managed=false` so ODH does not attach conflicting AuthPolicies. Patch DSC `kserve.modelsAsService` to `Managed` (platform-config does not own DSC when `clusterConfig.enabled=false`). `pca-platform-config` still owns Gateway+TLS (`maas.gateway.create`, default true). Label the AI namespace `pca.ai/allow-maas-routes=true`.
 
    **If `kuadrant-system` is already owned by another Helm release** (shared cluster), the install will fail with an ownership conflict. Detect with:
    ```bash
    oc get namespace kuadrant-system -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null
    ```
-   If it prints a different release name, add `HELM_ARGS='--set aiGateway.kuadrant.create=false'` to reuse the existing Kuadrant instance:
+   If it prints a different release name, add `HELM_ARGS='--set maas.kuadrant.create=false'` to reuse the existing Kuadrant instance:
    ```bash
-   make ai-serving-deploy-existing-openshift HELM_ARGS='--set aiGateway.kuadrant.create=false'
+   make ai-serving-deploy-existing-openshift HELM_ARGS='--set maas.kuadrant.create=false'
    ```
 
 6. **LLMIS workload TLS** — this chart hardcodes vLLM `--ssl-*` and HTTPS probes. Confirm cluster `enableLLMInferenceServiceTLS=true`:
@@ -157,7 +157,7 @@ Guardrails deploy with `make ai-serving-deploy-existing-openshift` when `guardra
 Guardrails pods: `pca-guardrails-*` (2/2), `prompt-injection-detector-*` (1/1), `guardrails-proxy-*` (1/1).
 The proxy forwards `X-PCA-*` identity headers to the orchestrator/LLM.
 
-IDEs always call `pca-ai-gateway` (API key). When guardrails is on, HTTPRoute `/v1/chat/completions` goes to `guardrails-proxy`. Tab autocomplete stays on llm-d (no auth, no detection).
+IDEs always call `maas-default-gateway` (API key). When guardrails is on, HTTPRoute `/v1/chat/completions` goes to `guardrails-proxy`. Continue tab autocomplete uses authenticated `/local/v1` (skips detections and Semantic Router).
 
 ## Teardown / warm path
 

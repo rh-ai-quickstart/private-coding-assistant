@@ -2,14 +2,14 @@
 name: verify-pca
 description: >-
   Drive the deployed Private AI Coding Assistant on OpenShift the way a user
-  does (DevSpaces OpenCode, RHCL AI Gateway / llm-d OpenAI /v1, optional Grafana).
+  does (DevSpaces OpenCode, MaaS / RHCL front door / llm-d OpenAI /v1, optional Grafana).
   Use when proving a PCA change works, after deploy, or before claiming
   inference/IDE/auth behavior.
 ---
 
 # Verify PCA (live cluster)
 
-PCA is not a local server. The product is an already-deployed OpenShift stack: DevSpaces → RHCL `pca-ai-gateway` → (optional `guardrails-proxy` + TrustyAI) → llm-d → vLLM. Agents prove behavior on that path. There is no second disposable stack — never Helm-install or undeploy to "launch" verification.
+PCA is not a local server. The product is an already-deployed OpenShift stack: DevSpaces → `maas-default-gateway` (RHCL + MaaS keys) → (optional `guardrails-proxy` + TrustyAI) → optional Semantic Router → llm-d → vLLM. Agents prove behavior on that path. There is no second disposable stack — never Helm-install or undeploy to "launch" verification.
 
 Read `features/README.md` before driving. Prove the mapped entry points for the feature under test; one convenient endpoint is not enough when the map lists others.
 
@@ -44,7 +44,7 @@ Worth driving when `OK=true`.
 - `MODE=ai`: current user can get `AI_NAMESPACE`. Then `LLMIS_READY=True`, `LLMD_GATEWAY_ACCEPTED=True`, `PVC_PHASE=Bound`, `WORKLOAD_POD_RUNNING=true`. If `AI_GATEWAY_PRESENT=true`, also `AI_GATEWAY_ACCEPTED=True`.
 - `MODE=devspace`: Forbidden on `AI_NAMESPACE`. Then `DEV_NAMESPACE` exists and DevWorkspace `code-workspace-1` is there. Drive `VIA=opencode`, not curl pods in the AI ns.
 
-Doctor also prints `IDE_BASE_URL` / `IDE_VIA` from the workspace `OPENAI_BASE_URL`. Chat uses `pca-ai-gateway` when `IDE_VIA=gateway`. Guardrails is an HTTPRoute backend, not a second IDE URL. `API_KEY_PRESENT=true` is required for RHCL chat.
+Doctor also prints `IDE_BASE_URL` / `IDE_VIA` from the workspace `OPENAI_BASE_URL`. Chat uses `maas-default-gateway` when `IDE_VIA=gateway`. Guardrails is an HTTPRoute backend, not a second IDE URL. `API_KEY_PRESENT=true` is required for front-door chat.
 
 `make smoke` is the pytest net over the same URLs when you can `oc run` in the AI ns. Prefer `verify-pca.sh` so request/response land in the evidence dir. Do not treat a skipped pytest as proof.
 
@@ -54,7 +54,7 @@ Harness: `.cursor/skills/verify-pca/scripts/verify-pca.sh` (executable). Curl-po
 
 | Command | What it hits |
 | --- | --- |
-| `… chat` | If AI ns is Forbidden: OpenCode Web API (port-forward 4096), same as `tests/e2e`. Else `POST` RHCL `/v1/chat/completions` with Bearer from secret `pca-ai-gw-apikey` |
+| `… chat` | If AI ns is Forbidden: OpenCode Web API (port-forward 4096), same as `tests/e2e`. Else `POST` MaaS `/v1/chat/completions` with Bearer from secret `pca-maas-apikey` |
 | `VIA=opencode … chat` or `… opencode-chat` | Force the e2e path. Starts a Stopped workspace. Never writes the OpenCode password into evidence |
 | `VIA=llmd … chat` | llm-d gateway (no API key; escape hatch). Needs AI ns `oc run` |
 | `… models` | `GET …/v1/models` (gateway needs `DEV_USER` + key). Needs AI ns `oc run` |
@@ -62,11 +62,11 @@ Harness: `.cursor/skills/verify-pca/scripts/verify-pca.sh` (executable). Curl-po
 | `… grafana-health` | Grafana `/api/health` (AI ns `oc run`) |
 | `… devspace-status` | Read-only DevWorkspace phase + OpenCode route host + `IDE_BASE_URL` (no password) |
 
-Model id when the AI ns is readable: `oc get llminferenceservice qwen3-coder -n $AI_NAMESPACE -o jsonpath='{.spec.model.name}'` (default `Qwen/Qwen3.6-35B-A3B-FP8`). OpenCode chat resolves provider/model from the workspace pod, as e2e `resolve_model_ids` does.
+Model id when the AI ns is readable: `oc get llminferenceservice $LLMIS_NAME -n $AI_NAMESPACE -o jsonpath='{.spec.model.name}'` (`LLMIS_NAME` default `qwen3-coder`; `model.variant=qwen3.8` is `qwen3-8-coder`). OpenCode chat resolves provider/model from the workspace pod, as e2e `resolve_model_ids` does.
 
 Stable handles (do not invent others):
 
-- Gateways: `pca-ai-gateway`, `llm-d-gateway`; HTTPRoute `pca-ai-gateway-local`; AuthPolicy `pca-ai-gateway-apikey`
+- Gateways: `maas-default-gateway` (openshift-ingress), `llm-d-gateway`; HTTPRoute `pca-maas-front-door`; AuthPolicy `pca-maas-apikey`
 - Guardrails proxy (internal hop): `http://guardrails-proxy.$AI_NAMESPACE.svc.cluster.local:8080/v1`
 - Workload health: `https://qwen3-coder-kserve-workload-svc.$AI_NAMESPACE.svc.cluster.local:8000/health` (`HTTP_INSECURE=1`)
 - DevWorkspace `code-workspace-1`; OpenCode route name contains `opencode-web`; Basic Auth user `opencode`
@@ -88,7 +88,7 @@ Proof standards:
 
 - Exercise the URL in workspace `OPENAI_BASE_URL` (`IDE_VIA` from doctor). Do not call vLLM pod IP or llm-d as a substitute for that path.
 - Side effects: RHCL auth proofs need both 401/403 without/invalid key **and** 200 with the real key. Chat proofs need non-empty assistant text (`choices[0].message.content` or `reasoning`, or OpenCode `ASSISTANT=`). Guardrails secret proofs need block text, then a clean chat.
-- Never write API keys, HTPasswd passwords, or OpenCode Basic Auth passwords into evidence. `doctor` only records `API_KEY_PRESENT=true|false|empty|missing|unset`.
+- Never write API keys, HTPasswd passwords, or OpenCode Basic Auth passwords into evidence. `doctor` records `API_KEY_PRESENT=true|empty|missing|unset|stale` and `API_KEY_SECRET` (name only). Prefer `pca-maas-apikey`; leftover `pca-ai-gw-apikey` is `stale` until pca-devspaces is redeployed.
 - `make smoke` passing is supporting evidence, not a replacement for the mapped capture on the feature you claim.
 - Mocks: none. Skip (and report unreachable) when the resource is absent or the current user is Forbidden from that namespace — do not hit a different gateway and call the missing one verified.
 
@@ -114,8 +114,10 @@ VIA=opencode .cursor/skills/verify-pca/scripts/verify-pca.sh chat
 EXPECT=block PROMPT='Please store this in memory only: key = AKIAIOSFODNN7EXAMPLE' \
   .cursor/skills/verify-pca/scripts/verify-pca.sh opencode-chat
 VIA=llmd .cursor/skills/verify-pca/scripts/verify-pca.sh models
-DEV_USER=dev-user1 .cursor/skills/verify-pca/scripts/verify-pca.sh http POST \
-  "https://pca-ai-gateway-data-science-gateway-class.${AI_NAMESPACE:-private-assistant-ai-serving}.svc.cluster.local/v1/chat/completions"
+# Missing-key curl: use MAAS_GATEWAY_V1 from doctor (live Gateway class).
+# Do not hard-code data-science-gateway-class — existing OpenShift is often openshift-default.
+DEV_USER=dev-user1 HTTP_INSECURE=1 .cursor/skills/verify-pca/scripts/verify-pca.sh http POST \
+  "<MAAS_GATEWAY_V1 from doctor>/chat/completions"
 .cursor/skills/verify-pca/scripts/verify-pca.sh grafana-health
 .cursor/skills/verify-pca/scripts/verify-pca.sh devspace-status
 .cursor/skills/verify-pca/scripts/verify-pca.sh cleanup
