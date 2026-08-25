@@ -1,4 +1,4 @@
-"""RHCL AI Gateway smoke tests (skipped when Gateway/pca-ai-gateway is absent)."""
+"""MaaS / RHCL front-door smoke tests (skipped when Gateway/maas-default-gateway is absent)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pca_smoke import oc, urls
 
 pytestmark = pytest.mark.ai_gateway
 
-AI_GATEWAY_APIKEY_LABEL = "app.kubernetes.io/component=pca-ai-gateway-apikey"
+AI_GATEWAY_APIKEY_LABEL = "app.kubernetes.io/component=pca-maas-apikey"
 
 
 @pytest.fixture(autouse=True)
@@ -16,9 +16,9 @@ def _require_ai_gateway(require_ai_gateway: str) -> None:
     del require_ai_gateway
 
 
-def test_gateway_accepted(ai_namespace: str) -> None:
+def test_gateway_accepted() -> None:
     status = oc.condition_status(
-        "gateway", urls.AI_GATEWAY_NAME, "Accepted", ai_namespace
+        "gateway", urls.AI_GATEWAY_NAME, "Accepted", urls.AI_GATEWAY_NAMESPACE
     )
     assert status == "True", f"Gateway/{urls.AI_GATEWAY_NAME} Accepted={status!r}"
 
@@ -143,8 +143,8 @@ def test_chat_completions_with_valid_api_key(
     assert str(content).strip(), f"empty assistant message: {body}"
 
 
-def _ai_gateway_host(ai_namespace: str) -> str:
-    return f"{urls.AI_GATEWAY_NAME}-{urls.GATEWAY_CLASS}.{ai_namespace}"
+def _ai_gateway_host(_ai_namespace: str = "") -> str:
+    return urls.ai_gateway_host()
 
 
 _API_KEY_FIELD_NAMES = ("apiKey", "openAiApiKey", "openAiCompatibleApiKey")
@@ -169,11 +169,11 @@ def _iter_api_key_field_values(text: str):
 
 
 def _assert_ai_gateway_url_and_api_key(text: str, ai_namespace: str, config_name: str) -> None:
-    """Require RHCL front-door host and a non-EMPTY IDE API key field."""
+    """Require MaaS front-door host and a non-EMPTY IDE API key field."""
     host = _ai_gateway_host(ai_namespace)
     assert host in text, (
-        f"{config_name} must reference RHCL gateway host {host} "
-        f"(escape hatch / guardrails configs are out of scope for ai_gateway):\n"
+        f"{config_name} must reference MaaS gateway host {host} "
+        f"(escape hatch configs are out of scope for ai_gateway):\n"
         f"{text[:500]}"
     )
     values = list(_iter_api_key_field_values(text))
@@ -273,7 +273,7 @@ def test_opencode_devworkspace_ai_gateway_api_key(
     api_key = env.get("OPENAI_API_KEY") or ""
     host = _ai_gateway_host(ai_namespace)
     assert host in base_url, (
-        f"OpenCode DevWorkspace must use RHCL gateway host {host}, "
+        f"OpenCode DevWorkspace must use MaaS gateway host {host}, "
         f"got OPENAI_BASE_URL/VLLM_ENDPOINT={base_url!r}"
     )
     assert api_key.strip(), "OpenCode OPENAI_API_KEY is empty"
@@ -287,7 +287,7 @@ def test_opencode_devworkspace_ai_gateway_api_key(
         urls.AI_GATEWAY_APIKEY_SECRET, urls.AI_GATEWAY_APIKEY_KEY, ns
     )
     assert api_key == secret_key, (
-        "OpenCode OPENAI_API_KEY does not match pca-ai-gw-apikey Secret"
+        "OpenCode OPENAI_API_KEY does not match pca-maas-apikey Secret"
     )
 
 

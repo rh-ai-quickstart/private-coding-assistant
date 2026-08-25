@@ -36,7 +36,7 @@ def test_opencode_openai_base_url_is_maas(require_dev_namespace: str) -> None:
     dw = oc.find_opencode_devworkspace(ns)
     assert dw is not None, f"no OpenCode DevWorkspace in {ns}"
     base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
-    assert oc.is_maas_openai_base_url(base), base
+    oc.assert_openai_base_url_reaches_maas(base)
     assert "pca-ai-gateway" not in base.lower(), base
 
 

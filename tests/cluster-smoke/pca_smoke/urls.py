@@ -1,21 +1,35 @@
 """Cluster-internal and route URL builders."""
 
+from __future__ import annotations
+
+import os
+
+from pca_smoke.oc import http_hostname as _http_hostname
+
 DEFAULT_MODEL_ID = "Qwen/Qwen3.6-35B-A3B-FP8"
-LLMIS_NAME = "qwen3-coder"
+LLMIS_NAME = os.environ.get("LLMIS_NAME", "qwen3-coder")
 GATEWAY_NAME = "llm-d-gateway"
-AI_GATEWAY_NAME = "pca-ai-gateway"
-AI_GATEWAY_HTTP_ROUTE = "pca-ai-gateway-local"
-AI_GATEWAY_AUTH_POLICY = "pca-ai-gateway-apikey"
-AI_GATEWAY_APIKEY_SECRET = "pca-ai-gw-apikey"
+AI_GATEWAY_NAME = "maas-default-gateway"
+AI_GATEWAY_NAMESPACE = "openshift-ingress"
+AI_GATEWAY_HTTP_ROUTE = "pca-maas-front-door"
+AI_GATEWAY_AUTH_POLICY = "pca-maas-apikey"
+AI_GATEWAY_APIKEY_SECRET = "pca-maas-apikey"
 AI_GATEWAY_APIKEY_KEY = "api_key"
 GATEWAY_CLASS = "data-science-gateway-class"
-WORKLOAD_SVC = "qwen3-coder-kserve-workload-svc"
+WORKLOAD_SVC = os.environ.get(
+    "WORKLOAD_SVC", f"{LLMIS_NAME}-kserve-workload-svc"
+)
 PVC_NAME = "model-cache"
 GRAFANA_NAME = "pca-grafana"
 LANGFUSE_ROUTE = "pca-langfuse"
 LANGFUSE_SECRET = "pca-langfuse-credentials"
 OTEL_NAME = "pca-otel-collector"
 GUARDRAILS_PROXY = "guardrails-proxy"
+
+
+def maas_gateway_class() -> str:
+    """Gateway class for in-cluster MaaS DNS. Empty env keeps the Python default."""
+    return os.environ.get("PCA_MAAS_GATEWAY_CLASS", "").strip() or GATEWAY_CLASS
 
 
 def gateway_base(namespace: str) -> str:
@@ -30,15 +44,24 @@ def gateway_v1(namespace: str) -> str:
     return f"{gateway_base(namespace)}/v1"
 
 
-def ai_gateway_base(namespace: str) -> str:
-    """RHCL AI Gateway ClusterIP (IDE front door with API key auth)."""
+def ai_gateway_host() -> str:
+    extra = os.environ.get("PCA_MAAS_HOSTNAME", "").strip()
+    if extra:
+        host = _http_hostname(extra)
+        if host:
+            return host
     return (
-        f"https://{AI_GATEWAY_NAME}-{GATEWAY_CLASS}."
-        f"{namespace}.svc.cluster.local"
+        f"{AI_GATEWAY_NAME}-{maas_gateway_class()}."
+        f"{AI_GATEWAY_NAMESPACE}.svc.cluster.local"
     )
 
 
-def ai_gateway_v1(namespace: str) -> str:
+def ai_gateway_base(_namespace: str = "") -> str:
+    """MaaS / RHCL Gateway (IDE front door with API key auth)."""
+    return f"https://{ai_gateway_host()}"
+
+
+def ai_gateway_v1(namespace: str = "") -> str:
     return f"{ai_gateway_base(namespace)}/v1"
 
 

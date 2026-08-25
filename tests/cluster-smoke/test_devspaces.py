@@ -12,13 +12,13 @@ pytestmark = pytest.mark.devspaces
 
 
 def _assert_gateway_or_proxy_url(text: str, ai_namespace: str, config_name: str) -> None:
-    """IDE configs should hit RHCL (default), llm-d escape hatch, or guardrails."""
+    """IDE configs should hit MaaS, llm-d, or guardrails."""
     assert (
-        f"{urls.AI_GATEWAY_NAME}-{urls.GATEWAY_CLASS}.{ai_namespace}" in text
+        urls.ai_gateway_host() in text
         or f"{urls.GATEWAY_NAME}-{urls.GATEWAY_CLASS}.{ai_namespace}" in text
         or "guardrails-proxy" in text
         or urls.GUARDRAILS_PROXY in text
-    ), f"{config_name} does not reference RHCL / llm-d / guardrails:\n{text[:500]}"
+    ), f"{config_name} does not reference MaaS / llm-d / guardrails:\n{text[:500]}"
 
 
 def test_continue_configmap(require_dev_namespace: str, ai_namespace: str) -> None:
@@ -93,19 +93,21 @@ def test_harness_chat_with_attribution(
     gateway_v1: str,
     model_id: str,
 ) -> None:
-    """Simulate Roo/Continue: chat with X-PCA-* via default IDE path (RHCL) or llm-d."""
+    """Simulate Roo/Continue: chat with X-PCA-* via default IDE path (MaaS) or llm-d."""
     ns = require_dev_namespace
     headers: dict[str, str] = {
         "X-PCA-User": "smoke-test",
         "X-PCA-DevSpace": ns,
     }
-    # Default IDE path is RHCL + API key; fall back to llm-d when front door absent.
-    if oc.resource_exists("gateway", urls.AI_GATEWAY_NAME, namespace=ai_namespace):
+    # Default IDE path is MaaS + API key; fall back to llm-d when front door absent.
+    if oc.resource_exists(
+        "gateway", urls.AI_GATEWAY_NAME, namespace=urls.AI_GATEWAY_NAMESPACE
+    ):
         if not oc.resource_exists(
             "secret", urls.AI_GATEWAY_APIKEY_SECRET, namespace=ns
         ):
             pytest.skip(
-                f"RHCL gateway present but secret/{urls.AI_GATEWAY_APIKEY_SECRET} "
+                f"MaaS gateway present but secret/{urls.AI_GATEWAY_APIKEY_SECRET} "
                 f"missing in {ns}"
             )
         base = urls.ai_gateway_v1(ai_namespace)

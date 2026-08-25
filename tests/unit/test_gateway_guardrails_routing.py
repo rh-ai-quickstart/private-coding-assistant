@@ -40,9 +40,9 @@ def _docs(rendered: str) -> list[dict]:
 
 def _httproute(docs: list[dict]) -> dict:
     for doc in docs:
-        if doc.get("kind") == "HTTPRoute" and doc.get("metadata", {}).get("name") == "pca-ai-gateway-local":
+        if doc.get("kind") == "HTTPRoute" and doc.get("metadata", {}).get("name") == "pca-maas-front-door":
             return doc
-    raise AssertionError("HTTPRoute/pca-ai-gateway-local missing")
+    raise AssertionError("HTTPRoute/pca-maas-front-door missing")
 
 
 def _backend_names(route: dict) -> list[str]:
@@ -67,9 +67,11 @@ def test_httproute_chat_goes_to_proxy_when_guardrails_on():
     )
     docs = _docs(rendered)
     route = _httproute(docs)
+    assert route["spec"]["parentRefs"][0]["name"] == "maas-default-gateway"
+    assert route["spec"]["parentRefs"][0]["namespace"] == "openshift-ingress"
     backends = _backend_names(route)
     assert "/v1/chat/completions->guardrails-proxy:8080" in backends
-    assert "/v1->llm-d-gateway-data-science-gateway-class:443" in backends
+    assert "/v1->llm-d-gateway-data-science-gateway-class:80" in backends
     orch = None
     for doc in docs:
         if (
@@ -99,7 +101,7 @@ def test_httproute_chat_goes_to_llmd_when_guardrails_off():
     route = _httproute(_docs(rendered))
     backends = _backend_names(route)
     assert "/v1/chat/completions->guardrails-proxy:8080" not in backends
-    assert "/v1->llm-d-gateway-data-science-gateway-class:443" in backends
+    assert "/v1->llm-d-gateway-data-science-gateway-class:80" in backends
     assert "name: guardrails-proxy" not in rendered
 
 

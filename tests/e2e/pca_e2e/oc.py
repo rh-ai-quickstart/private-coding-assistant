@@ -8,9 +8,32 @@ import os
 import shlex
 import socket
 import subprocess
+import sys
 import time
+from pathlib import Path
 from typing import Any, TypedDict
-from urllib.parse import urlparse
+
+_TESTS = Path(__file__).resolve().parents[2]
+if str(_TESTS) not in sys.path:
+    sys.path.insert(0, str(_TESTS))
+
+from pca_oc import (  # noqa: E402
+    OcError,
+    devworkspace_env,
+    find_opencode_devworkspace,
+    find_running_opencode_devworkspace,
+    get_json,
+    get_jsonpath,
+    http_hostname,
+    is_opencode_devworkspace,
+    list_devworkspaces,
+    resource_exists,
+    run_oc,
+    secret_data,
+    whoami,
+)
+
+_http_hostname = http_hostname
 
 
 class WorkspaceCurlResult(TypedDict):
@@ -18,142 +41,6 @@ class WorkspaceCurlResult(TypedDict):
     body: str
     ttfb: float
     total: float
-
-
-class OcError(RuntimeError):
-    def __init__(
-        self,
-        message: str,
-        *,
-        stdout: str = "",
-        stderr: str = "",
-        returncode: int = 1,
-    ):
-        super().__init__(message)
-        self.stdout = stdout
-        self.stderr = stderr
-        self.returncode = returncode
-
-
-def run_oc(
-    *args: str,
-    check: bool = True,
-    timeout: int = 120,
-    input_text: str | None = None,
-) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        ["oc", *args],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        input=input_text,
-        check=False,
-    )
-    if check and result.returncode != 0:
-        raise OcError(
-            f"oc {' '.join(args)} failed (rc={result.returncode}): {result.stderr.strip()}",
-            stdout=result.stdout,
-            stderr=result.stderr,
-            returncode=result.returncode,
-        )
-    return result
-
-
-def whoami() -> str:
-    return run_oc("whoami").stdout.strip()
-
-
-def resource_exists(resource: str, name: str, namespace: str | None = None) -> bool:
-    args = ["get", resource, name, "-o", "name"]
-    if namespace:
-        args.extend(["-n", namespace])
-    return run_oc(*args, check=False).returncode == 0
-
-
-def get_json(resource: str, name: str, namespace: str | None = None) -> dict[str, Any]:
-    args = ["get", resource, name, "-o", "json"]
-    if namespace:
-        args.extend(["-n", namespace])
-    return json.loads(run_oc(*args).stdout)
-
-
-def get_jsonpath(
-    resource: str,
-    name: str,
-    jsonpath: str,
-    namespace: str | None = None,
-) -> str:
-    args = ["get", resource, name, "-o", f"jsonpath={jsonpath}"]
-    if namespace:
-        args.extend(["-n", namespace])
-    return run_oc(*args).stdout.strip()
-
-
-def secret_data(name: str, key: str, namespace: str) -> str:
-    data = get_json("secret", name, namespace=namespace).get("data") or {}
-    b64 = data.get(key)
-    if not b64:
-        raise OcError(f"secret/{name} key {key} is empty in {namespace}")
-    return base64.b64decode(b64).decode("utf-8")
-
-
-def list_devworkspaces(namespace: str) -> list[dict[str, Any]]:
-    result = run_oc("get", "devworkspace", "-n", namespace, "-o", "json", check=False)
-    if result.returncode != 0:
-        return []
-    try:
-        return list((json.loads(result.stdout).get("items") or []))
-    except json.JSONDecodeError:
-        return []
-
-
-def is_opencode_devworkspace(devworkspace: dict[str, Any]) -> bool:
-    name = (devworkspace.get("metadata") or {}).get("name") or ""
-    if "opencode" in name.lower():
-        return True
-    for component in (
-        (devworkspace.get("spec") or {}).get("template") or {}
-    ).get("components") or []:
-        image = ((component.get("container") or {}).get("image") or "")
-        if "devspaces-opencode" in image or "/opencode" in image:
-            return True
-    return False
-
-
-def find_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
-    for item in list_devworkspaces(namespace):
-        if is_opencode_devworkspace(item):
-            return item
-    return None
-
-
-def find_running_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
-    for item in list_devworkspaces(namespace):
-        if not is_opencode_devworkspace(item):
-            continue
-        phase = (item.get("status") or {}).get("phase") or ""
-        if phase == "Running":
-            return item
-    return None
-
-
-def devworkspace_env(devworkspace: dict[str, Any]) -> dict[str, str]:
-    """Flatten container env name→value from a DevWorkspace spec."""
-    env: dict[str, str] = {}
-    for component in (
-        (devworkspace.get("spec") or {}).get("template") or {}
-    ).get("components") or []:
-        for entry in (component.get("container") or {}).get("env") or []:
-            name = entry.get("name")
-            if not name or "value" not in entry:
-                continue
-            env[str(name)] = str(entry.get("value") or "")
-    return env
-
-
-def _http_hostname(value: str) -> str:
-    parsed = urlparse(value if "://" in value else f"https://{value}")
-    return (parsed.hostname or "").lower()
 
 
 def is_maas_openai_base_url(base: str) -> bool:
@@ -174,13 +61,83 @@ def is_maas_openai_base_url(base: str) -> bool:
     )
 
 
+MAAS_GATEWAY_NAME = "maas-default-gateway"
+MAAS_GATEWAY_NAMESPACE = "openshift-ingress"
+
+
+def maas_clusterip_service_name(gateway_class: str) -> str:
+    cls = (gateway_class or "").strip()
+    if not cls:
+        return ""
+    return f"{MAAS_GATEWAY_NAME}-{cls}"
+
+
+def expected_maas_clusterip_host(gateway_class: str) -> str:
+    svc = maas_clusterip_service_name(gateway_class)
+    if not svc:
+        return ""
+    return f"{svc}.{MAAS_GATEWAY_NAMESPACE}.svc.cluster.local"
+
+
+def clusterip_host_matches_gateway_class(host: str, gateway_class: str) -> bool:
+    expected = expected_maas_clusterip_host(gateway_class)
+    return bool(expected) and (host or "").lower() == expected
+
+
+def assert_openai_base_url_reaches_maas(base: str) -> None:
+    """Shape check plus live Gateway class / Service for ClusterIP URLs."""
+    if not is_maas_openai_base_url(base):
+        raise AssertionError(
+            f"OPENAI_BASE_URL must route through maas-default-gateway "
+            f"(ClusterIP or maas.apps hostname), got {base!r}. "
+            "Redeploy pca-devspaces so chat uses the MaaS / RHCL gateway "
+            "(guardrails is an HTTPRoute backend)."
+        )
+    host = _http_hostname(base)
+    if not host.endswith(".svc.cluster.local"):
+        return
+    cls = get_jsonpath(
+        "gateway",
+        MAAS_GATEWAY_NAME,
+        "{.spec.gatewayClassName}",
+        namespace=MAAS_GATEWAY_NAMESPACE,
+    )
+    expected = expected_maas_clusterip_host(cls)
+    if host != expected:
+        raise AssertionError(
+            f"OPENAI_BASE_URL host {host!r} does not match live Gateway "
+            f"{MAAS_GATEWAY_NAMESPACE}/{MAAS_GATEWAY_NAME} class {cls!r} "
+            f"(expected {expected!r})"
+        )
+    svc = maas_clusterip_service_name(cls)
+    if not resource_exists("svc", svc, namespace=MAAS_GATEWAY_NAMESPACE):
+        raise AssertionError(
+            f"Service {MAAS_GATEWAY_NAMESPACE}/{svc} missing for "
+            f"OPENAI_BASE_URL {base!r}"
+        )
+
+
+def devworkspace_is_running(devworkspace: dict[str, Any]) -> bool:
+    """True when spec.started and status.phase are already Running."""
+    started = (devworkspace.get("spec") or {}).get("started")
+    phase = (devworkspace.get("status") or {}).get("phase") or ""
+    return bool(started) and phase == "Running"
+
+
 def ensure_devworkspace_started(
     namespace: str,
     name: str,
     *,
     timeout_secs: int = 600,
 ) -> dict[str, Any]:
-    """Patch started=true and wait until phase=Running."""
+    """Patch started=true and wait until phase=Running.
+
+    Skip the patch when the workspace is already Running. A no-op patch
+    still writes the object and can kick the DevWorkspace controller.
+    """
+    dw = get_json("devworkspace", name, namespace=namespace)
+    if devworkspace_is_running(dw):
+        return dw
     run_oc(
         "patch",
         "devworkspace",
