@@ -1,4 +1,4 @@
-"""Helm-render checks for guardrails hop order."""
+"""Helm-render checks for guardrails hop order and Semantic Router."""
 
 from __future__ import annotations
 
@@ -113,7 +113,38 @@ def test_httproute_chat_goes_to_llmd_when_guardrails_off():
     assert "name: guardrails-proxy" not in rendered
 
 
-def test_orchestrator_and_proxy_pin_llmd_when_host_empty():
+def test_httproute_chat_goes_to_sr_when_guardrails_off_and_sr_on():
+    rendered = _helm_template(
+        AI_SERVING,
+        [
+            "--set",
+            "guardrails.enabled=false",
+            "--set",
+            "semanticRouter.enabled=true",
+            "--set",
+            "tlsJob.enabled=false",
+        ],
+    )
+    docs = _docs(rendered)
+    backends = _backend_names(_httproute(docs))
+    assert "/v1/chat/completions->pca-semantic-router:80" in backends
+    assert f"/v1/models->{LLMD_SVC}:80" in backends
+    assert f"/v1/models/->{LLMD_SVC}:80" in backends
+    assert f"/local/v1->{LLMD_SVC}:80" in backends
+    deploy = _named(docs, "Deployment", "pca-semantic-router")
+    env = {
+        item["name"]: item.get("value")
+        for item in deploy["spec"]["template"]["spec"]["containers"][0]["env"]
+        if "value" in item
+    }
+    assert env["ROUTE_MODE"] == "pin-local"
+    assert env["LOCAL_BASE_URL"] == f"http://{LLMD_SVC}.ai-serving.svc.cluster.local:80/v1"
+    script_cm = _named(docs, "ConfigMap", "pca-semantic-router-script")
+    assert "sse_http.py" in script_cm.get("data", {})
+    assert "semantic_router.py" in script_cm.get("data", {})
+
+
+def test_orchestrator_pins_local_when_sr_off_and_points_at_sr_when_on():
     off = _docs(
         _helm_template(
             AI_SERVING,
@@ -122,6 +153,27 @@ def test_orchestrator_and_proxy_pin_llmd_when_host_empty():
     )
     assert _llm_upstream_url(off) == f"http://{LLMD_SVC}.ai-serving.svc.cluster.local:80"
     assert f"hostname: {LLMD_SVC}." in _orchestrator_host(off)
+    on = _docs(
+        _helm_template(
+            AI_SERVING,
+            [
+                "--set",
+                "guardrails.enabled=true",
+                "--set",
+                "semanticRouter.enabled=true",
+                "--set",
+                "tlsJob.enabled=false",
+            ],
+        )
+    )
+    assert _llm_upstream_url(on) == (
+        "http://pca-semantic-router.ai-serving.svc.cluster.local:80"
+    )
+    cfg = _orchestrator_host(on)
+    assert "hostname: pca-semantic-router." in cfg
+    backends = _backend_names(_httproute(on))
+    assert "/v1/chat/completions->guardrails-proxy:8080" in backends
+    assert "/v1/chat/completions->pca-semantic-router:80" not in backends
 
 
 def test_prompt_injection_detector_shares_pvc_sync_wave():
