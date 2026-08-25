@@ -215,6 +215,23 @@ data:
               "legendFormat": "restarts (last 1h) — {{`{{pod}}`}}"
             }
           ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Semantic Router decisions (local vs external)",
+          "description": "pca_semantic_router_decisions_total. Absent when semanticRouter.enabled=false (chat then pins local via llm-d HTTP :80). Do not treat empty series as an outage.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 56 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "pca_semantic_router_decisions_total{backend='local'}",
+              "legendFormat": "local decisions"
+            },
+            {
+              "expr": "pca_semantic_router_decisions_total{backend='external'}",
+              "legendFormat": "external decisions"
+            }
+          ]
         }
       ]
     }
