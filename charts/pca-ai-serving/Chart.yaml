@@ -9,3 +9,6 @@ dependencies:
   - name: pca-guardrails
     version: 0.1.0
     condition: guardrails.enabled
+  - name: pca-semantic-router
+    version: 0.1.0
+    condition: semanticRouter.enabled

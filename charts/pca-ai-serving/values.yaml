@@ -76,6 +76,7 @@ tlsJob:
   gatewayHostname: ""
 gatewayName: llm-d-gateway
 # RHCL / MaaS front door. Kuadrant still enforces AuthPolicy on PCA's HTTPRoute.
+# semanticRouter.enabled=false pins TrustyAI / guardrails at llm-d HTTP :80 (not raw vLLM TLS :8000).
 aiGateway:
   gatewayClassName: data-science-gateway-class
   tls:
@@ -106,8 +107,29 @@ maas:
     daily: 50000000
   tls:
     secretName: maas-default-gateway-tls
-semanticRouter:
+semanticRouter: &semanticRouter
   enabled: false
+# Guardrails subchart reads global.semanticRouter.enabled (Helm global pass-through).
+# Keep equal to semanticRouter.enabled. Enable:
+#   --set semanticRouter.enabled=true,global.semanticRouter.enabled=true
+global:
+  semanticRouter: *semanticRouter
+pca-semantic-router:
+  namespace: ai-serving
+  # Must match pca-ai-serving.llmdGatewayService ({gatewayName}-{gatewayClassName}).
+  llmdGatewayService: llm-d-gateway-data-science-gateway-class
+  semanticRouter:
+    replicas: 1
+    routeMode: pin-local
+    localModel: ""
+    autoKeywords: "code,function,class,implement,refactor,debug,complete,python,javascript,typescript,golang,rust"
+    local:
+      baseUrl: ""
+    external:
+      baseUrl: ""
+      models: ""
+      secretName: pca-semantic-router-external
+      secretKey: api-key
 # Observability (pca-observability subchart)
 # Installs when observability.enabled (default true because grafana.enabled defaults true).
 # Set observability.enabled=false to skip the entire subchart.
@@ -146,7 +168,7 @@ pca-guardrails:
   guardrails:
     enforcement: block
     llmService:
-      # Empty (or legacy pca-llm-upstream): llm-d HTTP :80.
+      # Empty (or legacy pca-llm-upstream): llm-d HTTP :80, or pca-semantic-router when global.semanticRouter.enabled.
       host: ""
       port: 80
       tlsSecret: ""
