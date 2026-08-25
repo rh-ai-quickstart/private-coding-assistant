@@ -60,14 +60,14 @@ Optional components (Langfuse, OTel, Guardrails, DevSpaces) **auto-skip** when r
 
 ## What is checked
 
-1. **readiness** — LLMIS Ready, llm-d Gateway Accepted, optional RHCL `pca-ai-gateway` Accepted + local HTTPRoute + AuthPolicy, PVC Bound, LLMIS workload pods, optional Grafana/Langfuse/OTel/Guardrails/DevWorkspace
+1. **readiness** — LLMIS Ready, llm-d Gateway Accepted, optional MaaS `maas-default-gateway` Accepted + `pca-maas-front-door` HTTPRoute + AuthPolicy, PVC Bound, LLMIS workload pods, optional Grafana/Langfuse/OTel/Guardrails/DevWorkspace
 2. **vllm** — `/v1/models`, chat, completions, streaming, tool-calling (with `enable_thinking: false`), workload `/health` (hits **llm-d** Gateway directly — inference layer, not RHCL)
 3. **grafana** — route, `/api/health`, Prometheus datasource, dashboard ConfigMaps, Prometheus via `/api/ds/query`
 4. **langfuse** — route, health, credentials, project API auth, short-named dependency Services, traces after chat
 5. **otel** — deploy Available, health extension
 6. **devspaces** — Continue/Roo/Cline ConfigMaps (RHCL default, or llm-d / guardrails; soft-skip on OpenCode), DevWorkspace CR, OpenCode DW + `opencode-web-password` (soft-skip on Continue), harness chat with `X-PCA-*` (and Bearer API key when RHCL is present)
 7. **guardrails** — `/healthz`, clean chat, injection block (soft-skip if warn mode)
-8. **ai_gateway** — RHCL Gateway Accepted, HTTPRoute + AuthPolicy present, API key auth (401/403 without/invalid key), per-DevSpace `pca-ai-gw-apikey` + AI ns mirror, chat happy path, Continue/Roo/Cline must use `pca-ai-gateway` host + non-`EMPTY` apiKey, IDE harness via gateway; **OpenCode** (when an OpenCode DevWorkspace CR exists in `DEV_NAMESPACE`, any phase / `started: false` OK): DW env `OPENAI_API_KEY` matches Secret + RHCL URL, Secret → Bearer → `chat/completions` → 200 (skipped if gateway absent)
+8. **ai_gateway** — MaaS Gateway Accepted (openshift-ingress), HTTPRoute + AuthPolicy present in the AI ns, API key auth (401/403 without/invalid key), per-DevSpace `pca-maas-apikey` + AI ns mirror, chat happy path, Continue/Roo/Cline must use `maas-default-gateway` host + non-`EMPTY` apiKey, IDE harness via gateway; **OpenCode** (when an OpenCode DevWorkspace CR exists in `DEV_NAMESPACE`, any phase / `started: false` OK): DW env `OPENAI_API_KEY` matches Secret + MaaS URL, Secret → Bearer → `chat/completions` → 200 (skipped if gateway absent)
 
 In-cluster HTTP uses ephemeral `curlimages/curl` pods via `oc run` (gateway is ClusterIP-only).
 

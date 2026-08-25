@@ -54,16 +54,22 @@ def gateway_v1(ai_namespace: str) -> str:
 
 @pytest.fixture(scope="session")
 def require_ai_gateway(ai_namespace: str) -> str:
-    if not oc.resource_exists("gateway", urls.AI_GATEWAY_NAME, namespace=ai_namespace):
+    if not oc.resource_exists(
+        "gateway", urls.AI_GATEWAY_NAME, namespace=urls.AI_GATEWAY_NAMESPACE
+    ):
         pytest.skip(
-            f"Gateway/{urls.AI_GATEWAY_NAME} not deployed in {ai_namespace}"
+            f"Gateway/{urls.AI_GATEWAY_NAME} not deployed in {urls.AI_GATEWAY_NAMESPACE}"
         )
     status = oc.condition_status(
-        "gateway", urls.AI_GATEWAY_NAME, "Accepted", ai_namespace
+        "gateway",
+        urls.AI_GATEWAY_NAME,
+        "Accepted",
+        urls.AI_GATEWAY_NAMESPACE,
     )
     if status != "True":
         pytest.skip(
-            f"Gateway/{urls.AI_GATEWAY_NAME} Accepted={status!r} in {ai_namespace}"
+            f"Gateway/{urls.AI_GATEWAY_NAME} Accepted={status!r} in "
+            f"{urls.AI_GATEWAY_NAMESPACE}"
         )
     return ai_namespace
 

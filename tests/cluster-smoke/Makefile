@@ -3,6 +3,8 @@ DEV_NAMESPACE ?=
 COMPONENT ?=
 PYTEST_ARGS ?=
 N_PARALLEL ?= 4
+PCA_MAAS_HOSTNAME ?=
+PCA_MAAS_GATEWAY_CLASS ?=
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python
@@ -28,7 +30,10 @@ $(PYTHON): pyproject.toml
 	$(PYTHON) -m pip install -q -U pip
 	$(PYTHON) -m pip install -q -e .
 
+# Empty values must not be exported: os.environ.get("X", default) returns "" if X is set.
 smoke: venv ## Run cluster smoke tests (requires oc login)
 	@command -v oc >/dev/null || { echo "ERROR: oc not found in PATH"; exit 1; }
 	AI_NAMESPACE=$(AI_NAMESPACE) DEV_NAMESPACE=$(DEV_NAMESPACE) \
+		$(if $(PCA_MAAS_HOSTNAME),PCA_MAAS_HOSTNAME='$(PCA_MAAS_HOSTNAME)') \
+		$(if $(PCA_MAAS_GATEWAY_CLASS),PCA_MAAS_GATEWAY_CLASS='$(PCA_MAAS_GATEWAY_CLASS)') \
 		$(PYTEST) -v --tb=short -n $(N_PARALLEL) $(MARKER_ARGS) $(PYTEST_ARGS)

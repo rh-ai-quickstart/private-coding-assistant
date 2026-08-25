@@ -83,9 +83,4 @@ def require_opencode_guardrails_url(
     dw = oc.find_opencode_devworkspace(require_dev_namespace)
     assert dw is not None, f"no OpenCode DevWorkspace in {require_dev_namespace}"
     base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
-    assert oc.is_maas_openai_base_url(base), (
-        f"OPENAI_BASE_URL must route through maas-default-gateway "
-        f"(ClusterIP or maas.apps hostname), got {base!r}. "
-        "Redeploy pca-devspaces so chat uses the MaaS / RHCL gateway "
-        "(guardrails is an HTTPRoute backend)."
-    )
+    oc.assert_openai_base_url_reaches_maas(base)

@@ -32,13 +32,18 @@ def test_gateway_accepted(ai_namespace: str) -> None:
 
 
 def test_ai_gateway_accepted_if_present(ai_namespace: str) -> None:
-    """RHCL front door is optional until charts are synced with aiGateway.enabled."""
+    """MaaS front door is skippable when Gateway/maas-default-gateway is absent."""
     if not oc.resource_exists(
-        "gateway", urls.AI_GATEWAY_NAME, namespace=ai_namespace
+        "gateway", urls.AI_GATEWAY_NAME, namespace=urls.AI_GATEWAY_NAMESPACE
     ):
-        pytest.skip(f"Gateway/{urls.AI_GATEWAY_NAME} not deployed in {ai_namespace}")
+        pytest.skip(
+            f"Gateway/{urls.AI_GATEWAY_NAME} not deployed in {urls.AI_GATEWAY_NAMESPACE}"
+        )
     status = oc.condition_status(
-        "gateway", urls.AI_GATEWAY_NAME, "Accepted", ai_namespace
+        "gateway",
+        urls.AI_GATEWAY_NAME,
+        "Accepted",
+        urls.AI_GATEWAY_NAMESPACE,
     )
     assert status == "True", f"Gateway/{urls.AI_GATEWAY_NAME} Accepted={status!r}"
     assert oc.resource_exists(

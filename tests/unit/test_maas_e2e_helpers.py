@@ -19,6 +19,109 @@ CLUSTERIP = (
 )
 
 
+def test_devworkspace_is_running_requires_started_and_phase() -> None:
+    assert oc.devworkspace_is_running(
+        {"spec": {"started": True}, "status": {"phase": "Running"}}
+    )
+    assert not oc.devworkspace_is_running(
+        {"spec": {"started": False}, "status": {"phase": "Running"}}
+    )
+    assert not oc.devworkspace_is_running(
+        {"spec": {"started": True}, "status": {"phase": "Starting"}}
+    )
+    assert not oc.devworkspace_is_running({})
+
+
+def test_ensure_devworkspace_started_skips_patch_when_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ready = {
+        "spec": {"started": True},
+        "status": {"phase": "Running", "devworkspaceId": "wid"},
+    }
+
+    def _get_json(*_a, **_k):
+        return ready
+
+    def _run_oc(*_a, **_k):
+        raise AssertionError("patch must not run for an already-Running workspace")
+
+    monkeypatch.setattr(oc, "get_json", _get_json)
+    monkeypatch.setattr(oc, "run_oc", _run_oc)
+    assert oc.ensure_devworkspace_started("ns", "code-workspace-1") is ready
+
+
+def test_expected_maas_clusterip_host_uses_gateway_class() -> None:
+    assert oc.expected_maas_clusterip_host("openshift-default") == (
+        "maas-default-gateway-openshift-default."
+        "openshift-ingress.svc.cluster.local"
+    )
+    assert oc.maas_clusterip_service_name("data-science-gateway-class") == (
+        "maas-default-gateway-data-science-gateway-class"
+    )
+    assert oc.clusterip_host_matches_gateway_class(
+        "maas-default-gateway-openshift-default."
+        "openshift-ingress.svc.cluster.local",
+        "openshift-default",
+    )
+    assert not oc.clusterip_host_matches_gateway_class(
+        "maas-default-gateway-data-science-gateway-class."
+        "openshift-ingress.svc.cluster.local",
+        "openshift-default",
+    )
+    assert oc.expected_maas_clusterip_host("") == ""
+    assert oc.maas_clusterip_service_name("") == ""
+
+
+def test_assert_openai_base_url_reaches_maas_skips_apps_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(oc, "get_jsonpath", lambda *a, **k: "unused")
+    monkeypatch.setattr(oc, "resource_exists", lambda *a, **k: False)
+    oc.assert_openai_base_url_reaches_maas("https://maas.apps.example.com/v1")
+
+
+def test_assert_openai_base_url_reaches_maas_rejects_wrong_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        oc, "get_jsonpath", lambda *a, **k: "openshift-default"
+    )
+    monkeypatch.setattr(oc, "resource_exists", lambda *a, **k: True)
+    with pytest.raises(AssertionError, match="openshift-default"):
+        oc.assert_openai_base_url_reaches_maas(
+            "https://maas-default-gateway-data-science-gateway-class."
+            "openshift-ingress.svc.cluster.local/v1"
+        )
+
+
+def test_assert_openai_base_url_reaches_maas_rejects_missing_service(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        oc, "get_jsonpath", lambda *a, **k: "openshift-default"
+    )
+    monkeypatch.setattr(oc, "resource_exists", lambda *a, **k: False)
+    with pytest.raises(AssertionError, match="Service"):
+        oc.assert_openai_base_url_reaches_maas(
+            "https://maas-default-gateway-openshift-default."
+            "openshift-ingress.svc.cluster.local/v1"
+        )
+
+
+def test_assert_openai_base_url_reaches_maas_accepts_matching_clusterip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        oc, "get_jsonpath", lambda *a, **k: "openshift-default"
+    )
+    monkeypatch.setattr(oc, "resource_exists", lambda *a, **k: True)
+    oc.assert_openai_base_url_reaches_maas(
+        "https://maas-default-gateway-openshift-default."
+        "openshift-ingress.svc.cluster.local/v1"
+    )
+
+
 def test_is_maas_openai_base_url_accepts_clusterip_and_apps_host() -> None:
     assert oc.is_maas_openai_base_url(CLUSTERIP)
     assert oc.is_maas_openai_base_url("https://maas.apps.example.com/v1")

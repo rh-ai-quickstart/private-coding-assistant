@@ -2,85 +2,34 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import re
 import shlex
 import subprocess
+import sys
 import uuid
+from pathlib import Path
 from typing import Any
 
+_TESTS = Path(__file__).resolve().parents[2]
+if str(_TESTS) not in sys.path:
+    sys.path.insert(0, str(_TESTS))
 
-class OcError(RuntimeError):
-    def __init__(self, message: str, *, stdout: str = "", stderr: str = "", returncode: int = 1):
-        super().__init__(message)
-        self.stdout = stdout
-        self.stderr = stderr
-        self.returncode = returncode
-
-
-def run_oc(
-    *args: str,
-    check: bool = True,
-    timeout: int = 120,
-    input_text: str | None = None,
-) -> subprocess.CompletedProcess[str]:
-    cmd = ["oc", *args]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        input=input_text,
-        check=False,
-    )
-    if check and result.returncode != 0:
-        raise OcError(
-            f"oc {' '.join(args)} failed (rc={result.returncode}): {result.stderr.strip()}",
-            stdout=result.stdout,
-            stderr=result.stderr,
-            returncode=result.returncode,
-        )
-    return result
-
-
-def whoami() -> str:
-    return run_oc("whoami").stdout.strip()
-
-
-def resource_exists(resource: str, name: str, namespace: str | None = None) -> bool:
-    args = ["get", resource, name, "-o", "name"]
-    if namespace:
-        args.extend(["-n", namespace])
-    result = run_oc(*args, check=False)
-    return result.returncode == 0
-
-
-def get_json(resource: str, name: str, namespace: str | None = None) -> dict[str, Any]:
-    args = ["get", resource, name, "-o", "json"]
-    if namespace:
-        args.extend(["-n", namespace])
-    return json.loads(run_oc(*args).stdout)
-
-
-def get_jsonpath(
-    resource: str,
-    name: str,
-    jsonpath: str,
-    namespace: str | None = None,
-) -> str:
-    args = ["get", resource, name, "-o", f"jsonpath={jsonpath}"]
-    if namespace:
-        args.extend(["-n", namespace])
-    return run_oc(*args).stdout.strip()
-
-
-def secret_data(name: str, key: str, namespace: str) -> str:
-    data = get_json("secret", name, namespace=namespace).get("data") or {}
-    b64 = data.get(key)
-    if not b64:
-        raise OcError(f"secret/{name} key {key} is empty in {namespace}")
-    return base64.b64decode(b64).decode("utf-8")
+from pca_oc import (  # noqa: E402
+    OcError,
+    devworkspace_env,
+    find_opencode_devworkspace,
+    find_running_opencode_devworkspace,
+    get_json,
+    get_jsonpath,
+    http_hostname,
+    is_opencode_devworkspace,
+    list_devworkspaces,
+    resource_exists,
+    run_oc,
+    secret_data,
+    whoami,
+)
 
 
 def condition_status(
@@ -136,67 +85,7 @@ def list_resource_names(
     return [n for n in result.stdout.split() if n]
 
 
-def list_devworkspaces(namespace: str) -> list[dict[str, Any]]:
-    result = run_oc(
-        "get", "devworkspace", "-n", namespace, "-o", "json", check=False
-    )
-    if result.returncode != 0:
-        return []
-    try:
-        return list((json.loads(result.stdout).get("items") or []))
-    except json.JSONDecodeError:
-        return []
-
-
-def is_opencode_devworkspace(devworkspace: dict[str, Any]) -> bool:
-    """True when the DevWorkspace is an OpenCode workspace (image or name)."""
-    name = (devworkspace.get("metadata") or {}).get("name") or ""
-    if "opencode" in name.lower():
-        return True
-    for component in (
-        (devworkspace.get("spec") or {}).get("template") or {}
-    ).get("components") or []:
-        image = ((component.get("container") or {}).get("image") or "")
-        if "devspaces-opencode" in image or "/opencode" in image:
-            return True
-    return False
-
-
-def find_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
-    """Return an OpenCode DevWorkspace in namespace (any phase), or None."""
-    for item in list_devworkspaces(namespace):
-        if is_opencode_devworkspace(item):
-            return item
-    return None
-
-
-def find_running_opencode_devworkspace(namespace: str) -> dict[str, Any] | None:
-    """Return a Running OpenCode DevWorkspace in namespace, or None."""
-    for item in list_devworkspaces(namespace):
-        if not is_opencode_devworkspace(item):
-            continue
-        phase = (item.get("status") or {}).get("phase") or ""
-        if phase == "Running":
-            return item
-    return None
-
-
-def devworkspace_env(devworkspace: dict[str, Any]) -> dict[str, str]:
-    """Flatten container env name→value from a DevWorkspace spec."""
-    env: dict[str, str] = {}
-    for component in (
-        (devworkspace.get("spec") or {}).get("template") or {}
-    ).get("components") or []:
-        for entry in (component.get("container") or {}).get("env") or []:
-            name = entry.get("name")
-            if not name or "value" not in entry:
-                continue
-            env[str(name)] = str(entry.get("value") or "")
-    return env
-
-
-def in_cluster_http(
-    namespace: str,
+def in_cluster_http_shell(
     url: str,
     *,
     method: str = "GET",
@@ -204,13 +93,16 @@ def in_cluster_http(
     json_body: dict[str, Any] | None = None,
     insecure: bool = True,
     timeout_secs: int = 120,
-) -> tuple[int, Any]:
-    """HTTP from an ephemeral curl pod. Returns (status_code, parsed_json_or_text)."""
+    body_path: str | None = None,
+) -> str:
+    """Build the in-pod curl script. Unique body_path avoids xdist /tmp races."""
+    if body_path is None:
+        body_path = f"/tmp/pca-smoke-{uuid.uuid4().hex[:12]}"
     script_parts = [
         "curl",
         "-sS",
         "-o",
-        "/tmp/body",
+        body_path,
         "-w",
         "%{http_code}",
         "--max-time",
@@ -227,7 +119,69 @@ def in_cluster_http(
         )
 
     inner = " ".join(shlex.quote(p) for p in script_parts)
-    shell_cmd = f"code=$({inner}); echo \"$code\"; cat /tmp/body"
+    quoted_body = shlex.quote(body_path)
+    return (
+        f"code=$({inner}) || true; echo \"$code\"; "
+        f"if [ -f {quoted_body} ]; then cat {quoted_body}; fi"
+    )
+
+
+def parse_in_cluster_http_output(
+    stdout: str,
+    stderr: str = "",
+    *,
+    url: str = "",
+) -> tuple[int, Any]:
+    """Parse oc-run curl stdout. Missing body is not an error; use stderr."""
+    text = stdout or ""
+    status: int | None = None
+    body_start = 0
+    for i, line in enumerate(text.splitlines()):
+        stripped = line.strip()
+        if stripped.isdigit() and len(stripped) == 3:
+            status = int(stripped)
+            body_start = i + 1
+            break
+    if status is None:
+        err = (stderr or "").strip() or text.strip()
+        if not err:
+            raise OcError(
+                f"empty response from in-cluster request to {url}",
+                stdout=stdout,
+                stderr=stderr,
+            )
+        return 0, err
+    body = "\n".join(text.splitlines()[body_start:])
+    body = _strip_oc_run_trailer(body)
+    if not body.strip():
+        err = (stderr or "").strip()
+        return status, err if err else None
+    try:
+        parsed: Any = json.loads(body)
+    except json.JSONDecodeError:
+        parsed = body
+    return status, parsed
+
+
+def in_cluster_http(
+    namespace: str,
+    url: str,
+    *,
+    method: str = "GET",
+    headers: dict[str, str] | None = None,
+    json_body: dict[str, Any] | None = None,
+    insecure: bool = True,
+    timeout_secs: int = 120,
+) -> tuple[int, Any]:
+    """HTTP from an ephemeral curl pod. Returns (status_code, parsed_json_or_text)."""
+    shell_cmd = in_cluster_http_shell(
+        url,
+        method=method,
+        headers=headers,
+        json_body=json_body,
+        insecure=insecure,
+        timeout_secs=timeout_secs,
+    )
 
     pod = f"pca-smoke-{uuid.uuid4().hex[:10]}"
     run_oc("delete", "pod", pod, "-n", namespace, "--ignore-not-found", check=False)
@@ -248,36 +202,16 @@ def in_cluster_http(
         shell_cmd,
     ]
     result = run_oc(*args, check=False, timeout=timeout_secs + 60)
-    text = result.stdout
-    if not text.strip():
+    if not (result.stdout or "").strip() and not (result.stderr or "").strip():
         raise OcError(
             f"empty response from in-cluster request to {url}",
             stdout=result.stdout,
             stderr=result.stderr,
             returncode=result.returncode,
         )
-
-    status: int | None = None
-    body_start = 0
-    for i, line in enumerate(text.splitlines()):
-        if line.strip().isdigit() and len(line.strip()) == 3:
-            status = int(line.strip())
-            body_start = i + 1
-            break
-    if status is None:
-        raise OcError(
-            f"could not parse HTTP status from curl output for {url}: {text[:300]!r}",
-            stdout=result.stdout,
-            stderr=result.stderr,
-        )
-    body = "\n".join(text.splitlines()[body_start:])
-    # `oc run --rm` appends: pod "name" deleted
-    body = _strip_oc_run_trailer(body)
-    try:
-        parsed: Any = json.loads(body) if body.strip() else None
-    except json.JSONDecodeError:
-        parsed = body
-    return status, parsed
+    return parse_in_cluster_http_output(
+        result.stdout, result.stderr, url=url
+    )
 
 
 def _strip_oc_run_trailer(body: str) -> str:
