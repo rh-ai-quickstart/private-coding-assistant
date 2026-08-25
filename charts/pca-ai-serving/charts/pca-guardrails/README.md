@@ -6,24 +6,19 @@ AI security guardrails that intercept traffic between IDE extensions and the LLM
 
 ```
 IDE Extension (Continue / Roo / OpenCode)
-  → pca-ai-gateway (TLS + API key)
+  → maas-default-gateway (TLS + API key)
     → POST /v1/chat/completions
-      → Guardrails Proxy (injects detectors, disables streaming+thinking, converts to SSE)
-        → TrustyAI Orchestrator (runs detectors)
-          → [Input detectors: prompt injection, PII, secrets]
-            → llm-d Gateway → vLLM
-          ← [Output detectors: secrets in generated code]
-        ← response (blocked or LLM completion)
-    ← response to IDE
+      → Guardrails Proxy
+        → stream: input probe (TrustyAI) → identity SSE from pca-llm-upstream
+        → JSON: TrustyAI (input + output detectors) → llm-d
 ```
 
-The proxy is an HTTPRoute backend of `pca-ai-gateway`, not the IDE `OPENAI_BASE_URL`. It:
+The proxy is an HTTPRoute backend of `maas-default-gateway`, not the IDE `OPENAI_BASE_URL`. It:
 
-1. Injects the configured detectors into every request
-2. Disables streaming and thinking mode (required for Qwen3 with `qwen3_coder` tool-call parser — otherwise responses come back empty)
-3. Forwards to the orchestrator's detection API (non-streaming)
-4. Converts the response back to SSE chunks for streaming clients
-5. For blocked requests, returns a human-readable message with violation details:
+1. Injects the configured detectors into every request and turns thinking off (`qwen3_coder` tool-call parser)
+2. **Streaming (OpenCode / Continue chat):** input-only TrustyAI probe, then tokens stream from llm-d. Output secret detectors do **not** see generated tokens on this path (TrustyAI's completion stream cannot parse vLLM tool-call chunks).
+3. **Non-stream JSON:** TrustyAI runs input and output detectors, then returns the completion
+4. Input skips become a blocked SSE body with a readable message:
 
 ```
 Guardrails blocked your message.
@@ -37,7 +32,7 @@ Guardrails blocked your message.
 |----------|------|-----------|-----------------|
 | Prompt injection | HuggingFace model (`deberta-v3-base-prompt-injection-v2`) | Input | Jailbreak / prompt injection attempts |
 | PII | TrustyAI built-in named regex (`email`, `us-social-security-number`, `credit-card`, `us-phone-number`, `ipv4` by default) | Input | Email, US SSN, credit card (Luhn), US phone, IPv4 |
-| Secrets | gitleaks v8.24.2 regex rules (`files/secret-patterns.yaml`) | Input + Output | 179+ credential patterns (AWS, GitHub, Stripe, Slack, private keys, …) |
+| Secrets | gitleaks v8.24.2 regex rules (`files/secret-patterns.yaml`) | Input (always); output on non-stream JSON only | 179+ credential patterns (AWS, GitHub, Stripe, Slack, private keys, …) |
 
 Secret patterns are **sourced from gitleaks** (same version as `.pre-commit-config.yaml`) and applied by the TrustyAI built-in regex sidecar. This is regex-only fidelity: no gitleaks allowlists, entropy heuristics, or context rules at runtime.
 
@@ -66,9 +61,9 @@ Guardrails are a sub-chart of `pca-ai-serving` and deploy with the serving stack
 3. Ensure `cluster.trustyai.enabled: true` in `pca-platform-config` (TrustyAI operator)
 4. Deploy: `make ai-serving-deploy-existing-openshift`
 
-To enable guardrails on chat (default), keep `guardrails.enabled=true` on ai-serving. DevSpaces always use `pca-ai-gateway`; the HTTPRoute sends `/v1/chat/completions` to the proxy.
+To enable guardrails on chat (default), keep `guardrails.enabled=true` on ai-serving. DevSpaces always use `maas-default-gateway`; the HTTPRoute sends `/v1/chat/completions` to the proxy.
 
-Tab autocomplete stays on the direct llm-d gateway (lower latency, no guardrails).
+Continue tab autocomplete uses authenticated `/local/v1` (skips guardrails and Semantic Router). OpenCode stays on `/v1`.
 
 ## Secret patterns (gitleaks)
 
