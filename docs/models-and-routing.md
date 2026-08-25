@@ -8,7 +8,8 @@ NVIDIA models are deployed with KServe **`LLMInferenceService`** only. The stack
 - InferencePool / InferenceModel (Gateway API Inference Extension)
 - llm-d Endpoint Picker (EPP)
 - HTTPRoute through the data-science / llm-d gateway
-- Optional **RHCL AI Gateway** (`pca-ai-gateway`) with AuthPolicy in front of llm-d
+- **MaaS / RHCL front door** (`maas-default-gateway`) with AuthPolicy on `pca-maas-front-door`
+- Optional **Semantic Router** (`semanticRouter.enabled`, default off) as an HTTP hop after TrustyAI
 
 ### Default model
 
@@ -56,11 +57,33 @@ Hardware how-to: [models-and-hardware.md — Changing the hardware](models-and-h
 
 Optional ROSA Inferentia pool: enable with Terraform `inferentia_pool_enabled=true`. If Neuron pods fail networking on OVN-Kubernetes, see [Inferentia / Neuron pods fail networking (OVN annotation race)](../PCA_Deployment_ROSA/README.md#inferentia--neuron-pods-fail-networking-ovn-annotation-race).
 
-## RHCL front door
+## MaaS / RHCL front door
 
-IDE traffic should use **`pca-ai-gateway`**, not raw vLLM. Auth is API-key based per Dev Spaces namespace. The llm-d gateway is left unmanaged by OpenShift AI AuthPolicies that would conflict with RHCL (`opendatahub.io/managed=false` where applicable).
+IDE traffic uses **`maas-default-gateway`** in `openshift-ingress`, not raw vLLM and not `pca-ai-gateway`. Auth is API-key based per Dev Spaces namespace (`pca-maas-apikey`). The llm-d gateway stays unmanaged by OpenShift AI AuthPolicies (`opendatahub.io/managed=false`).
 
-Details: [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md) (RHCL prerequisite) and chart docs under `charts/pca-ai-serving/`.
+HTTPRoute `pca-maas-front-door`:
+
+| Path | Backend |
+|------|---------|
+| `/v1/chat/completions` | `guardrails-proxy` when guardrails is on, else Semantic Router when that is on, else llm-d HTTP `:80` |
+| `/local/v1` | llm-d HTTP `:80` (prefix rewritten to `/v1`). Continue tab uses this with a real API key. |
+| `/v1` | llm-d HTTP `:80` (`/v1/models`, `/v1/completions`) |
+
+`MaaSModelRef` publishes the local `LLMInferenceService` for catalog and token quota. It does not pick chat vs tab vs external — see [maas-attachment.md](maas-attachment.md).
+
+OpenCode has a single `OPENAI_BASE_URL` (`/v1`), so autocomplete that uses chat completions still follows the guarded path.
+
+Details: [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md) (RHCL + MaaS DSC patch) and [charts/pca-ai-serving](../charts/pca-ai-serving/).
+
+## Semantic Router
+
+Optional subchart (`semanticRouter.enabled`, default **false**). Community workload, not an OpenShift AI DSC component. API-mode hop (not Envoy ExtProc).
+
+- **Off (default):** TrustyAI pins llm-d HTTP `:80`. Chat stays local. Grafana SR panels are empty — that is expected.
+- **On, `routeMode: pin-local`:** SR pod always forwards to llm-d. Use this to prove the hop before enabling auto.
+- **On, `routeMode: auto`:** needs `pca-semantic-router.semanticRouter.external.baseUrl` plus Secret `pca-semantic-router-external` in the AI namespace (never in DevSpaces). Code-like prompts stay local; named external models / non-code go off-cluster. Decision header `X-PCA-Route-Backend` and metric `pca_semantic_router_decisions_total`.
+
+Rotate the provider key by replacing that AI-ns Secret. Rotate IDE keys by replacing `pca-maas-apikey` (DevSpaces ns + Authorino mirror). Disable SR by setting `semanticRouter.enabled=false` and syncing — chat pins local; it does not fail closed.
 
 ## Related
 

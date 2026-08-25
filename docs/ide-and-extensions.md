@@ -33,13 +33,15 @@ Desktop IDEs can attach to the workspace over an authenticated `oc` tunnel (SSHD
 
 ## Gateway URL (in-cluster)
 
-Default IDE endpoint (RHCL front door):
+Default IDE endpoint (MaaS / RHCL front door):
 
 ```text
-https://pca-ai-gateway-data-science-gateway-class.<AI_NAMESPACE>.svc.cluster.local/v1
+https://maas-default-gateway-data-science-gateway-class.openshift-ingress.svc.cluster.local/v1
 ```
 
-Each Dev Spaces namespace gets an API key Secret (`pca-ai-gw-apikey`). Break-glass (no API key): point IDEs at llm-d directly with `aiGateway.escapeHatchToLlmd=true`.
+Continue tab autocomplete uses `/local/v1` on that same host (authenticated, skips guardrails and Semantic Router). OpenCode has no second URL.
+
+Each Dev Spaces namespace gets an API key Secret (`pca-maas-apikey`). Break-glass (no API key): point IDEs at llm-d directly with `aiGateway.escapeHatchToLlmd=true`.
 
 ## Tool calling (Roo Code / agents)
 
