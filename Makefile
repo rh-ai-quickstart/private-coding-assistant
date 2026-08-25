@@ -84,6 +84,7 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 		--set namespace=$(AI_NAMESPACE) \
 		--set pca-observability.namespace=$(AI_NAMESPACE) \
 		--set pca-guardrails.namespace=$(AI_NAMESPACE) \
+		--set pca-semantic-router.namespace=$(AI_NAMESPACE) \
 		$(HELM_ARGS)
 
 # Default: helm uninstall only — keeps AI_NAMESPACE + model-cache PVC (warm restart path).
