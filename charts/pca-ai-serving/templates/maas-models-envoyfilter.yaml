@@ -1,0 +1,51 @@
+{{- $maas := .Values.maas | default dict }}
+{{- if $maas.enabled | default true }}
+{{- $gwNs := $maas.gatewayNamespace | default "openshift-ingress" }}
+{{- $gwName := $maas.gatewayName | default "maas-default-gateway" }}
+{{- $public := include "pca-ai-serving.maasPublicHostname" . }}
+{{- $envoyVhost := printf "%s:443" ($public | default "*") }}
+{{- $llmd := include "pca-ai-serving.llmdGatewayService" . }}
+{{/*
+  ODH HTTPRoute maas-api-route PathPrefix /v1/models is merged first on this
+  Gateway. Istio does not reorder Exact vs that prefix across HTTPRoutes, and
+  the MaaS controller restores the ODH rule. Prepend Exact /v1/models → llm-d
+  so IDEs list the served model instead of hanging on maas-api:8443.
+*/}}
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: pca-maas-models-first
+  namespace: {{ $gwNs }}
+  labels:
+    app.kubernetes.io/component: pca-maas-front-door
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: {{ $gwName | quote }}
+  configPatches:
+    - applyTo: HTTP_ROUTE
+      match:
+        context: GATEWAY
+        routeConfiguration:
+          vhost:
+            name: {{ $envoyVhost | quote }}
+      patch:
+        operation: INSERT_FIRST
+        value:
+          name: pca-v1-models-exact
+          match:
+            path: /v1/models
+          route:
+            cluster: outbound|80||{{ $llmd }}.{{ .Values.namespace }}.svc.cluster.local
+            timeout: 0s
+          typed_per_filter_config:
+            extensions.istio.io/wasmplugin/{{ $gwNs }}.kuadrant-{{ $gwName }}:
+              "@type": type.googleapis.com/envoy.config.route.v3.FilterConfig
+              disabled: true
+            envoy.filters.http.ext_proc.bbr:
+              "@type": type.googleapis.com/envoy.config.route.v3.FilterConfig
+              disabled: true
+{{- end }}

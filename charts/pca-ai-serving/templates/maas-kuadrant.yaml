@@ -1,0 +1,39 @@
+{{- $maas := .Values.maas | default dict }}
+{{- if ($maas.kuadrant).create | default false }}
+{{- $k := $maas.kuadrant | default dict }}
+{{- $kNs := $k.namespace | default "kuadrant-system" }}
+{{/*
+  Kuadrant CR deploys Authorino (+ Limitador) so AuthPolicy can enforce.
+  Required on existing OpenShift (pca-operators is ROSA/ARO only).
+  Default create=false so ROSA/ARO GitOps does not double-own Namespace/Kuadrant
+  with pca-operators (ArgoCD SSA + selfHeal). Existing OpenShift sets maas.kuadrant.create=true.
+*/}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $kNs }}
+  labels:
+    app.kubernetes.io/part-of: pca-maas-front-door
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: {{ $k.name | default "kuadrant" }}
+  namespace: {{ $kNs }}
+  labels:
+    app.kubernetes.io/part-of: pca-maas-front-door
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  mtls:
+    # Two Authorino clients, one listener. PCA's EnvoyFilter ext_authz cluster
+    # is plaintext (listener.tls.enabled stays false). Kuadrant WASM on
+    # openshift-default is STATS/fail-open, so AuthPolicy is not the gate.
+    # authorino: true would TLS-wrap Authorino and 403 every EnvoyFilter check.
+    authorino: false
+{{- end }}
