@@ -8,11 +8,18 @@ SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
 
 AI_NAMESPACE="${AI_NAMESPACE:-private-assistant-ai-serving}"
+# qwen3.6 default; model.variant=qwen3.8 deploys qwen3-8-coder. Override with LLMIS_NAME=.
+_LLMIS_NAME_EXPLICIT=${LLMIS_NAME+1}
 LLMIS_NAME="${LLMIS_NAME:-qwen3-coder}"
-GATEWAY_CLASS="data-science-gateway-class"
+# Istio names Gateway Services {name}-{gatewayClass}.{ns}.svc. Do not assume
+# data-science-gateway-class: existing OpenShift MaaS is often openshift-default.
+# llm-d uses its own Gateway class. Override: PCA_MAAS_GATEWAY_CLASS / PCA_LLMD_GATEWAY_CLASS.
+DEFAULT_GATEWAY_CLASS="data-science-gateway-class"
 LLMD_GATEWAY="llm-d-gateway"
-AI_GATEWAY="pca-ai-gateway"
-APIKEY_SECRET="pca-ai-gw-apikey"
+AI_GATEWAY="maas-default-gateway"
+AI_GATEWAY_NS="openshift-ingress"
+APIKEY_SECRET="pca-maas-apikey"
+APIKEY_SECRET_LEGACY="pca-ai-gw-apikey"
 APIKEY_KEY="api_key"
 CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.5.0}"
 VIA="${VIA:-gateway}"
@@ -42,6 +49,8 @@ Env:
   DW_NAME        DevWorkspace name; default code-workspace-<N> inferred from
                  DEV_USER=dev-user<N> (falls back to code-workspace-1)
   VIA            gateway (RHCL), llmd, or opencode
+  PCA_MAAS_GATEWAY_CLASS  MaaS ClusterIP class (else live Gateway spec)
+  PCA_LLMD_GATEWAY_CLASS  llm-d ClusterIP class (else live Gateway spec)
   RUN_ID         evidence + pod label (lowercase DNS-safe)
   EVIDENCE_DIR   default .cursor/skills/verify-pca/artifacts/\$RUN_ID
   PROMPT         chat user text (default includes RUN_ID token)
@@ -168,7 +177,7 @@ ide_via_from_url() {
 	local url="$1"
 	if [[ $url == *guardrails-proxy* ]]; then
 		echo guardrails
-	elif [[ $url == *pca-ai-gateway* ]]; then
+	elif [[ $url == *maas-default-gateway* || $url == *pca-ai-gateway* ]]; then
 		echo gateway
 	elif [[ $url == *llm-d-gateway* ]]; then
 		echo llmd
@@ -179,12 +188,45 @@ ide_via_from_url() {
 	fi
 }
 
+gateway_class_from_cr() {
+	local name="$1" ns="$2"
+	oc get gateway "$name" -n "$ns" -o jsonpath='{.spec.gatewayClassName}' 2>/dev/null || true
+}
+
+maas_gateway_class() {
+	if [[ -n ${PCA_MAAS_GATEWAY_CLASS:-} ]]; then
+		echo "$PCA_MAAS_GATEWAY_CLASS"
+		return
+	fi
+	local cls
+	cls=$(gateway_class_from_cr "$AI_GATEWAY" "$AI_GATEWAY_NS" | tr -d '\n')
+	if [[ -n $cls ]]; then
+		echo "$cls"
+		return
+	fi
+	echo "$DEFAULT_GATEWAY_CLASS"
+}
+
+llmd_gateway_class() {
+	if [[ -n ${PCA_LLMD_GATEWAY_CLASS:-} ]]; then
+		echo "$PCA_LLMD_GATEWAY_CLASS"
+		return
+	fi
+	local cls
+	cls=$(gateway_class_from_cr "$LLMD_GATEWAY" "$AI_NAMESPACE" | tr -d '\n')
+	if [[ -n $cls ]]; then
+		echo "$cls"
+		return
+	fi
+	echo "$DEFAULT_GATEWAY_CLASS"
+}
+
 llmd_v1() {
-	echo "https://${LLMD_GATEWAY}-${GATEWAY_CLASS}.${AI_NAMESPACE}.svc.cluster.local/v1"
+	echo "https://${LLMD_GATEWAY}-$(llmd_gateway_class).${AI_NAMESPACE}.svc.cluster.local/v1"
 }
 
 ai_gw_v1() {
-	echo "https://${AI_GATEWAY}-${GATEWAY_CLASS}.${AI_NAMESPACE}.svc.cluster.local/v1"
+	echo "https://${AI_GATEWAY}-$(maas_gateway_class).${AI_GATEWAY_NS}.svc.cluster.local/v1"
 }
 
 via_v1() {
@@ -196,8 +238,8 @@ via_v1() {
 }
 
 condition_status() {
-	local resource="$1" name="$2" ctype="$3" json
-	json=$(oc get "$resource" "$name" -n "$AI_NAMESPACE" -o json 2>/dev/null) || {
+	local resource="$1" name="$2" ctype="$3" ns="${4:-$AI_NAMESPACE}" json
+	json=$(oc get "$resource" "$name" -n "$ns" -o json 2>/dev/null) || {
 		echo ""
 		return 0
 	}
@@ -212,11 +254,24 @@ for c in (obj.get("status") or {}).get("conditions") or []:
 ' "$ctype"
 }
 
+resolve_llmis_name() {
+	# Keep an explicit LLMIS_NAME=. Otherwise try the qwen3.8 CR name.
+	[[ -n ${_LLMIS_NAME_EXPLICIT:-} ]] && return
+	if oc get llminferenceservice "$LLMIS_NAME" -n "$AI_NAMESPACE" >/dev/null 2>&1; then
+		return
+	fi
+	local alt="qwen3-8-coder"
+	if oc get llminferenceservice "$alt" -n "$AI_NAMESPACE" >/dev/null 2>&1; then
+		LLMIS_NAME="$alt"
+	fi
+}
+
 model_id() {
 	if [[ -n ${MODEL_ID:-} ]]; then
 		echo "$MODEL_ID"
 		return
 	fi
+	resolve_llmis_name
 	local name
 	name=$(oc get llminferenceservice "$LLMIS_NAME" -n "$AI_NAMESPACE" \
 		-o jsonpath='{.spec.model.name}' 2>/dev/null || true)
@@ -228,10 +283,14 @@ model_id() {
 }
 
 apikey() {
-	local ns
+	local ns secret
 	ns=$(dev_namespace)
 	[[ -n $ns ]] || die "gateway auth needs DEV_USER or DEV_NAMESPACE"
-	oc get secret "$APIKEY_SECRET" -n "$ns" -o jsonpath="{.data.${APIKEY_KEY}}" |
+	secret="$APIKEY_SECRET"
+	if ! oc get secret "$secret" -n "$ns" >/dev/null 2>&1; then
+		secret="$APIKEY_SECRET_LEGACY"
+	fi
+	oc get secret "$secret" -n "$ns" -o jsonpath="{.data.${APIKEY_KEY}}" |
 		base64 -d
 }
 
@@ -343,6 +402,7 @@ cmd_doctor() {
 	fi
 
 	if [[ $ns_ok == true ]]; then
+		resolve_llmis_name
 		if oc get llminferenceservice "$LLMIS_NAME" -n "$AI_NAMESPACE" >/dev/null 2>&1; then
 			llmis_ready=$(condition_status llminferenceservice "$LLMIS_NAME" Ready || true)
 		else
@@ -353,9 +413,9 @@ cmd_doctor() {
 		else
 			err="Gateway/$LLMD_GATEWAY missing in $AI_NAMESPACE"
 		fi
-		if oc get gateway "$AI_GATEWAY" -n "$AI_NAMESPACE" >/dev/null 2>&1; then
+		if oc get gateway "$AI_GATEWAY" -n "$AI_GATEWAY_NS" >/dev/null 2>&1; then
 			gw_present="true"
-			ai_acc=$(condition_status gateway "$AI_GATEWAY" Accepted || true)
+			ai_acc=$(condition_status gateway "$AI_GATEWAY" Accepted "$AI_GATEWAY_NS" || true)
 		fi
 		pvc=$(oc get pvc model-cache -n "$AI_NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null || echo missing)
 		model=$(model_id)
@@ -373,7 +433,7 @@ cmd_doctor() {
 		done
 	fi
 
-	local dns dwn
+	local dns dwn key_secret=""
 	dns=$(dev_namespace)
 	dwn=$(dw_name)
 	if [[ -n $dns ]]; then
@@ -385,11 +445,15 @@ cmd_doctor() {
 		if oc get secret "$APIKEY_SECRET" -n "$dns" >/dev/null 2>&1; then
 			local k
 			k=$(oc get secret "$APIKEY_SECRET" -n "$dns" -o jsonpath="{.data.${APIKEY_KEY}}" 2>/dev/null || true)
+			key_secret="$APIKEY_SECRET"
 			if [[ -n $k ]]; then
 				key_present="true"
 			else
 				key_present="empty"
 			fi
+		elif oc get secret "$APIKEY_SECRET_LEGACY" -n "$dns" >/dev/null 2>&1; then
+			key_secret="$APIKEY_SECRET_LEGACY"
+			key_present="stale"
 		else
 			key_present="missing"
 		fi
@@ -403,6 +467,10 @@ cmd_doctor() {
 		[[ $pvc == Bound ]] || ok=false
 		[[ $workload_ok == true ]] || ok=false
 		if [[ $gw_present == true && $ai_acc != True ]]; then
+			ok=false
+		fi
+		if [[ $ide_via == gateway && $key_present == stale ]]; then
+			err="IDE_VIA=gateway but leftover $APIKEY_SECRET_LEGACY in $dns. Redeploy pca-devspaces so secret/$APIKEY_SECRET is minted."
 			ok=false
 		fi
 	else
@@ -435,6 +503,10 @@ cmd_doctor() {
 		echo "LLMD_GATEWAY_ACCEPTED=${llmd_acc:-unknown}"
 		echo "AI_GATEWAY_PRESENT=$gw_present"
 		echo "AI_GATEWAY_ACCEPTED=$ai_acc"
+		echo "MAAS_GATEWAY_CLASS=$(maas_gateway_class)"
+		echo "MAAS_GATEWAY_V1=$(ai_gw_v1)"
+		echo "LLMD_GATEWAY_CLASS=$(llmd_gateway_class)"
+		echo "LLMD_GATEWAY_V1=$(llmd_v1)"
 		echo "PVC_PHASE=${pvc:-unknown}"
 		echo "WORKLOAD_POD_RUNNING=$workload_ok"
 		echo "MODEL_ID=$model"
@@ -443,6 +515,7 @@ cmd_doctor() {
 		echo "IDE_BASE_URL=${ide_url:-}"
 		echo "IDE_VIA=$ide_via"
 		echo "API_KEY_PRESENT=$key_present"
+		echo "API_KEY_SECRET=${key_secret:-}"
 		echo "RUN_ID=$RUN_ID"
 		echo "EVIDENCE_DIR=$EVIDENCE_DIR"
 		if [[ $mode == devspace ]]; then
