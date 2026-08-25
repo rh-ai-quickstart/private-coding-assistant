@@ -48,7 +48,7 @@ DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
 # Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
 DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
 
-.PHONY: build shell run help smoke e2e performance performance-vllm unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable sync-guardrails-patterns
+.PHONY: build shell run help smoke e2e performance performance-vllm unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable sync-guardrails-patterns
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -63,6 +63,10 @@ shell: ## Start an interactive shell inside the container
 run: ## Run a one-shot command (usage: make run CMD="terraform plan")
 	podman run $(RUN_FLAGS) $(IMAGE_NAME) $(CMD)
 
+# HELM_ARGS may include --set maas.hostname=<Gateway/Route host> so HTTPRoute,
+# AuthConfig, and EnvoyFilter share the public vhost. Empty keeps Istio *:443.
+#   oc get gateway maas-default-gateway -n openshift-ingress
+# Do not commit cluster hostnames in values files.
 ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift (AI_NAMESPACE=, HF_TOKEN=, MCP_ENABLED=false)
 	@if [ -z "$(HF_TOKEN)" ]; then echo "ERROR: HF_TOKEN is required. Set in .env or pass HF_TOKEN=hf_xxx"; exit 1; fi
 	helm dependency update $(CHARTS_DIR)/pca-platform-config
@@ -83,15 +87,14 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 		$(HELM_ARGS)
 
 # Default: helm uninstall only — keeps AI_NAMESPACE + model-cache PVC (warm restart path).
-# Full wipe (cold start next deploy): DELETE_NAMESPACE=1
+# Full wipe (cold start next deploy): make undeploy-existing-openshift
 ai-serving-undeploy-existing-openshift: ## Remove AI serving Helm releases; keep ns/PVC unless DELETE_NAMESPACE=1
-	helm uninstall $(AI_NAMESPACE)-ai-serving --namespace $(AI_NAMESPACE) --ignore-not-found || true
-	helm uninstall $(AI_NAMESPACE)-platform-config --namespace $(AI_NAMESPACE) --ignore-not-found || true
-	@if [ "$(DELETE_NAMESPACE)" = "1" ]; then \
-		oc delete namespace $(AI_NAMESPACE) --ignore-not-found; \
-	else \
-		echo "Kept namespace $(AI_NAMESPACE) and model-cache PVC (warm path). Full wipe: make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1"; \
-	fi
+	SKIP_DEVSPACES=1 DELETE_NAMESPACE=$(if $(filter 1,$(DELETE_NAMESPACE)),1,0) \
+		AI_NAMESPACE="$(AI_NAMESPACE)" \
+		$(DEPLOY_SCRIPTS_DIR)/undeploy.sh
+
+undeploy-existing-openshift: ## Full wipe: demo DevSpaces + AI serving + namespaces (cold next deploy)
+	AI_NAMESPACE="$(AI_NAMESPACE)" $(DEPLOY_SCRIPTS_DIR)/undeploy.sh
 
 devspace-deploy-existing-openshift: ## Deploy DevSpaces: N=<count> (dev-user1..N) or DEV_USER=<username> (ns = <user>-devspaces)
 	@N="$(N)" DEV_USER="$(DEV_USER)" \
@@ -134,7 +137,8 @@ mcp-disable: ## Disable MCP on stack (AI_NAMESPACE=, optional DEV_USER= for that
 smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_USER=, COMPONENT=, N_PARALLEL= xdist workers)
 	$(MAKE) -C tests/cluster-smoke smoke \
 		AI_NAMESPACE=$(AI_NAMESPACE) DEV_NAMESPACE=$(DEV_NAMESPACE) \
-		COMPONENT=$(COMPONENT) N_PARALLEL=$(N_PARALLEL) PYTEST_ARGS='$(PYTEST_ARGS)'
+		COMPONENT=$(COMPONENT) N_PARALLEL=$(N_PARALLEL) PYTEST_ARGS='$(PYTEST_ARGS)' \
+		PCA_MAAS_HOSTNAME='$(PCA_MAAS_HOSTNAME)' PCA_MAAS_GATEWAY_CLASS='$(PCA_MAAS_GATEWAY_CLASS)'
 
 unit: ## Local unit tests (PYTEST_ARGS=)
 	python -m pytest tests/unit -v $(PYTEST_ARGS)

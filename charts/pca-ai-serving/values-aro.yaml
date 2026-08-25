@@ -43,15 +43,14 @@ epp:
   enabled: false
 tlsJob:
   enabled: true
+# pca-platform-config owns Gateway/maas-default-gateway on ARO.
 aiGateway:
-  enabled: true
   tls:
     secretName: "llm-d-gateway-tls"
 observability:
   enabled: true
-# ARO previously opted out of guardrails on platform-config; keep off on ai-serving.
 guardrails:
-  enabled: false
+  enabled: true
 pca-observability:
   namespace: ai-serving
   grafana:
