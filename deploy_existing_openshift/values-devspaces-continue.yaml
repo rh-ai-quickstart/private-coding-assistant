@@ -2,9 +2,13 @@
 # Deploy with: TYPE=continue DEV_USER=<username> make devspace-deploy-existing-openshift ...
 devspacesGlobalConfig:
   enabled: true
-aiGateway:
+maas:
   enabled: true
+  gatewayClassName: openshift-default
+aiGateway:
+  enabled: false
   escapeHatchToLlmd: false
+  apiKeySecretName: pca-maas-apikey
 opencodeBuild:
   enabled: false
 devspaces:

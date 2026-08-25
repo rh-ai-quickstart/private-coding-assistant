@@ -6,11 +6,16 @@ tokens:
   output: 8192
 devspacesGlobalConfig:
   enabled: true
-# IDE traffic defaults to RHCL AI Gateway (pca-ai-gateway). Per-DevSpace API keys
-# are created automatically and mirrored into AI_NAMESPACE for AuthPolicy.
-aiGateway:
+# IDE traffic defaults to maas-default-gateway (RHCL + API keys).
+# Existing OpenShift Gateway class is openshift-default (not ROSA/ARO
+# data-science-gateway-class). ClusterIP is {gateway}-{class}.
+maas:
   enabled: true
+  gatewayClassName: openshift-default
+aiGateway:
+  enabled: false
   escapeHatchToLlmd: false
+  apiKeySecretName: pca-maas-apikey
 opencodeBuild:
   enabled: true
   opencodeVersion: "1.15.13"
