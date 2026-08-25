@@ -29,10 +29,16 @@ tlsJob:
 # pca-platform-config owns Gateway/maas-default-gateway on ROSA.
 observability:
   enabled: true
+semanticRouter:
+  enabled: true
+global:
+  semanticRouter:
+    enabled: true
 pca-observability:
   grafana:
     enabled: true
   langfuse:
-    enabled: false
+    enabled: true
+    ioCapture: full
   prometheus:
     accessMode: cluster
