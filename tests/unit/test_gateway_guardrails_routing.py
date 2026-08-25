@@ -121,6 +121,10 @@ def test_devspaces_chat_url_is_gateway_with_api_key_when_guardrails_on():
             "dashboardSamples.enabled=false",
             "--set",
             "devspaces[0].type=continue",
+            "--set",
+            "devspaces[0].user=dev-user1",
+            "--set",
+            "devspaces[0].namespace=dev-user1-devspaces",
         ],
     )
     docs = _docs(rendered)
@@ -128,9 +132,9 @@ def test_devspaces_chat_url_is_gateway_with_api_key_when_guardrails_on():
     secrets = [
         doc
         for doc in docs
-        if doc.get("kind") == "Secret" and doc.get("metadata", {}).get("name") == "pca-ai-gw-apikey"
+        if doc.get("kind") == "Secret" and doc.get("metadata", {}).get("name") == "pca-maas-apikey"
     ]
-    assert secrets, "pca-ai-gw-apikey Secret missing"
+    assert secrets, "pca-maas-apikey Secret missing"
 
     continue_cm = None
     for doc in docs:
@@ -139,12 +143,16 @@ def test_devspaces_chat_url_is_gateway_with_api_key_when_guardrails_on():
             break
     assert continue_cm is not None, "continue-config ConfigMap missing"
     config_yaml = continue_cm.get("data", {}).get("config.yaml") or ""
-    assert "pca-ai-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1" in config_yaml
-    assert "llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1" in config_yaml
+    host = (
+        "maas-default-gateway-data-science-gateway-class."
+        "openshift-ingress.svc.cluster.local"
+    )
+    assert f"{host}/v1" in config_yaml
+    assert f"{host}/local/v1" in config_yaml
+    assert "pca-ai-gateway-data-science-gateway-class" not in config_yaml
     assert "guardrails-proxy" not in config_yaml
 
     config = yaml.safe_load(config_yaml)
     assert config["models"][0]["apiKey"] != "EMPTY"
-    # tabAutocompleteModel talks to llm-d directly (unauthenticated) when guardrails is
-    # on, so it must not carry the real gateway key (see continue-configmaps.yaml).
-    assert config["tabAutocompleteModel"]["apiKey"] == "EMPTY"
+    assert config["tabAutocompleteModel"]["apiKey"] != "EMPTY"
+    assert config["tabAutocompleteModel"]["apiBase"].endswith("/local/v1")
