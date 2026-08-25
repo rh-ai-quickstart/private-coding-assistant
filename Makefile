@@ -38,6 +38,9 @@ PYTEST_ARGS ?=
 N ?=
 # Performance ladder concurrency list (e.g. 1,2,4).
 N_LIST ?= 16
+# GuideLLM concurrent stream list (e.g. 1,4). Empty = chart default 1,4,8,16.
+# Do not pass this as HELM_ARGS=--set streams=1,4 — Helm splits on comma.
+STREAMS ?=
 # InferenceService / LLMInferenceService name for performance GPU sampling.
 MODEL_NAME ?= qwen3-coder
 # Smoke pytest-xdist workers (default 4).
@@ -166,7 +169,7 @@ performance: ## OpenCode scalability ladder (N_LIST=1,2,4,8 16; AI_NAMESPACE=; M
 
 # Do not run alongside make performance — shared vLLM/GPU.
 # GuideLLM Job → vLLM predictor HTTP (concurrent streams + throughput probe).
-performance-vllm: ## GuideLLM capacity sweep on live vLLM (AI_NAMESPACE=; HELM_ARGS=)
+performance-vllm: ## GuideLLM capacity sweep on live vLLM (AI_NAMESPACE=; STREAMS=1,4; HELM_ARGS=)
 	@command -v oc >/dev/null || { echo "ERROR: oc not found in PATH"; exit 1; }
 	@command -v helm >/dev/null || { echo "ERROR: helm not found in PATH"; exit 1; }
 	@echo "NOTE: Do not run make performance in parallel — shared vLLM/GPU."
@@ -177,6 +180,7 @@ performance-vllm: ## GuideLLM capacity sweep on live vLLM (AI_NAMESPACE=; HELM_A
 		-f $(DEPLOY_VALUES_DIR)/values-benchmarks.yaml \
 		--set namespace=$(AI_NAMESPACE) \
 		--set enabled=true \
+		$(if $(STREAMS),--set-json streams='"$(STREAMS)"') \
 		$(HELM_ARGS)
 	@echo "Started Job guidellm-capacity in $(AI_NAMESPACE) (stateless — results in Job logs)."
 	@echo "Follow logs:  oc logs -n $(AI_NAMESPACE) -f job/guidellm-capacity"
