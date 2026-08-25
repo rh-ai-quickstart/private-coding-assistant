@@ -19,6 +19,8 @@ class WorkerResult:
     decode_secs: float = 0.0  # first text → turn end (may include tools)
     completion_tokens: int = 0
     llm_calls: int = 0
+    first_llm_call_secs: float | None = None
+    last_llm_call_secs: float | None = None
     error: str | None = None
 
     @property
@@ -48,6 +50,10 @@ class StageResult:
     avg_llm_calls: float = 0.0
     gpu_util_pct: float | None = None
     gpu_mean_util_pct: float | None = None
+    avg_first_llm_call_secs: float | None = None
+    avg_last_llm_call_secs: float | None = None
+    avg_guardrails_overhead_secs: float | None = None
+    avg_semantic_router_hop_secs: float | None = None
     errors: list[str] = field(default_factory=list)
 
 
@@ -76,6 +82,8 @@ def stage_from_workers(
     *,
     gpu_util_pct: float | None = None,
     gpu_mean_util_pct: float | None = None,
+    guardrails_overhead_secs: float | None = None,
+    semantic_router_hop_secs: float | None = None,
 ) -> StageResult:
     ok_workers = [w for w in workers if w.ok]
     ok = len(ok_workers)
@@ -107,6 +115,16 @@ def stage_from_workers(
     ]
     prefills = [w.prefill_secs for w in ok_workers if w.prefill_secs > 0]
     decodes = [w.decode_secs for w in ok_workers if w.decode_secs > 0]
+    first_calls = [
+        w.first_llm_call_secs
+        for w in ok_workers
+        if w.first_llm_call_secs is not None
+    ]
+    last_calls = [
+        w.last_llm_call_secs
+        for w in ok_workers
+        if w.last_llm_call_secs is not None
+    ]
     e2e = (output_tokens / makespan_secs) if makespan_secs > 0 else 0.0
     errors = [w.error for w in workers if w.error]
     return StageResult(
@@ -128,6 +146,10 @@ def stage_from_workers(
         avg_llm_calls=(llm_calls / ok) if ok else 0.0,
         gpu_util_pct=gpu_util_pct,
         gpu_mean_util_pct=gpu_mean_util_pct,
+        avg_first_llm_call_secs=_mean(first_calls),
+        avg_last_llm_call_secs=_mean(last_calls),
+        avg_guardrails_overhead_secs=guardrails_overhead_secs,
+        avg_semantic_router_hop_secs=semantic_router_hop_secs,
         errors=errors,
     )
 
@@ -151,6 +173,10 @@ def format_report(rows: list[StageResult]) -> str:
         "non-generation overhead (sec)",
         "avg prefill time per user (sec)",
         "avg decode time per user (sec)",
+        "avg first LLM call per user (sec)",
+        "avg last LLM call per user (sec)",
+        "avg guardrails overhead per conversation (sec)",
+        "avg semantic-router hop per conversation (sec)",
         "total output tokens",
         "avg output tokens per user",
         "total LLM model calls",
@@ -186,6 +212,10 @@ def format_report(rows: list[StageResult]) -> str:
                     f"{r.overhead_secs:.1f}",
                     _fmt(r.avg_prefill_secs),
                     _fmt(r.avg_decode_secs),
+                    _fmt(r.avg_first_llm_call_secs),
+                    _fmt(r.avg_last_llm_call_secs),
+                    _fmt(r.avg_guardrails_overhead_secs),
+                    _fmt(r.avg_semantic_router_hop_secs),
                     str(r.output_tokens),
                     f"{r.avg_output_tokens:.1f}",
                     str(r.llm_calls),

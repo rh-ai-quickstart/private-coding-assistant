@@ -152,6 +152,56 @@ def _assistant_output_tokens(message: dict[str, Any]) -> int:
     return 0
 
 
+def _message_created_completed(
+    message: dict[str, Any],
+) -> tuple[float | None, float | None]:
+    """Return (created, completed) timestamps from an OpenCode session message."""
+    info = message.get("info") if isinstance(message.get("info"), dict) else {}
+    blobs: list[dict[str, Any]] = []
+    for src in (info, message):
+        if not isinstance(src, dict):
+            continue
+        time_blob = src.get("time")
+        if isinstance(time_blob, dict):
+            blobs.append(time_blob)
+        blobs.append(src)
+    created: float | None = None
+    completed: float | None = None
+    for blob in blobs:
+        if created is None and blob.get("created") is not None:
+            try:
+                created = float(blob["created"])
+            except (TypeError, ValueError):
+                pass
+        if completed is None and blob.get("completed") is not None:
+            try:
+                completed = float(blob["completed"])
+            except (TypeError, ValueError):
+                pass
+        if created is not None and completed is not None:
+            break
+    return created, completed
+
+
+def durations_from_messages(messages: list[dict[str, Any]]) -> list[float]:
+    """Per-LLM-call durations in seconds, oldest first.
+
+    Uses assistant/model messages with output tokens > 0 (same filter as
+    count_llm_calls). OpenCode ``created`` / ``completed`` are milliseconds.
+    Messages without both timestamps are skipped.
+    """
+    timed: list[tuple[float, float]] = []
+    for msg in messages:
+        if _assistant_output_tokens(msg) <= 0:
+            continue
+        created, completed = _message_created_completed(msg)
+        if created is None or completed is None or completed < created:
+            continue
+        timed.append((created, (completed - created) / 1000.0))
+    timed.sort(key=lambda item: item[0])
+    return [duration for _, duration in timed]
+
+
 def resolve_model_ids(namespace: str, pod: str) -> tuple[str, str]:
     """Return (provider_id, model_id) from pod env / opencode.json."""
     result = oc.exec_in_pod(
@@ -219,20 +269,34 @@ class OpenCodeClient:
     def __exit__(self, *args: object) -> None:
         self.close()
 
-    def _request(
+    def _new_client(self, timeout: float) -> httpx.Client:
+        headers = {DIRECTORY_HEADER: self.directory} if self.directory else None
+        return httpx.Client(
+            base_url=self.base_url,
+            auth=(self._username, self._password),
+            verify=False,
+            timeout=httpx.Timeout(timeout, connect=30.0),
+            headers=headers,
+        )
+
+    def _request_with(
         self,
+        client: httpx.Client,
         method: str,
         path: str,
         *,
         json_body: dict[str, Any] | None = None,
         timeout: float | None = None,
     ) -> Any:
-        resp = self._client.request(
-            method,
-            path,
-            json=json_body,
-            timeout=timeout or self.timeout_secs,
-        )
+        try:
+            resp = client.request(
+                method,
+                path,
+                json=json_body,
+                timeout=timeout or self.timeout_secs,
+            )
+        except httpx.HTTPError as exc:
+            raise OpenCodeError(f"{method} {path} failed: {exc}") from exc
         if resp.status_code >= 400:
             raise OpenCodeError(
                 f"{method} {path} -> {resp.status_code}: {resp.text[:800]}"
@@ -243,6 +307,22 @@ class OpenCodeClient:
             return resp.json()
         except ValueError:
             return resp.text
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        timeout: float | None = None,
+    ) -> Any:
+        return self._request_with(
+            self._client,
+            method,
+            path,
+            json_body=json_body,
+            timeout=timeout,
+        )
 
     def health(self) -> dict[str, Any]:
         body = self._request("GET", "/global/health", timeout=30.0)
@@ -278,31 +358,60 @@ class OpenCodeClient:
         wait = timeout or self.timeout_secs
         deadline = time.time() + wait
         last_error: Exception | None = None
-        while time.time() < deadline:
+        stop = threading.Event()
+
+        def _approve_loop() -> None:
+            # Separate client: httpx.Client is not safe for concurrent use.
+            try:
+                with self._new_client(30.0) as perm_client:
+                    while not stop.wait(1.0):
+                        try:
+                            self._approve_pending_permissions(perm_client, session_id)
+                        except OpenCodeError as exc:
+                            log.debug("permission poll: %s", exc)
+            except Exception as exc:  # noqa: BLE001 — best-effort while POST is in flight
+                log.warning("permission approver stopped: %s", exc)
+
+        approver: threading.Thread | None = None
+        if allow_permissions:
+            self.approve_pending_permissions(session_id)
+            approver = threading.Thread(
+                target=_approve_loop, name="opencode-perm", daemon=True
+            )
+            approver.start()
+        try:
+            while time.time() < deadline:
+                remaining = max(deadline - time.time(), 1.0)
+                try:
+                    body = self._request(
+                        "POST",
+                        f"/session/{session_id}/message",
+                        json_body=payload,
+                        timeout=remaining,
+                    )
+                    if allow_permissions:
+                        self.approve_pending_permissions(session_id)
+                    if not isinstance(body, dict):
+                        raise OpenCodeError(f"unexpected message response: {body!r}")
+                    err = (body.get("info") or {}).get("error")
+                    if err:
+                        raise OpenCodeError(f"OpenCode assistant error: {err!r}")
+                    return body
+                except OpenCodeError as exc:
+                    last_error = exc
+                    if allow_permissions and self.approve_pending_permissions(
+                        session_id
+                    ):
+                        time.sleep(1)
+                        continue
+                    raise
+            raise OpenCodeError(f"send_message timed out: {last_error}")
+        finally:
+            stop.set()
+            if approver is not None:
+                approver.join(timeout=2.0)
             if allow_permissions:
                 self.approve_pending_permissions(session_id)
-            try:
-                body = self._request(
-                    "POST",
-                    f"/session/{session_id}/message",
-                    json_body=payload,
-                    timeout=wait,
-                )
-                if allow_permissions:
-                    self.approve_pending_permissions(session_id)
-                if not isinstance(body, dict):
-                    raise OpenCodeError(f"unexpected message response: {body!r}")
-                err = (body.get("info") or {}).get("error")
-                if err:
-                    raise OpenCodeError(f"OpenCode assistant error: {err!r}")
-                return body
-            except OpenCodeError as exc:
-                last_error = exc
-                if allow_permissions and self.approve_pending_permissions(session_id):
-                    time.sleep(1)
-                    continue
-                raise
-        raise OpenCodeError(f"send_message timed out: {last_error}")
 
     def session_diff(self, session_id: str) -> Any:
         return self._request("GET", f"/session/{session_id}/diff", timeout=60.0)
@@ -335,6 +444,10 @@ class OpenCodeClient:
                 output_tokens += out
         return calls, output_tokens
 
+    def llm_call_durations_secs(self, session_id: str) -> list[float]:
+        """Per-call durations (sec) from session messages, oldest first."""
+        return durations_from_messages(self.list_session_messages(session_id))
+
     def run_turn_with_generation_timing(
         self,
         session_id: str,
@@ -358,18 +471,11 @@ class OpenCodeClient:
         first_text_box: list[float] = []
         stop = threading.Event()
         sse_ready = threading.Event()
-        headers = {DIRECTORY_HEADER: self.directory} if self.directory else None
 
         def _sse_reader() -> None:
             # Separate client: httpx.Client is not safe for concurrent use.
             try:
-                with httpx.Client(
-                    base_url=self.base_url,
-                    auth=(self._username, self._password),
-                    verify=False,
-                    timeout=httpx.Timeout(wait + 60.0, connect=30.0),
-                    headers=headers,
-                ) as sse_client:
+                with self._new_client(wait + 60.0) as sse_client:
                     with sse_client.stream("GET", "/event") as resp:
                         if resp.status_code >= 400:
                             log.warning(
@@ -458,9 +564,16 @@ class OpenCodeClient:
             reader.join(timeout=2.0)
 
     def approve_pending_permissions(self, session_id: str) -> bool:
+        return self._approve_pending_permissions(self._client, session_id)
+
+    def _approve_pending_permissions(
+        self, client: httpx.Client, session_id: str
+    ) -> bool:
         approved = False
         try:
-            status = self._request("GET", "/session/status", timeout=30.0)
+            status = self._request_with(
+                client, "GET", "/session/status", timeout=30.0
+            )
         except OpenCodeError:
             status = None
         if isinstance(status, dict):
@@ -475,7 +588,8 @@ class OpenCodeClient:
                 if not pid:
                     continue
                 try:
-                    self._request(
+                    self._request_with(
+                        client,
                         "POST",
                         f"/session/{session_id}/permissions/{pid}",
                         json_body={"response": "once"},
@@ -483,6 +597,6 @@ class OpenCodeClient:
                     )
                     approved = True
                     log.info("approved OpenCode permission %s", pid)
-                except OpenCodeError as exc:
-                    log.warning("permission approve failed for %s: %s", pid, exc)
+                except OpenCodeError as extra:
+                    log.warning("permission approve failed for %s: %s", pid, extra)
         return approved

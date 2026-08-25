@@ -28,7 +28,7 @@ def require_opencode_users(max_n: int) -> list[str]:
             via_gateway = False
             if dw is not None:
                 base = oc.devworkspace_env(dw).get("OPENAI_BASE_URL", "")
-                via_gateway = "pca-ai-gateway" in base
+                via_gateway = oc.is_maas_openai_base_url(base)
             if via_gateway:
                 if not oc.resource_exists(
                     "secret", AI_GATEWAY_APIKEY_SECRET, namespace=ns
