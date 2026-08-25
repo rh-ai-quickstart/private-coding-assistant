@@ -8,6 +8,12 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 data:
+  sse_http.py: |
+{{ .Files.Get "files/sse_http.py" | indent 4 }}
+  guardrails_outcome.py: |
+{{ .Files.Get "files/guardrails_outcome.py" | indent 4 }}
+  guardrails_langfuse.py: |
+{{ .Files.Get "files/guardrails_langfuse.py" | indent 4 }}
   guardrails_proxy.py: |
 {{ .Files.Get "files/guardrails_proxy.py" | indent 4 }}
 ---
@@ -30,6 +36,9 @@ spec:
     metadata:
       annotations:
         checksum/script: {{ .Files.Get "files/guardrails_proxy.py" | sha256sum }}
+        checksum/sse-http: {{ .Files.Get "files/sse_http.py" | sha256sum }}
+        checksum/outcome: {{ .Files.Get "files/guardrails_outcome.py" | sha256sum }}
+        checksum/langfuse: {{ .Files.Get "files/guardrails_langfuse.py" | sha256sum }}
       labels:
         app.kubernetes.io/name: guardrails-proxy
         app.kubernetes.io/component: guardrails
@@ -44,6 +53,8 @@ spec:
           env:
             - name: ORCHESTRATOR_URL
               value: "https://pca-guardrails-service.{{ .Values.namespace }}.svc.cluster.local:8032"
+            - name: LLM_UPSTREAM_URL
+              value: "http://{{ include "pca-guardrails.llmHost" . }}.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.guardrails.llmService.port }}"
             - name: DETECTORS_JSON
               value: {{ include "guardrails.detectorsJson" . | quote }}
             - name: LISTEN_PORT
