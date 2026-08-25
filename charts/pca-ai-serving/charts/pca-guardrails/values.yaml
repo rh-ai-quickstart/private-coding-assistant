@@ -1,9 +1,10 @@
 namespace: ai-serving
+llmdGatewayService: llm-d-gateway-data-science-gateway-class
 guardrails:
   enforcement: block # block | warn | log-only
   llmService:
-    # llm-d Gateway Service ({gatewayName}-{gatewayClassName}) HTTP listener.
-    host: llm-d-gateway-data-science-gateway-class
+    # Empty: llm-d HTTP :80 (TrustyAI cannot HTTPS to vLLM :8000). Override to a Service name if needed.
+    host: ""
     port: 80
     tlsSecret: ""
   replicas: 1
@@ -16,7 +17,7 @@ guardrails:
   gateway:
     enabled: false
   # OpenAI-compatible /v1/chat/completions adapter in front of TrustyAI.
-  # RHCL pca-ai-gateway routes chat here after API-key auth. IDEs do not call this Service.
+  # RHCL / MaaS front door routes chat here after API-key auth. IDEs do not call this Service.
   proxy:
     enabled: true
   detectors:

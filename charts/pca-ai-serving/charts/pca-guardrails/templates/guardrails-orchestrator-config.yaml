@@ -14,7 +14,7 @@ data:
   config.yaml: |
     openai:
       service:
-        hostname: {{ .Values.guardrails.llmService.host }}.{{ .Values.namespace }}.svc.cluster.local
+        hostname: {{ include "pca-guardrails.llmHost" . }}.{{ .Values.namespace }}.svc.cluster.local
         port: {{ .Values.guardrails.llmService.port }}
         {{- if .Values.guardrails.llmService.tlsSecret }}
         tls:
