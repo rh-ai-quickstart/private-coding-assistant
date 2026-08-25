@@ -4,29 +4,30 @@ Deploy a private, self-hosted AI coding assistant on OpenShift so developers eac
 
 User-facing docs: [README.md](README.md) and [docs/](docs/).
 
-## Inference request path (RHCL + llm-d)
+## Inference request path (MaaS / RHCL + llm-d)
 
 ```mermaid
 flowchart TD
-  IDE[DevSpaces]
-  RHCL[RHCL AI Gateway]
-  GR[guardrails when enabled]
-  Local[llm-d]
-  Other[Other cluster]
-  Ext[External APIs]
-  EPP[EPP]
-  VLLM[vLLM]
+ IDE[DevSpaces]
+ MaaS[maas-default-gateway]
+ GR[guardrails when enabled]
+ SR[semantic router when enabled]
+ Local[llm-d]
+ Ext[External APIs]
+ EPP[EPP]
+ VLLM[vLLM]
 
-  IDE --> RHCL
-  RHCL --> GR
-  RHCL --> Local
-  GR --> Local
-  RHCL -.-> Other
-  RHCL -.-> Ext
-  Local --> EPP --> VLLM
+ IDE --> MaaS
+ MaaS --> GR
+ MaaS --> Local
+ GR --> SR
+ GR --> Local
+ SR --> Local
+ SR --> Ext
+ Local --> EPP --> VLLM
 ```
 
-Chat with guardrails on: IDE → `pca-ai-gateway` (API key) → `guardrails-proxy` → TrustyAI → llm-d → vLLM. Chat with guardrails off: IDE → `pca-ai-gateway` → llm-d → vLLM. Tab autocomplete with guardrails on skips to llm-d.
+Chat with guardrails on: IDE → `maas-default-gateway` (API key) → `guardrails-proxy` → TrustyAI → `pca-llm-upstream` (Semantic Router when enabled, else llm-d) → vLLM. Chat with guardrails off: IDE → `maas-default-gateway` → Semantic Router or llm-d. Continue tab autocomplete uses authenticated `/local/v1` (skips guardrails and SR). OpenCode has one `/v1` URL, so its completions still follow the chat path.
 
 ## Charts (waves)
 
@@ -37,7 +38,7 @@ ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
 | `pca-app-of-apps` | root | AppProject + child Applications; sync-wave ordering | `openshift-gitops` (no workloads) |
 | `pca-operators` | 1 | Operator Subscriptions, cert-manager, LWS, RHCL (Kuadrant) | `redhat-ods-operator` (RHOAI), `nvidia-gpu-operator`, `openshift-devspaces`, `openshift-nfd`, cert-manager, LWS, `kuadrant-system` |
 | `pca-platform-config` | 2 | Namespaces, HF token, DSC/DSCI, NFD, NVIDIA ClusterPolicy, CheCluster, OAuth HTPasswd, Maas gateway, LWS CR; optional `pca-mcp` | AI ns (default `ai-serving`); optional per-dev namespaces |
-| `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), llm-d gateway + HTTPRoute, RHCL AI Gateway (`pca-ai-gateway`) + AuthPolicy; optional `pca-guardrails`; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
+| `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), llm-d gateway + HTTPRoute, MaaS HTTPRoute on `maas-default-gateway` + AuthPolicy; optional `pca-guardrails` / `pca-semantic-router`; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
 | `pca-devspaces` | 4 | DevWorkspace, Roo/Continue/Cline ConfigMaps, per-ns API keys, RBAC; global DevSpaces ConfigMaps | Per-dev ns; globals in `openshift-devspaces` |
 | `pca-benchmarks` | 5 | GuideLLM capacity Job (concurrent + throughput; **disabled by default — opt-in / `make performance-vllm`**) | AI ns |
 
@@ -87,8 +88,8 @@ docs/                         # User-facing guides (architecture, requirements, 
 charts/                       # Unified Helm charts — single set for ROSA and ARO
 ├── pca-app-of-apps/          # Root ArgoCD AppProject + child Applications
 ├── pca-operators/            # Operator Subscriptions (RHOAI, GPU, DevSpaces, NFD, RHCL, …)
-├── pca-platform-config/      # Namespace, RBAC, secrets, DSC (+ optional guardrails, pca-mcp)
-├── pca-ai-serving/           # LLMInferenceService, llm-d + pca-ai-gateway; optional EPP, TLS job
+├── pca-platform-config/      # Namespace, RBAC, secrets, DSC (MaaS Managed), locked maas-default-gateway
+├── pca-ai-serving/           # LLMInferenceService, llm-d + MaaS HTTPRoute; optional SR, EPP, TLS job
 │   └── charts/pca-observability/  # Grafana + optional Langfuse/OTel Collector
 ├── pca-devspaces/            # Per-developer DevWorkspaces + Roo/Continue/Cline + API keys
 └── pca-benchmarks/           # GuideLLM capacity (optional; enabled in values-aro.yaml / make performance-vllm)
@@ -100,7 +101,7 @@ PCA_Deployment_ARO/           # ARO (Azure) — Terraform only
 └── terraform/                # Cluster provisioning (VNet, ARO cluster, GPU MachineSet)
 
 deploy_existing_openshift/    # Helm value overrides for existing OpenShift (no Terraform)
-├── README.md                 # Deploy steps + parameters (incl. RHCL prerequisite)
+├── README.md                 # Deploy steps + parameters (incl. RHCL + MaaS DSC patch)
 ├── values-platform-config.yaml
 ├── values-ai-serving.yaml
 └── values-devspaces.yaml

@@ -48,7 +48,7 @@ This quickstart deploys:
 | Layer | Technology |
 |-------|------------|
 | IDE | OpenShift Dev Spaces |
-| Auth front door | RHCL AI Gateway (`pca-ai-gateway`) |
+| Auth front door | MaaS / RHCL (`maas-default-gateway`) |
 | Routing | llm-d + Gateway API + EPP |
 | Serving | vLLM / KServe `LLMInferenceService` |
 | Platform | Red Hat OpenShift AI, NVIDIA GPU Operator, NFD |
@@ -56,7 +56,7 @@ This quickstart deploys:
 
 ### Architecture diagrams
 
-Developers → Dev Spaces → RHCL AI Gateway → llm-d → EPP → vLLM on NVIDIA GPU.
+Developers → Dev Spaces → maas-default-gateway → (optional guardrails / Semantic Router) → llm-d → vLLM on NVIDIA GPU.
 
 ![Inference traffic flow from Dev Spaces through RHCL AI Gateway to llm-d and vLLM](docs/images/architecture-traffic-flow.svg)
 
@@ -142,8 +142,10 @@ make smoke AI_NAMESPACE=ai-serving DEV_USER=dev-user1
 **Existing OpenShift** — remove with make:
 
 ```bash
-make devspace-undeploy-existing-openshift DEV_USER=dev-user1
-make ai-serving-undeploy-existing-openshift
+make undeploy-existing-openshift
+# or separately:
+make devspace-undeploy-existing-openshift          # all demo users (or DEV_USER= / N=)
+make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1
 ```
 
 **ARO** — follow [Destroying the Cluster](PCA_Deployment_ARO/README.md#destroying-the-cluster).

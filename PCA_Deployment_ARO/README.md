@@ -393,7 +393,7 @@ private-coding-assistant/              ← repo root
 │   │   ├── values-aro.yaml            #   ARO overrides (managed-csi storage class)
 │   │   ├── charts/pca-guardrails/     #   Optional: TrustyAI guardrails proxy
 │   │   └── charts/pca-mcp/           #   Optional: OpenShift MCP server
-│   ├── pca-ai-serving/                #   Wave 3: LLMInferenceService, llm-d, RHCL AI Gateway
+│   ├── pca-ai-serving/                #   Wave 3: LLMInferenceService, llm-d, MaaS front door
 │   │   ├── values.yaml
 │   │   ├── values-aro.yaml            #   ARO overrides (model, storage, EPP disabled, …)
 │   │   └── charts/pca-observability/ #   Optional: Grafana + Langfuse/OTel Collector
