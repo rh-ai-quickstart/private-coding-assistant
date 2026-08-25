@@ -30,14 +30,24 @@ def run_oc(
     timeout: int = 120,
     input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        ["oc", *args],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        input=input_text,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["oc", *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            input=input_text,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout if isinstance(exc.stdout, str) else ""
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        raise OcError(
+            f"oc {' '.join(args)} timed out after {timeout} seconds",
+            stdout=stdout,
+            stderr=stderr,
+            returncode=-1,
+        ) from exc
     if check and result.returncode != 0:
         raise OcError(
             f"oc {' '.join(args)} failed (rc={result.returncode}): {result.stderr.strip()}",

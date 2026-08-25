@@ -56,14 +56,13 @@ def _model_ids_from_devworkspace(dw: dict) -> tuple[str, str] | None:
     return "vllm", model
 
 
+_REPO_CLONE_TIMEOUT_SECS = 300
+_REPO_CLONE_ATTEMPTS = 2
+
+
 def _ensure_repo(namespace: str, pod: str) -> None:
     """Clone the load-probe repo once per workspace. Re-clone is ~12s of overhead."""
-    oc.exec_in_pod(
-        namespace,
-        pod,
-        "bash",
-        "-lc",
-        f"""
+    script = f"""
 set -euo pipefail
 if [ -d {REPO_DIR}/.git ]; then
   rm -f {REPO_DIR}/MODEL_REGISTRY_TODO.md
@@ -71,11 +70,32 @@ if [ -d {REPO_DIR}/.git ]; then
   exit 0
 fi
 rm -rf {REPO_DIR}
-git clone --depth 1 {REPO_URL} {REPO_DIR}
+GIT_TERMINAL_PROMPT=0 git clone --depth 1 {REPO_URL} {REPO_DIR}
 test -d {REPO_DIR}
-""",
-        timeout=180,
-    )
+"""
+    last_exc: Exception | None = None
+    for attempt in range(1, _REPO_CLONE_ATTEMPTS + 1):
+        try:
+            oc.exec_in_pod(
+                namespace,
+                pod,
+                "bash",
+                "-lc",
+                script,
+                timeout=_REPO_CLONE_TIMEOUT_SECS,
+            )
+            return
+        except oc.OcError as exc:
+            last_exc = exc
+            log.warning(
+                "repo clone attempt %s/%s failed in %s: %s",
+                attempt,
+                _REPO_CLONE_ATTEMPTS,
+                namespace,
+                exc,
+            )
+    assert last_exc is not None
+    raise last_exc
 
 
 def _run_one_user(user_index: int) -> WorkerResult:
