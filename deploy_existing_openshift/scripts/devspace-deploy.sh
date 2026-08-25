@@ -2,7 +2,7 @@
 # Deploy OpenCode/Continue DevSpaces on existing OpenShift.
 #
 # Usage (via Makefile):
-#   N=5                 → sync values + deploy dev-user1..5 in dev-userN-devspaces
+#   N=5                 → sync values + deploy dev-user1..5 in dev-userN-devspaces (in parallel)
 #   DEV_USER=dev-user2  → single deploy in dev-user2-devspaces
 #
 # Namespace is always <DEV_USER>-devspaces (no DEV_NAMESPACE override).
@@ -48,6 +48,19 @@ sync_platform_instances() {
 	yq -i ".devspaces.instances = load(\"${tmp}\")" "$VALUES_PLATFORM"
 	rm -f "$tmp"
 	echo "==> Overwrote placeholder instances in ${VALUES_PLATFORM} with ${count} user(s) (Dev1@PCA2026! .. Dev${count}@PCA2026!)"
+	# Group/pca-developers is rendered by pca-platform-config. Re-helm that
+	# release so GitOps and existing OpenShift share one writer. --reuse-values
+	# keeps hfToken from the previous install; -f applies the yq'd instances.
+	local release="${AI_NAMESPACE}-platform-config"
+	if ! helm status "$release" -n "$AI_NAMESPACE" >/dev/null 2>&1; then
+		echo "ERROR: Helm release ${release} not found in ${AI_NAMESPACE}. Deploy platform-config first (make ai-serving-deploy-existing-openshift)." >&2
+		exit 1
+	fi
+	helm upgrade "$release" "${CHARTS_DIR}/pca-platform-config" \
+		--namespace "$AI_NAMESPACE" \
+		--reuse-values \
+		-f "$VALUES_PLATFORM" \
+		--set "namespace=${AI_NAMESPACE}"
 }
 
 # One DevWorkspace per user namespace (separate Helm release). values-*.yaml has a
@@ -93,6 +106,20 @@ deploy_one() {
 		global_flag="--set devspacesGlobalConfig.enabled=false"
 	fi
 
+	# openshift-default Gateways bind TLS to a listener hostname. ClusterIP
+	# HTTPS to {gateway}-{class} then fails SSL_ERROR_SYSCALL. Prefer the
+	# live listener host unless the caller already set maas.hostname.
+	local maas_hostname_flag=""
+	if [[ "${HELM_ARGS}" != *maas.hostname* ]]; then
+		local live_host
+		live_host=$(oc get gateway maas-default-gateway -n openshift-ingress \
+			-o jsonpath='{range .spec.listeners[*]}{.hostname}{"\n"}{end}' \
+			2>/dev/null | awk 'NF { print; exit }' || true)
+		if [ -n "$live_host" ]; then
+			maas_hostname_flag="--set maas.hostname=${live_host}"
+		fi
+	fi
+
 	# shellcheck disable=SC2086
 	helm upgrade --install "${ns}-devspaces" "${CHARTS_DIR}/pca-devspaces" \
 		--namespace "$ns" --create-namespace \
@@ -101,10 +128,32 @@ deploy_one() {
 		--set "devspaces[0].user=${user}" \
 		${mcp_flag} \
 		${global_flag} \
+		${maas_hostname_flag} \
 		${HELM_ARGS} \
 		${skip_opencode_build}
 
 	echo "==> Deployed DevSpace for ${user} in ${ns}"
+}
+
+ensure_pca_developers_user() {
+	local user="$1"
+	if oc get group pca-developers >/dev/null 2>&1; then
+		local users
+		users=" $(oc get group pca-developers -o jsonpath='{.users[*]}' 2>/dev/null) "
+		if [[ "$users" == *" ${user} "* ]]; then
+			return 0
+		fi
+		oc adm groups add-users pca-developers "$user"
+		return 0
+	fi
+	{
+		echo "apiVersion: user.openshift.io/v1"
+		echo "kind: Group"
+		echo "metadata:"
+		echo "  name: pca-developers"
+		echo "users:"
+		echo "  - \"${user}\""
+	} | oc apply -f -
 }
 
 # N scales namespaces/releases (dev-user1..N), each with one code-workspace-1 — not
@@ -115,8 +164,12 @@ if [ -n "$N" ]; then
 		exit 1
 	fi
 	sync_platform_instances "$N"
-	echo "==> Deploying ${N} DevSpace(s) (dev-user1..dev-user${N})"
+	echo "==> Deploying ${N} DevSpace(s) in parallel (dev-user1..dev-user${N})"
 	echo "    Demo passwords: Dev1@PCA2026! .. Dev${N}@PCA2026! — run 'make setup-idp' to apply HTPasswd logins."
+
+	log_dir=$(mktemp -d)
+	pids=()
+	users=()
 	for i in $(seq 1 "$N"); do
 		user="dev-user${i}"
 		ns="${user}-devspaces"
@@ -128,8 +181,29 @@ if [ -n "$N" ]; then
 				global="true"
 			fi
 		fi
-		deploy_one "$user" "$global"
+		deploy_one "$user" "$global" >"${log_dir}/${user}.log" 2>&1 &
+		pids+=("$!")
+		users+=("$user")
 	done
+
+	fail=0
+	for idx in "${!pids[@]}"; do
+		user="${users[$idx]}"
+		if wait "${pids[$idx]}"; then
+			status="OK"
+		else
+			status="FAILED"
+			fail=1
+		fi
+		echo "----- ${user} (${status}) -----"
+		cat "${log_dir}/${user}.log"
+	done
+	rm -rf "$log_dir"
+
+	if [ "$fail" -ne 0 ]; then
+		echo "ERROR: one or more DevSpace deployments failed (see logs above)" >&2
+		exit 1
+	fi
 	exit 0
 fi
 
@@ -145,4 +219,8 @@ owner=$(oc get configmap vscode-extensions-config -n openshift-devspaces \
 if [ -n "$owner" ] && [ "$owner" != "${ns}-devspaces" ]; then
 	global="false"
 fi
+# MaaSSubscription / MaaSAuthPolicy select Group/pca-developers. N= re-helms
+# platform-config (Helm owns the Group). DEV_USER= patches live membership
+# until the next N= sync.
+ensure_pca_developers_user "$DEV_USER"
 deploy_one "$DEV_USER" "$global"

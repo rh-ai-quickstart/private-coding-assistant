@@ -207,19 +207,22 @@ NSEOF
 		"system:serviceaccounts:${USER_NS}" \
 		--namespace=opencode-build 2>/dev/null || true
 
-	# RHCL API key (same deterministic scheme as Helm pca-devspaces.aiGateway.apiKey
+	# MaaS / RHCL API key (same deterministic scheme as Helm pca-devspaces.aiGateway.apiKey
 	# with apiKeySeed=pca-aro). Prefer existing Secret so upgrades keep the key.
 	AI_NS="${AI_SERVING_NAMESPACE:-ai-serving}"
-	GW_BASE_URL="${PCA_AI_GATEWAY_URL:-https://pca-ai-gateway-data-science-gateway-class.${AI_NS}.svc.cluster.local/v1}"
+	GW_BASE_URL="${PCA_AI_GATEWAY_URL:-https://maas-default-gateway-data-science-gateway-class.openshift-ingress.svc.cluster.local/v1}"
 	MODEL_ID="${VLLM_MODEL_ID:-Qwen/Qwen3.6-35B-A3B-FP8}"
 	API_KEY_SEED="${PCA_API_KEY_SEED:-pca-aro}"
-	if EXISTING_KEY=$(oc get secret pca-ai-gw-apikey -n "${USER_NS}" \
+	if EXISTING_KEY=$(oc get secret pca-maas-apikey -n "${USER_NS}" \
+		-o jsonpath='{.data.api_key}' 2>/dev/null) && [[ -n ${EXISTING_KEY} ]]; then
+		API_KEY=$(printf '%s' "${EXISTING_KEY}" | base64 -d)
+	elif EXISTING_KEY=$(oc get secret pca-ai-gw-apikey -n "${USER_NS}" \
 		-o jsonpath='{.data.api_key}' 2>/dev/null) && [[ -n ${EXISTING_KEY} ]]; then
 		API_KEY=$(printf '%s' "${EXISTING_KEY}" | base64 -d)
 	else
 		API_KEY=$(printf '%s/%s/pca-ai-gw' "${API_KEY_SEED}" "${USER_NS}" | sha256sum | cut -c1-48)
 	fi
-	AI_SECRET_NAME="pca-ai-gw-apikey-$(printf '%s' "${USER_NS}" | cut -c1-40 | sed 's/-$//')"
+	AI_SECRET_NAME="pca-maas-apikey-$(printf '%s' "${USER_NS}" | cut -c1-40 | sed 's/-$//')"
 
 	# Switch to kubeadmin to create Authorino mirror in AI ns + DevSpaces Secret
 	if [[ -n ${KUBEADMIN_PASS:-} ]]; then
@@ -227,14 +230,14 @@ NSEOF
 			--insecure-skip-tls-verify=true
 	fi
 	# DevSpaces-side key (IDE / postStart). Idempotent create→apply (same pattern as htpass-secret).
-	oc create secret generic pca-ai-gw-apikey \
+	oc create secret generic pca-maas-apikey \
 		--from-literal=api_key="${API_KEY}" \
 		-n "${USER_NS}" \
 		--dry-run=client -o yaml | oc apply -f -
-	oc label secret pca-ai-gw-apikey -n "${USER_NS}" --overwrite \
-		app.kubernetes.io/name=pca-ai-gw-apikey \
+	oc label secret pca-maas-apikey -n "${USER_NS}" --overwrite \
+		app.kubernetes.io/name=pca-maas-apikey \
 		app.kubernetes.io/part-of=pca-devspaces \
-		app.kubernetes.io/component=pca-ai-gateway-apikey
+		app.kubernetes.io/component=pca-maas-apikey
 	# Authorino mirror in AI ns (platform-owned; AuthPolicy selector matches these labels).
 	oc create secret generic "${AI_SECRET_NAME}" \
 		--from-literal=api_key="${API_KEY}" \
@@ -242,12 +245,14 @@ NSEOF
 		--dry-run=client -o yaml | oc apply -f -
 	oc label secret "${AI_SECRET_NAME}" -n "${AI_NS}" --overwrite \
 		authorino.kuadrant.io/managed-by=authorino \
-		app.kubernetes.io/component=pca-ai-gateway-apikey \
+		app.kubernetes.io/component=pca-maas-apikey \
 		app.kubernetes.io/part-of=pca-devspaces \
 		"pca.ai/dev-namespace=${USER_NS}"
 	oc annotate secret "${AI_SECRET_NAME}" -n "${AI_NS}" --overwrite \
 		"pca.ai/dev-namespace=${USER_NS}"
-	info "RHCL API key Secrets ready for ${USER_NS} (Authorino mirror in ${AI_NS})."
+	info "MaaS API key Secrets ready for ${USER_NS} (Authorino mirror in ${AI_NS})."
+	oc adm groups new pca-developers 2>/dev/null || true
+	oc adm groups add-users pca-developers "${USERNAME}" 2>/dev/null || true
 
 	# Login as the user and create the workspace
 	oc login "${API_URL}" --username="${USERNAME}" --password="${PASSWORD}" \
@@ -316,6 +321,8 @@ spec:
           commandLine: |
             mkdir -p ~/.config/opencode ~/.local/share/opencode
             python3 -c "
+            # Keep in sync with pca-devspaces.opencodeWriteConfigScript
+            # (charts/pca-devspaces/templates/_helpers.tpl).
             import json, os
             config = {
                 '\x24schema': 'https://opencode.ai/config.json',
@@ -323,7 +330,10 @@ spec:
                     'vllm': {
                         'npm': '@ai-sdk/openai-compatible',
                         'name': 'Private AI Gateway (llm-d)',
-                        'options': {'baseURL': os.environ['OPENAI_BASE_URL']},
+                        'options': {
+                            'baseURL': os.environ['OPENAI_BASE_URL'],
+                            'extraBody': {'chat_template_kwargs': {'enable_thinking': False}},
+                        },
                         'models': {os.environ['VLLM_MODEL_ID']: {
                             'name': os.environ['VLLM_MODEL_ID'],
                             # Align with charts tokens.total / tokens.output (32000 / 8192).
@@ -331,7 +341,8 @@ spec:
                         }}
                     }
                 },
-                'model': 'vllm/' + os.environ['VLLM_MODEL_ID']
+                'model': 'vllm/' + os.environ['VLLM_MODEL_ID'],
+                'permission': 'allow',
             }
             open(os.path.expanduser('~/.config/opencode/opencode.json'), 'w').write(json.dumps(config, indent=2))
             "

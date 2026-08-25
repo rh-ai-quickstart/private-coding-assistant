@@ -102,10 +102,9 @@ devspace-deploy-existing-openshift: ## Deploy DevSpaces: N=<count> (dev-user1..N
 		HELM_ARGS="$(HELM_ARGS)" CHARTS_DIR="$(CHARTS_DIR)" DEPLOY_VALUES_DIR="$(DEPLOY_VALUES_DIR)" \
 		$(DEPLOY_SCRIPTS_DIR)/devspace-deploy.sh
 
-devspace-undeploy-existing-openshift: ## Remove a DevSpace (DEV_USER= required → <user>-devspaces)
-	@if [ -z "$(DEV_USER)" ]; then echo "ERROR: Pass DEV_USER=<username>"; exit 1; fi; \
-	ns="$(DEV_USER)-devspaces"; \
-	helm uninstall $$ns-devspaces --namespace $$ns --ignore-not-found || true
+devspace-undeploy-existing-openshift: ## Remove DevSpaces (DEV_USER=, N=, or all demo users) and delete their namespaces
+	N="$(N)" DEV_USER="$(DEV_USER)" DELETE_NAMESPACE="$(if $(DELETE_NAMESPACE),$(DELETE_NAMESPACE),1)" \
+		$(DEPLOY_SCRIPTS_DIR)/devspace-undeploy.sh
 
 setup-idp: ## Configure HTPasswd IDP on existing cluster (reads users from values)
 	$(SCRIPTS_DIR)/setup-idp.sh $(DEPLOY_VALUES_DIR)/values-platform-config.yaml
