@@ -112,6 +112,74 @@ def test_auto_non_code_goes_external():
     )
 
 
+def test_split_local_upstream_tokenize_uses_vllm_root():
+    sr = _load()
+    base = "http://llm-d.svc:80/v1"
+    assert sr.split_local_upstream(base, "/tokenize") == (
+        "http://llm-d.svc:80",
+        "/tokenize",
+    )
+    assert sr.split_local_upstream(base, "/v1/tokenize") == (
+        "http://llm-d.svc:80",
+        "/tokenize",
+    )
+    assert sr.split_local_upstream(base, "/v1/chat/completions") == (
+        "http://llm-d.svc:80/v1",
+        "/chat/completions",
+    )
+
+
+def test_post_tokenize_does_not_prefix_v1(monkeypatch):
+    seen: list[str] = []
+
+    class _Tok(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, fmt, *args):
+            return
+
+        def do_POST(self):
+            seen.append(self.path)
+            length = int(self.headers.get("Content-Length") or 0)
+            if length:
+                self.rfile.read(length)
+            payload = b'{"tokens":[1]}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    upstream = _serve(_Tok)
+    router = None
+    try:
+        monkeypatch.setenv(
+            "LOCAL_BASE_URL", f"http://127.0.0.1:{upstream.server_port}/v1"
+        )
+        sr = _load()
+        router = _serve(sr.Handler)
+        conn = http.client.HTTPConnection(
+            "127.0.0.1", router.server_port, timeout=5
+        )
+        conn.request(
+            "POST",
+            "/tokenize",
+            body=b'{"model":"Qwen/Qwen3.6-35B-A3B-FP8"}',
+            headers={"Content-Type": "application/json"},
+        )
+        resp = conn.getresponse()
+        body = resp.read()
+        conn.close()
+    finally:
+        if router is not None:
+            router.shutdown()
+            router.server_close()
+        upstream.shutdown()
+        upstream.server_close()
+    assert resp.status == 200, body
+    assert seen == ["/tokenize"]
+
+
 def test_read_request_body_content_length():
     sr = _load()
     raw = b'{"model":"x"}'
