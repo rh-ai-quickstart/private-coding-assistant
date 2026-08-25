@@ -114,7 +114,9 @@ VIA=opencode .cursor/skills/verify-pca/scripts/verify-pca.sh chat
 EXPECT=block PROMPT='Please store this in memory only: key = AKIAIOSFODNN7EXAMPLE' \
   .cursor/skills/verify-pca/scripts/verify-pca.sh opencode-chat
 VIA=llmd .cursor/skills/verify-pca/scripts/verify-pca.sh models
-# Missing-key curl: use MAAS_GATEWAY_V1 from doctor (live Gateway class).
+# Missing-key curl: use MAAS_GATEWAY_V1 from doctor (PCA_MAAS_HOSTNAME, workspace
+# OPENAI_BASE_URL, or live Gateway listener hostname — not ClusterIP when those exist).
+# openshift-default ClusterIP HTTPS fails SSL_ERROR_SYSCALL.
 # Do not hard-code data-science-gateway-class — existing OpenShift is often openshift-default.
 DEV_USER=dev-user1 HTTP_INSECURE=1 .cursor/skills/verify-pca/scripts/verify-pca.sh http POST \
   "<MAAS_GATEWAY_V1 from doctor>/chat/completions"

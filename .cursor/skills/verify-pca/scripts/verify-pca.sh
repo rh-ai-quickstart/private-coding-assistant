@@ -50,6 +50,8 @@ Env:
                  DEV_USER=dev-user<N> (falls back to code-workspace-1)
   VIA            gateway (RHCL), llmd, or opencode
   PCA_MAAS_GATEWAY_CLASS  MaaS ClusterIP class (else live Gateway spec)
+  PCA_MAAS_HOSTNAME       MaaS /v1 host (scheme/path stripped). Else live
+                          Gateway listener hostname, else ClusterIP.
   PCA_LLMD_GATEWAY_CLASS  llm-d ClusterIP class (else live Gateway spec)
   RUN_ID         evidence + pod label (lowercase DNS-safe)
   EVIDENCE_DIR   default .cursor/skills/verify-pca/artifacts/\$RUN_ID
@@ -225,8 +227,72 @@ llmd_v1() {
 	echo "https://${LLMD_GATEWAY}-$(llmd_gateway_class).${AI_NAMESPACE}.svc.cluster.local/v1"
 }
 
+# Host only (no scheme). Same stripping as tests/cluster-smoke pca_smoke.urls.
+http_hostname() {
+	python3 -c '
+from urllib.parse import urlparse
+import sys
+value = (sys.argv[1] or "").strip()
+if not value:
+    raise SystemExit(0)
+parsed = urlparse(value if "://" in value else f"https://{value}")
+print((parsed.hostname or "").lower())
+' "$1"
+}
+
+maas_clusterip_host() {
+	echo "${AI_GATEWAY}-$(maas_gateway_class).${AI_GATEWAY_NS}.svc.cluster.local"
+}
+
+# openshift-default binds TLS to the listener hostname. ClusterIP HTTPS then
+# fails SSL_ERROR_SYSCALL (devspace-deploy.sh sets maas.hostname from this).
+maas_listener_host() {
+	oc get gateway "$AI_GATEWAY" -n "$AI_GATEWAY_NS" \
+		-o jsonpath='{range .spec.listeners[*]}{.hostname}{"\n"}{end}' \
+		2>/dev/null | awk 'NF { print; exit }' || true
+}
+
+maas_ide_host() {
+	local ns dw url host
+	ns=$(dev_namespace)
+	[[ -n $ns ]] || return 0
+	dw=$(dw_name)
+	url=$(ide_base_url_from_dw "$ns" "$dw")
+	[[ -n $url ]] || return 0
+	host=$(http_hostname "$url")
+	[[ -n $host ]] || return 0
+	# Workspace URL is the product path; skip llm-d escape hatch.
+	if [[ $host == *llm-d-gateway* ]]; then
+		return 0
+	fi
+	echo "$host"
+}
+
+# Prefer the host IDEs use: env, workspace OPENAI_BASE_URL, live listener, ClusterIP.
+maas_gateway_host() {
+	local host
+	if [[ -n ${PCA_MAAS_HOSTNAME:-} ]]; then
+		host=$(http_hostname "$PCA_MAAS_HOSTNAME")
+		if [[ -n $host ]]; then
+			echo "$host"
+			return
+		fi
+	fi
+	host=$(maas_ide_host)
+	if [[ -n $host ]]; then
+		echo "$host"
+		return
+	fi
+	host=$(maas_listener_host)
+	if [[ -n $host ]]; then
+		echo "$host"
+		return
+	fi
+	maas_clusterip_host
+}
+
 ai_gw_v1() {
-	echo "https://${AI_GATEWAY}-$(maas_gateway_class).${AI_GATEWAY_NS}.svc.cluster.local/v1"
+	echo "https://$(maas_gateway_host)/v1"
 }
 
 via_v1() {
@@ -504,6 +570,8 @@ cmd_doctor() {
 		echo "AI_GATEWAY_PRESENT=$gw_present"
 		echo "AI_GATEWAY_ACCEPTED=$ai_acc"
 		echo "MAAS_GATEWAY_CLASS=$(maas_gateway_class)"
+		echo "MAAS_GATEWAY_HOST=$(maas_gateway_host)"
+		echo "MAAS_GATEWAY_CLUSTERIP=$(maas_clusterip_host)"
 		echo "MAAS_GATEWAY_V1=$(ai_gw_v1)"
 		echo "LLMD_GATEWAY_CLASS=$(llmd_gateway_class)"
 		echo "LLMD_GATEWAY_V1=$(llmd_v1)"
