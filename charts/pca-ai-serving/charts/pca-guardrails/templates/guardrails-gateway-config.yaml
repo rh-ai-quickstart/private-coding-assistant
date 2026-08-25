@@ -20,7 +20,7 @@ data:
       {{- if or .Values.guardrails.detectors.piiRegex.enabled .Values.guardrails.detectors.secretsRegex.enabled }}
       - name: regex
         input: true
-        output: {{ .Values.guardrails.detectors.secretsRegex.enabled }}
+        output: false
         detector_params:
           regex:
             {{- $pii := .Values.guardrails.detectors.piiRegex | default dict -}}
