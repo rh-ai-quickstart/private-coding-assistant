@@ -141,7 +141,10 @@ smoke: ## Cluster smoke tests (AI_NAMESPACE=, DEV_USER=, COMPONENT=, N_PARALLEL=
 		PCA_MAAS_HOSTNAME='$(PCA_MAAS_HOSTNAME)' PCA_MAAS_GATEWAY_CLASS='$(PCA_MAAS_GATEWAY_CLASS)'
 
 unit: ## Local unit tests (PYTEST_ARGS=)
-	python -m pytest tests/unit -v $(PYTEST_ARGS)
+	@command -v uv >/dev/null || { echo "ERROR: uv not found in PATH"; exit 1; }
+	@command -v helm >/dev/null || { echo "ERROR: helm not found in PATH"; exit 1; }
+	uv sync --frozen --project tests/unit
+	uv run --project tests/unit python -m pytest tests/unit -v $(PYTEST_ARGS)
 
 sync-guardrails-patterns: ## Refresh guardrails secret patterns from vendored gitleaks rules
 	python scripts/sync-guardrails-secret-patterns.py

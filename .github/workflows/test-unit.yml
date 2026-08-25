@@ -1,0 +1,29 @@
+name: Unit Tests
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.18.4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v4
+      - name: Cache venv
+        uses: actions/cache@v4
+        with:
+          path: tests/unit/.venv
+          key: venv-${{ runner.os }}-py3.12-${{ hashFiles('tests/unit/uv.lock') }}
+      - name: Install dependencies
+        working-directory: tests/unit
+        run: uv sync --frozen
+      - name: Run tests
+        run: make unit

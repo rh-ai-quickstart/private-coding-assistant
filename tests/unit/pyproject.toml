@@ -1,0 +1,12 @@
+[project]
+name = "pca-unit"
+version = "0.1.0"
+description = "Local unit tests for Private AI Coding Assistant (no cluster)"
+requires-python = ">=3.11"
+dependencies = [
+  "pytest>=8.0",
+  "pyyaml>=6.0",
+]
+
+[tool.uv]
+package = false
