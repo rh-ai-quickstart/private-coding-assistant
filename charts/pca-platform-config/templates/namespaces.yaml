@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.namespace }}
   labels:
     app.kubernetes.io/part-of: private-code-assistant
+    pca.ai/allow-maas-routes: "true"
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 {{- if .Values.devspaces.enabled }}
