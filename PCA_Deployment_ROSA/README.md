@@ -660,7 +660,7 @@ echo "Console: $(terraform output -raw cluster_console_url)"
   - Workload Service: `qwen3-coder-kserve-workload-svc:8000`
   - EPP scorer weights: queue=2, kv-cache=2, prefix-cache=3
 - **llm-d Gateway + HTTPRoute**: cluster-internal llm-d Gateway with EPP routing
-- **RHCL AI Gateway** (`pca-ai-gateway`): HTTPS front door with per-developer API key auth (AuthPolicy)
+- **MaaS / RHCL Gateway** (`maas-default-gateway`): HTTPS front door with per-developer API key auth (AuthPolicy)
 - **HardwareProfile**: GPU hardware profile definition
 - **ServingRuntime** (optional): vLLM Neuron runtime template for Inferentia/Trainium only
 - **pca-observability** (optional): Grafana dashboards + optional Langfuse/OTel Collector
