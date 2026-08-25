@@ -36,15 +36,8 @@ clear_guardrails_finalizers() {
 
 if [ "$SKIP_DEVSPACES" != "1" ]; then
 	echo "==> Undeploying demo DevSpaces"
-	if [ -x "${SCRIPT_DIR}/devspace-undeploy.sh" ]; then
-		N="${N:-}" DEV_USER="${DEV_USER:-}" DELETE_NAMESPACE=1 \
-			"${SCRIPT_DIR}/devspace-undeploy.sh"
-	elif [ -n "${DEV_USER:-}" ]; then
-		ns="${DEV_USER}-devspaces"
-		helm uninstall "${ns}-devspaces" --namespace "$ns" --ignore-not-found || true
-	else
-		echo "WARNING: ${SCRIPT_DIR}/devspace-undeploy.sh not present; skip DevSpace wipe"
-	fi
+	N="${N:-}" DEV_USER="${DEV_USER:-}" DELETE_NAMESPACE=1 \
+		"${SCRIPT_DIR}/devspace-undeploy.sh"
 fi
 
 echo "==> helm uninstall ${AI_NAMESPACE}-ai-serving"

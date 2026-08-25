@@ -49,7 +49,7 @@ spec:
           printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open && \
           chmod 755 /usr/local/bin/xdg-open
       RUN mkdir -p /home/user/.config/opencode /home/user/.local/share/opencode && \
-          echo '{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Private AI Gateway","options":{"baseURL":"{{ include "pca-devspaces.aiGateway.baseUrl" . }}","extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{"{{ include "pca-devspaces.modelId" . }}":{"name":"{{ include "pca-devspaces.modelId" . }}","limit":{"context":{{ include "pca-devspaces.tokens.total" . }},"output":{{ include "pca-devspaces.tokens.output" . }}}}}}},"model":"vllm/{{ include "pca-devspaces.modelId" . }}"}' \
+          echo '{{ include "pca-devspaces.opencodeJson" . }}' \
             > /home/user/.config/opencode/opencode.json && \
           echo '{"vllm":{"type":"api","key":"EMPTY"}}' > /home/user/.local/share/opencode/auth.json && \
           chown -R 1001:0 /home/user/.config/opencode /home/user/.local/share/opencode && \
@@ -62,12 +62,7 @@ spec:
       from:
         kind: DockerImage
         name: registry.redhat.io/devspaces/udi-rhel8:latest
-  # ConfigChange fires a build automatically the first time this BuildConfig is
-  # created (and on any subsequent spec change from a Helm upgrade). Without a
-  # trigger, OpenShift never starts a build on its own — GitOps only creates the
-  # declarative BuildConfig/ImageStream objects, so the ImageStreamTag stays
-  # empty and every DevWorkspace pod that references it fails with
-  # ImagePullBackOff until someone manually runs `oc start-build`.
+  # ConfigChange starts a build on create/spec change so the ImageStreamTag is not empty.
   triggers:
     - type: ConfigChange
 ---
