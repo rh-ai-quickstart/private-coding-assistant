@@ -18,7 +18,7 @@ DEV_USER="${DEV_USER:-}"
 DELETE_NAMESPACE="${DELETE_NAMESPACE:-1}"
 
 is_demo_ns() {
-	[[ "$1" =~ ^dev-user[0-9]+-devspaces$ ]]
+	[[ $1 =~ ^dev-user[0-9]+-devspaces$ ]]
 }
 
 undeploy_one() {
@@ -47,9 +47,9 @@ undeploy_one() {
 
 list_live_demo_users() {
 	local ns user
-	oc get ns -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
-		| grep -E '^dev-user[0-9]+-devspaces$' \
-		| while read -r ns; do
+	oc get ns -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' |
+		grep -E '^dev-user[0-9]+-devspaces$' |
+		while read -r ns; do
 			user="${ns%-devspaces}"
 			echo "$user"
 		done

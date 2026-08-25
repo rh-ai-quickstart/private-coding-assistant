@@ -110,7 +110,7 @@ deploy_one() {
 	# HTTPS to {gateway}-{class} then fails SSL_ERROR_SYSCALL. Prefer the
 	# live listener host unless the caller already set maas.hostname.
 	local maas_hostname_flag=""
-	if [[ "${HELM_ARGS}" != *maas.hostname* ]]; then
+	if [[ ${HELM_ARGS} != *maas.hostname* ]]; then
 		local live_host
 		live_host=$(oc get gateway maas-default-gateway -n openshift-ingress \
 			-o jsonpath='{range .spec.listeners[*]}{.hostname}{"\n"}{end}' \
@@ -140,7 +140,7 @@ ensure_pca_developers_user() {
 	if oc get group pca-developers >/dev/null 2>&1; then
 		local users
 		users=" $(oc get group pca-developers -o jsonpath='{.users[*]}' 2>/dev/null) "
-		if [[ "$users" == *" ${user} "* ]]; then
+		if [[ $users == *" ${user} "* ]]; then
 			return 0
 		fi
 		oc adm groups add-users pca-developers "$user"
