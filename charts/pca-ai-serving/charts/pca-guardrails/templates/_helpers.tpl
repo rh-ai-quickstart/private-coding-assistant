@@ -6,10 +6,27 @@ KServe InferenceService name for prompt injection (keep short for DNS limits).
 {{- end -}}
 
 {{/*
+  TrustyAI / proxy LLM host. Direct Service name, not the old pca-llm-upstream CNAME.
+  Semantic Router when global.semanticRouter.enabled, else llm-d HTTP :80 (vLLM is HTTPS :8000
+  and TrustyAI cannot verify that workload cert).
+*/}}
+{{- define "pca-guardrails.llmHost" -}}
+{{- $explicit := .Values.guardrails.llmService.host | default "" | toString | trim -}}
+{{- if and $explicit (ne $explicit "pca-llm-upstream") -}}
+{{- $explicit -}}
+{{- else if (((.Values.global).semanticRouter).enabled | default false) -}}
+pca-semantic-router
+{{- else -}}
+{{- .Values.llmdGatewayService | default "llm-d-gateway-data-science-gateway-class" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Build the detectors JSON object that the proxy injects into every request.
-The format matches the orchestrator's detection API:
+Input only: never scan the model reply. Streaming still probes TrustyAI
+with this object (max_tokens=0) before llm-d tokens.
   { "input": { "prompt_injection": {}, "regex": {"regex": {...}} },
-    "output": { "regex": {"regex": {...}} } }
+    "output": {} }
 */}}
 {{- define "guardrails.detectorsJson" -}}
 {{- $input := dict -}}
@@ -36,9 +53,6 @@ The format matches the orchestrator's detection API:
 {{- end -}}
 {{- if $regexInner -}}
   {{- $_ := set $input "regex" (dict "regex" $regexInner) -}}
-  {{- if ($secrets.enabled | default false) -}}
-    {{- $_ := set $output "regex" (dict "regex" $regexInner) -}}
-  {{- end -}}
 {{- end -}}
 {{- dict "input" $input "output" $output | toJson -}}
 {{- end -}}
