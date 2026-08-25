@@ -142,11 +142,12 @@ guardrails:
   enabled: true
 pca-guardrails:
   namespace: ai-serving
+  llmdGatewayService: llm-d-gateway-data-science-gateway-class
   guardrails:
     enforcement: block
     llmService:
-      # llm-d Gateway HTTP listener (TrustyAI). HTTPS :443 stays for RHCL.
-      host: llm-d-gateway-data-science-gateway-class
+      # Empty (or legacy pca-llm-upstream): llm-d HTTP :80.
+      host: ""
       port: 80
       tlsSecret: ""
     replicas: 1
