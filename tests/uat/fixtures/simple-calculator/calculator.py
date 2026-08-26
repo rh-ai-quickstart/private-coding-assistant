@@ -1,4 +1,4 @@
-"""Minimal calculator — intentionally missing power (e2e asks the agent to add it)."""
+"""Minimal calculator — intentionally missing power (UAT asks the agent to add it)."""
 
 
 def add(a, b):

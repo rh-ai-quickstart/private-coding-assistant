@@ -51,7 +51,7 @@ DEPLOY_SCRIPTS_DIR := $(DEPLOY_VALUES_DIR)/scripts
 # Derived only for smoke tests (pytest still reads DEV_NAMESPACE).
 DEV_NAMESPACE := $(if $(DEV_USER),$(DEV_USER)-devspaces,)
 
-.PHONY: build shell run help smoke e2e performance performance-vllm unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable sync-guardrails-patterns
+.PHONY: build shell run help smoke e2e uat performance performance-vllm unit ai-serving-deploy-existing-openshift ai-serving-undeploy-existing-openshift undeploy-existing-openshift devspace-deploy-existing-openshift devspace-undeploy-existing-openshift setup-idp mcp-enable mcp-disable sync-guardrails-patterns
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -160,6 +160,13 @@ e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
 		echo "ERROR: Pass DEV_USER=<username> (or DEV_NAMESPACE=)"; exit 1; \
 	fi
 	$(MAKE) -C tests/e2e e2e \
+		DEV_USER=$(DEV_USER) DEV_NAMESPACE=$(DEV_NAMESPACE) PYTEST_ARGS='$(PYTEST_ARGS)'
+
+uat: ## Cluster UAT (DEV_USER= required; PYTEST_ARGS=)
+	@if [ -z "$(DEV_USER)" ] && [ -z "$(DEV_NAMESPACE)" ]; then \
+		echo "ERROR: Pass DEV_USER=<username> (or DEV_NAMESPACE=)"; exit 1; \
+	fi
+	$(MAKE) -C tests/uat uat \
 		DEV_USER=$(DEV_USER) DEV_NAMESPACE=$(DEV_NAMESPACE) PYTEST_ARGS='$(PYTEST_ARGS)'
 
 # Do not run alongside make performance-vllm — shared vLLM/GPU.

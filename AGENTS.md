@@ -81,6 +81,10 @@ make smoke N_PARALLEL=1                                 # serial pytest-xdist
 
 Package lives in `tests/cluster-smoke/` (see its README). Optional Langfuse / OTel / Guardrails / DevSpaces / AI Gateway checks auto-skip when those resources are absent. Set `DEV_USER` for DevSpaces / AI Gateway key tests. `N=` is only for DevSpace deploy count; smoke parallelism is `N_PARALLEL`.
 
+## Cluster UAT (developer-only)
+
+Proof a developer can finish a coding task in OpenCode (`make uat DEV_USER=dev-user1`). Package: `tests/uat/`. OpenCode/MaaS front-door checks stay in `make e2e` (`tests/e2e/`).
+
 ## Directory Structure
 
 ```
@@ -107,4 +111,6 @@ deploy_existing_openshift/    # Helm value overrides for existing OpenShift (no 
 └── values-devspaces.yaml
 
 tests/cluster-smoke/          # Developer-only pytest smoke suite (`make smoke`)
+tests/e2e/                    # Cluster OpenCode/MaaS checks (`make e2e`)
+tests/uat/                    # Developer coding-task UAT (`make uat`)
 ```
