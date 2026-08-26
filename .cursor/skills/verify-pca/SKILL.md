@@ -74,7 +74,7 @@ Stable handles (do not invent others):
 
 OpenCode browser/shell: `.cursor/skills/connect-devspace/scripts/connect-devspace.sh <N>` prints the password. Do not run it when `opencode-chat` is enough. Do not paste that password into evidence.
 
-Deep OpenCode agent path (calculator fixture): `make e2e DEV_USER=<oc whoami or demo user>` — only when proving the OpenCode calculator feature. Guardrails secret block is `EXPECT=block` on `opencode-chat` (see `features/guardrails.md`), matching `test_opencode_secret_blocked_by_guardrails`.
+Deep OpenCode agent path (calculator fixture): `make uat DEV_USER=<oc whoami or demo user>` — only when proving the OpenCode calculator feature. Guardrails secret block is `EXPECT=block` on `opencode-chat` (see `features/guardrails.md`), matching `test_opencode_secret_blocked_by_guardrails`.
 
 Qwen3 tool-calling requests must send `"chat_template_kwargs": {"enable_thinking": false}` or the model dumps `<tool_call>` XML into `content`.
 

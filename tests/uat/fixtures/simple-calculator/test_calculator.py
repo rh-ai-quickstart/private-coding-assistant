@@ -1,6 +1,6 @@
 """Stdlib unittest suite for the simple calculator.
 
-Power cases are included so the e2e agent only needs to implement power()
+Power cases are included so the UAT agent only needs to implement power()
 in calculator.py (power is intentionally missing from the fixture).
 """
 

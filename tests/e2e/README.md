@@ -1,7 +1,7 @@
 # Cluster e2e tests
 
 Long-running end-to-end checks against a provisioned OpenShift PCA stack.
-Separate from `make smoke` (`tests/cluster-smoke/`).
+Separate from `make smoke` (`tests/cluster-smoke/`) and `make uat` (`tests/uat/`).
 
 ## Prerequisites
 
@@ -17,14 +17,16 @@ From the repo root:
 
 ```bash
 make e2e DEV_USER=dev-user1
-make e2e DEV_USER=dev-user1 PYTEST_ARGS='-k opencode_calculator'
+make e2e DEV_USER=dev-user1 PYTEST_ARGS='-m guardrails'
 ```
+
+Developer coding-task proof (OpenCode adds `power` to a calculator) lives in
+`make uat`. See [tests/uat/README.md](../uat/README.md).
 
 ## Cases
 
 | Test | What it proves |
 |------|----------------|
-| `test_opencode_adds_power_and_unittest_passes` | OpenCode Web API clone + chat adds `power`; `power(2,4)==16` via unittest (uses deployed OpenCode config) |
 | `test_opencode_secret_blocked_by_guardrails` | OpenCode chat with fake AWS access key is blocked when chat goes IDE → maas-default-gateway → guardrails-proxy |
 | `test_maas_route_class` | From the workspace: chat `/v1`, tab `/local/v1` skips guardrails, `/v1/models` passthrough, SSE TTFB, SR-off still serves local |
 | `test_opencode_chat_streams_first_token` | OpenCode `/event` first assistant text arrives before the turn ends |
@@ -44,7 +46,7 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user1 TYPE=opencode \
 make e2e DEV_USER=dev-user1 PYTEST_ARGS='-m guardrails'
 ```
 
-Add new cases as `test_*.py` beside the OpenCode calculator test.
+Add new cases as `test_*.py` in this directory. Coding-task UAT belongs in `tests/uat/`.
 
 ## Performance / scalability
 

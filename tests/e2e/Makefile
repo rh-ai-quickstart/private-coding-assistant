@@ -18,7 +18,7 @@ help: ## Show e2e help
 	@echo "  (Do not run alongside root make performance-vllm — shared vLLM/GPU.)"
 	@echo "Example:"
 	@echo "  make e2e DEV_USER=dev-user1"
-	@echo "  make e2e DEV_USER=dev-user1 PYTEST_ARGS='-k opencode_calculator'"
+	@echo "  make e2e DEV_USER=dev-user1 PYTEST_ARGS='-m guardrails'"
 	@echo "  make performance  # default N_LIST=16"
 	@echo "  make performance N_LIST=1,2,4"
 	@echo "  make performance MODEL_NAME=my-model"

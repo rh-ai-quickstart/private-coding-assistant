@@ -11,7 +11,6 @@ dependencies = [
 [tool.pytest.ini_options]
 markers = [
   "opencode: OpenCode Web / agent e2e cases (needs Running DevWorkspace)",
-  "opencode_calculator: OpenCode calculator power clone/chat e2e",
   "guardrails: guardrails + OpenCode path (needs guardrails-proxy Service + IDE on maas-default-gateway)",
   "maas: MaaS front-door route-class e2e from the DevSpace",
   "performance: OpenCode scalability ladder; use make performance",

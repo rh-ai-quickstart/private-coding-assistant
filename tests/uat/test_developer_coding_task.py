@@ -1,7 +1,13 @@
-"""OpenCode e2e: clone calculator → agent adds power → unittest proves 2**4 == 16.
+"""UAT: a developer can finish a coding task with OpenCode.
+
+Test basis: developer can get useful work done in the DevSpace IDE.
+Preconditions: OpenCode DevWorkspace Running; project tests fail
+because power() is missing.
+Expected: after the OpenCode turns, project tests pass
+(power(2, 4) == 16).
 
 Uses the OpenCode HTTP API (same server as the Web UI) with the deployed
-workspace config — does not rewrite opencode.json or restart the server.
+workspace config. Does not rewrite opencode.json or restart the server.
 """
 
 from __future__ import annotations
@@ -19,7 +25,7 @@ import pytest
 from pca_e2e import oc
 from pca_e2e import opencode as ocapi
 
-pytestmark = pytest.mark.opencode_calculator
+pytestmark = pytest.mark.uat
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "simple-calculator"
 PROJECT_NAME = "simple-calculator"
@@ -29,7 +35,7 @@ REMOTE_CLONE = f"/projects/{PROJECT_NAME}"
 
 def _git_init_fixture(src: Path) -> Path:
     """Copy fixture into a temp git repo and return that path."""
-    tmp = Path(tempfile.mkdtemp(prefix="pca-e2e-calc-"))
+    tmp = Path(tempfile.mkdtemp(prefix="pca-uat-calc-"))
     dest = tmp / PROJECT_NAME
     shutil.copytree(src, dest)
     subprocess.run(["git", "init"], cwd=dest, check=True, capture_output=True)
@@ -38,9 +44,9 @@ def _git_init_fixture(src: Path) -> Path:
         [
             "git",
             "-c",
-            "user.email=e2e@pca.local",
+            "user.email=uat@pca.local",
             "-c",
-            "user.name=pca-e2e",
+            "user.name=pca-uat",
             "commit",
             "-m",
             "init simple calculator",
@@ -151,14 +157,16 @@ def _fail_with_session_context(
     pytest.fail("\n\n".join(bits))
 
 
-def test_opencode_adds_power_and_unittest_passes(require_dev_namespace: str) -> None:
+def test_uat_developer_completes_coding_task_via_opencode(
+    require_dev_namespace: str,
+) -> None:
     ns = require_dev_namespace
     oc.whoami()
 
     dw = oc.find_opencode_devworkspace(ns)
     assert dw is not None, (
         f"no OpenCode DevWorkspace in {ns} — OpenCode must be deployed "
-        f"(make e2e assumes TYPE=opencode / OpenCode DW present)"
+        f"(make uat assumes TYPE=opencode / OpenCode DW present)"
     )
 
     name = (dw.get("metadata") or {}).get("name") or ""
@@ -188,7 +196,7 @@ def test_opencode_adds_power_and_unittest_passes(require_dev_namespace: str) -> 
             pf.base_url, password, directory=REMOTE_CLONE, timeout_secs=120
         ) as client:
             client.health()
-            session = client.create_session("pca-e2e-calculator-power")
+            session = client.create_session("pca-uat-calculator-power")
             sid = session["id"]
 
             turn1 = (
@@ -251,7 +259,6 @@ def test_opencode_adds_power_and_unittest_passes(require_dev_namespace: str) -> 
                     client, sid, "turn3: empty confirm reply", resp3
                 )
 
-    # Final hard proof (independent of chat text).
     calc_src = _read_remote_file(ns, pod, f"{REMOTE_CLONE}/calculator.py")
     assert re.search(r"\bdef\s+power\s*\(", calc_src), (
         f"power() not found in calculator.py:\n{calc_src}"
