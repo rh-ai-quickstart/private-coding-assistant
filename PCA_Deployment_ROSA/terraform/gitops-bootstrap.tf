@@ -14,11 +14,11 @@ resource "terraform_data" "semantic_router_guard" {
       error_message = "semantic_router_enabled=true requires huggingface_token (MiniLM and local Qwen)."
     }
     precondition {
-      condition = alltrue([
+      condition = var.semantic_router_enabled != true || alltrue([
         for m in jsondecode(var.semantic_router_models_json) :
         try(lookup(nonsensitive(jsondecode(var.semantic_router_api_keys_json)), m.name, ""), "") != ""
       ])
-      error_message = "each extra in semantic_router_models_json needs a matching name in semantic_router_api_keys_json."
+      error_message = "each extra in semantic_router_models_json needs a matching name in semantic_router_api_keys_json when semantic_router_enabled=true."
     }
   }
 }

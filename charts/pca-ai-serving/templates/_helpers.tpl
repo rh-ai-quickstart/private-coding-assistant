@@ -157,7 +157,7 @@ qwen3_coder
 {{- end -}}
 
 {{- define "pca-ai-serving.llmUpstreamHost" -}}
-{{- if .Values.semanticRouter.enabled -}}
+{{- if eq (include "pca-ai-serving.sr.enabled" .) "true" -}}
 pca-semantic-router
 {{- else -}}
 {{- include "pca-ai-serving.llmdGatewayService" . -}}
@@ -170,7 +170,7 @@ pca-semantic-router
 {{- define "pca-ai-serving.maasChatBackend.name" -}}
 {{- if .Values.guardrails.enabled -}}
 guardrails-proxy
-{{- else if .Values.semanticRouter.enabled -}}
+{{- else if eq (include "pca-ai-serving.sr.enabled" .) "true" -}}
 pca-semantic-router
 {{- else -}}
 {{- include "pca-ai-serving.llmdGatewayService" . -}}

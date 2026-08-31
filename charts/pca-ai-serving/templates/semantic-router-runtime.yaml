@@ -1,4 +1,4 @@
-{{- if .Values.semanticRouter.enabled }}
+{{- if eq (include "pca-ai-serving.sr.enabled" .) "true" }}
 {{- include "pca-ai-serving.sr.validateExtras" . }}
 {{- $ns := include "pca-ai-serving.sr.ns" . }}
 {{- $extras := include "pca-ai-serving.sr.extras" . | fromJsonArray }}

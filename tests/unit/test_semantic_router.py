@@ -9,6 +9,7 @@ import yaml
 from helm_pca import (
     AI_SERVING,
     LLMD_SVC,
+    REPO_ROOT,
     _docs,
     _helm_template,
     _named,
@@ -179,3 +180,66 @@ def test_extra_without_api_key_fails_render():
     )
     assert result.returncode != 0
     assert "needs semanticRouter.apiKeysJson" in (result.stderr + result.stdout)
+
+
+def test_sr_string_false_skips_hop():
+    docs = _docs(
+        _helm_template(
+            AI_SERVING,
+            [
+                "--set-string",
+                "semanticRouter.enabled=false",
+                "--set-string",
+                "global.semanticRouter.enabled=false",
+                "--set",
+                "tlsJob.enabled=false",
+            ],
+        )
+    )
+    assert _maybe_named(docs, "Deployment", "pca-semantic-router") is None
+    assert _maybe_named(docs, "ConfigMap", "pca-semantic-router-config") is None
+
+
+def _ai_serving_helm_params(extra: list[str]) -> list[dict]:
+    result = subprocess.run(
+        [
+            "helm",
+            "template",
+            "root",
+            str(REPO_ROOT / "charts" / "pca-app-of-apps"),
+            "--set",
+            "gitops.cloud=rosa",
+            *extra,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for doc in yaml.safe_load_all(result.stdout):
+        if not isinstance(doc, dict):
+            continue
+        if doc.get("kind") != "Application":
+            continue
+        if (doc.get("metadata") or {}).get("name") != "pca-ai-serving":
+            continue
+        src = (doc.get("spec") or {}).get("source") or {}
+        helm = src.get("helm") or {}
+        return list(helm.get("parameters") or [])
+    raise AssertionError("Application/pca-ai-serving missing")
+
+
+def test_app_of_apps_empty_enable_leaves_overlay():
+    names = {p["name"] for p in _ai_serving_helm_params([])}
+    assert "semanticRouter.enabled" not in names
+    assert "global.semanticRouter.enabled" not in names
+
+
+def test_app_of_apps_string_false_forwards_override():
+    params = {
+        p["name"]: p["value"]
+        for p in _ai_serving_helm_params(
+            ["--set-string", "aiServing.semanticRouterEnabled=false"]
+        )
+    }
+    assert params["semanticRouter.enabled"] == "false"
+    assert params["global.semanticRouter.enabled"] == "false"

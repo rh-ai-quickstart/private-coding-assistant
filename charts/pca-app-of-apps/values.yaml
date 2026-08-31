@@ -12,6 +12,7 @@ hfToken:
 aiServing:
   modelVariant: "qwen3.6"
   # Empty = do not --set enable flags (ROSA overlay stays on, ARO stays off).
+  # true / false (bool or string) override both Helm flags. String "false" is off.
   semanticRouterEnabled: ""
   semanticRouterModelsJson: "[]"
   semanticRouterApiKeysJson: "{}"

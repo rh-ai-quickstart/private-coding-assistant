@@ -258,7 +258,7 @@ variable "semantic_router_models_json" {
 }
 
 variable "semantic_router_api_keys_json" {
-  description = "JSON object mapping extra model name to API key. Never commit this. Required for each extra in semantic_router_models_json."
+  description = "JSON object mapping extra model name to API key. Never commit this. Required for each extra in semantic_router_models_json when semantic_router_enabled is true."
   type        = string
   sensitive   = true
   default     = "{}"

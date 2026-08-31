@@ -122,12 +122,21 @@ spec:
       parameters:
         - name: model.variant
           value: {{ .Values.aiServing.modelVariant | quote }}
-        {{- $srEn := .Values.aiServing.semanticRouterEnabled | default "" | toString | trim }}
-        {{- if and $srEn (ne $srEn "") }}
+        {{- $srRaw := index ((.Values.aiServing) | default dict) "semanticRouterEnabled" }}
+        {{- $srOverride := "" }}
+        {{- if kindIs "bool" $srRaw }}
+        {{- $srOverride = ternary "true" "false" $srRaw }}
+        {{- else }}
+        {{- $srStr := $srRaw | default "" | toString | trim | lower }}
+        {{- if eq $srStr "true" }}{{- $srOverride = "true" }}
+        {{- else if eq $srStr "false" }}{{- $srOverride = "false" }}
+        {{- end }}
+        {{- end }}
+        {{- if $srOverride }}
         - name: semanticRouter.enabled
-          value: {{ $srEn | quote }}
+          value: {{ $srOverride | quote }}
         - name: global.semanticRouter.enabled
-          value: {{ $srEn | quote }}
+          value: {{ $srOverride | quote }}
         {{- end }}
         - name: semanticRouter.modelsJson
           value: {{ .Values.aiServing.semanticRouterModelsJson | default "[]" | quote }}
