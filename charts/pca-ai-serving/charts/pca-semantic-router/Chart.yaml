@@ -1,4 +1,0 @@
-apiVersion: v2
-name: pca-semantic-router
-version: 0.1.0
-description: PCA Semantic Router — OpenAI-compatible local vs external hop

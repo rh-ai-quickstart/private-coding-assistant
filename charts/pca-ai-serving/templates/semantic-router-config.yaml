@@ -1,0 +1,165 @@
+{{- if .Values.semanticRouter.enabled }}
+{{- include "pca-ai-serving.sr.validateExtras" . }}
+{{- $ns := include "pca-ai-serving.sr.ns" . }}
+{{- $localId := include "pca-ai-serving.sr.localModelId" . }}
+{{- $llmdHost := include "pca-ai-serving.sr.llmdHost" . }}
+{{- $extras := include "pca-ai-serving.sr.extras" . | fromJsonArray }}
+{{- $keys := include "pca-ai-serving.sr.apiKeys" . | fromJson }}
+{{- $emb := include "pca-ai-serving.sr.embeddingModel" . }}
+{{- $codeKw := include "pca-ai-serving.sr.codeKeywords" . | fromJsonArray }}
+{{- $strong := include "pca-ai-serving.sr.strongestExtra" . | fromJson }}
+{{- $hasExtras := gt (len $extras) 0 }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pca-semantic-router-config
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/name: pca-semantic-router
+data:
+  tools_db.json: "[]"
+  config.yaml: |
+    version: v0.3
+    listeners:
+      - name: extproc
+        address: 0.0.0.0
+        port: 50051
+        timeout: 300s
+    providers:
+      defaults:
+        default_model: local
+      models:
+        - name: local
+          provider_model_id: {{ $localId | quote }}
+          backend_refs:
+            - name: llmd
+              endpoint: {{ printf "%s:80" $llmdHost | quote }}
+              protocol: http
+              weight: 100
+{{- range $m := $extras }}
+{{- $ep := include "pca-ai-serving.sr.parseEndpoint" $m.endpoint | fromJson }}
+{{- $proto := "http" }}
+{{- if $ep.tls }}{{- $proto = "https" }}{{- end }}
+        - name: {{ $m.name | quote }}
+          provider_model_id: {{ $m.modelId | quote }}
+          backend_refs:
+            - name: {{ $m.name | quote }}
+{{- if $ep.tls }}
+              base_url: {{ $m.endpoint | quote }}
+{{- else }}
+              endpoint: {{ printf "%s:%v" $ep.host $ep.port | quote }}
+{{- end }}
+              protocol: {{ $proto }}
+              weight: 100
+              api_key_env: {{ include "pca-ai-serving.sr.envKey" $m.name }}
+{{- end }}
+    routing:
+      modelCards:
+        - name: local
+          modality: text
+          capabilities: [chat]
+{{- range $m := $extras }}
+        - name: {{ $m.name | quote }}
+          modality: text
+          capabilities: [chat]
+{{- end }}
+{{- if $hasExtras }}
+      signals:
+        keywords:
+          - name: code
+            operator: OR
+            case_sensitive: false
+            keywords:
+{{- range $k := $codeKw }}
+              - {{ $k | quote }}
+{{- end }}
+        complexity:
+          - name: task_complexity
+            threshold: 0.1
+            description: Easy versus hard assistant tasks
+            hard:
+              candidates:
+                - design a distributed consensus algorithm
+                - prove the theorem by induction
+                - architect multi-region failover with partitioned state
+                - implement a lock-free concurrent data structure
+            easy:
+              candidates:
+                - what is a variable
+                - say hello
+                - summarize this sentence in one line
+                - list three colors
+{{- end }}
+      decisions:
+{{- if $hasExtras }}
+        - name: strong_route
+          description: Code keywords or hard tasks go to the strongest extra model
+          priority: 100
+          rules:
+            operator: OR
+            conditions:
+              - type: keyword
+                name: code
+              - type: complexity
+                name: task_complexity:hard
+          modelRefs:
+            - model: {{ $strong.name | quote }}
+        - name: easy_route
+          description: Easy non-code tasks stay on local Qwen
+          priority: 50
+          rules:
+            operator: AND
+            conditions:
+              - type: complexity
+                name: task_complexity:easy
+              - operator: NOT
+                conditions:
+                  - type: keyword
+                    name: code
+          modelRefs:
+            - model: local
+{{- end }}
+        - name: default_route
+          description: Pin to local Qwen
+          priority: 1
+          rules:
+            operator: AND
+          modelRefs:
+            - model: local
+    global:
+      router:
+        config_source: file
+        strategy: priority
+{{- if $hasExtras }}
+      model_catalog:
+        embeddings:
+          semantic:
+            use_cpu: true
+            embedding_config:
+              backend: candle
+              model_type: bert
+              model_id: {{ $emb | quote }}
+{{- end }}
+  envoy.yaml: |
+{{- include "pca-ai-serving.sr.envoyYaml" . | nindent 4 }}
+{{- range $m := $extras }}
+{{- $injected := index $keys $m.name | default "" | toString | trim }}
+{{- if $injected }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "pca-ai-serving.sr.secretName" $m.name }}
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    app.kubernetes.io/name: pca-semantic-router
+type: Opaque
+stringData:
+  api-key: {{ $injected | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

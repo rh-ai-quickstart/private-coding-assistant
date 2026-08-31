@@ -9,7 +9,7 @@ IDE Extension (Continue / Roo / OpenCode)
   → maas-default-gateway (TLS + API key)
     → POST /v1/chat/completions
       → Guardrails Proxy
-        → stream: input probe (TrustyAI) → identity SSE from pca-llm-upstream
+        → stream: input probe (TrustyAI) → identity SSE from llm-d (or pca-semantic-router when SR is on)
         → JSON: TrustyAI (input + output detectors) → llm-d
 ```
 
