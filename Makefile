@@ -8,6 +8,11 @@ PROJECT_DIR := $(shell pwd)
 AI_NAMESPACE ?= private-assistant-ai-serving
 HF_TOKEN ?= $(HUGGINGFACE_TOKEN)
 MCP_ENABLED ?= false
+# Local Qwen is always model.id. Do not list it in SEMANTIC_ROUTER_MODELS_JSON.
+# SEMANTIC_ROUTER_ENABLED=true still needs HUGGINGFACE_TOKEN (Make already requires HF_TOKEN).
+SEMANTIC_ROUTER_ENABLED ?= false
+SEMANTIC_ROUTER_MODELS_JSON ?= []
+SEMANTIC_ROUTER_API_KEYS_JSON ?= {}
 CHARTS_DIR := charts
 SCRIPTS_DIR := PCA_Deployment_ROSA/scripts
 DEPLOY_VALUES_DIR := deploy_existing_openshift
@@ -17,6 +22,13 @@ MCP_FLAGS := $(if $(filter true,$(MCP_ENABLED)),\
 	--set mcp.enabled=true \
 	--set pca-mcp.gateway.enabled=false \
 	--set pca-mcp.namespace=$(AI_NAMESPACE),)
+
+# Set both Helm enable flags together. --set-json keeps commas inside the extra-model list.
+SR_FLAGS := $(if $(filter true,$(SEMANTIC_ROUTER_ENABLED)),\
+	--set semanticRouter.enabled=true \
+	--set global.semanticRouter.enabled=true \
+	--set-json semanticRouter.models='$(SEMANTIC_ROUTER_MODELS_JSON)' \
+	--set-json semanticRouter.apiKeysJson='$(SEMANTIC_ROUTER_API_KEYS_JSON)',)
 
 ENV_FILE_FLAG := $(if $(wildcard .env),--env-file .env,)
 AWS_MOUNT := $(if $(wildcard $(HOME)/.aws),-v $(HOME)/.aws:/home/pca/.aws:ro,)
@@ -87,7 +99,7 @@ ai-serving-deploy-existing-openshift: ## Deploy AI serving on existing OpenShift
 		--set namespace=$(AI_NAMESPACE) \
 		--set pca-observability.namespace=$(AI_NAMESPACE) \
 		--set pca-guardrails.namespace=$(AI_NAMESPACE) \
-		--set pca-semantic-router.namespace=$(AI_NAMESPACE) \
+		$(SR_FLAGS) \
 		$(HELM_ARGS)
 
 # Default: helm uninstall only — keeps AI_NAMESPACE + model-cache PVC (warm restart path).

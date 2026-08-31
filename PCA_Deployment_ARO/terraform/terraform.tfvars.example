@@ -52,6 +52,15 @@ devspaces_users = [
 # Secrets
 huggingface_token = ""
 
+# Semantic Router extras (optional). Local Qwen is injected from model.id — do not list it.
+# Routing requires huggingface_token AND semantic_router_enabled = true.
+# Leave semantic_router_enabled unset so the chart overlay wins (ROSA on / ARO off).
+# semantic_router_enabled = true
+# semantic_router_models_json = "[{\"name\":\"cloud\",\"strength\":\"strong\",\"endpoint\":\"https://api.example.com/v1\",\"modelId\":\"gpt-4o\"}]"
+# semantic_router_api_keys_json = "{\"cloud\":\"sk-...\"}"
+semantic_router_models_json   = "[]"
+semantic_router_api_keys_json = "{}"
+
 # GitOps: point to your fork of this repo
 gitops_repo_url      = "https://github.com/manujoy7/Private_AI_Coding_Assistant.git"
 gitops_repo_revision = "main"

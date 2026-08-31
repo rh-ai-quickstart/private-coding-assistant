@@ -4,6 +4,25 @@
 # Installs the OpenShift GitOps operator and creates the
 # root App-of-Apps that manages all subsequent resources.
 
+resource "terraform_data" "semantic_router_guard" {
+  input = {
+    enabled = var.semantic_router_enabled
+  }
+  lifecycle {
+    precondition {
+      condition     = var.semantic_router_enabled != true || length(var.huggingface_token) > 0
+      error_message = "semantic_router_enabled=true requires huggingface_token (MiniLM and local Qwen)."
+    }
+    precondition {
+      condition = alltrue([
+        for m in jsondecode(var.semantic_router_models_json) :
+        try(lookup(nonsensitive(jsondecode(var.semantic_router_api_keys_json)), m.name, ""), "") != ""
+      ])
+      error_message = "each extra in semantic_router_models_json needs a matching name in semantic_router_api_keys_json."
+    }
+  }
+}
+
 resource "null_resource" "install_gitops_operator" {
   provisioner "local-exec" {
     command = <<-EOT
@@ -120,6 +139,16 @@ resource "null_resource" "argocd_app_of_apps" {
                 value: ${var.model_variant}
               - name: devSpaces.modelVariant
                 value: ${var.model_variant}
+              - name: aiServing.semanticRouterModelsJson
+                value: ${jsonencode(var.semantic_router_models_json)}
+                forceString: true
+              - name: aiServing.semanticRouterApiKeysJson
+                value: ${jsonencode(var.semantic_router_api_keys_json)}
+                forceString: true
+%{ if var.semantic_router_enabled != null ~}
+              - name: aiServing.semanticRouterEnabled
+                value: "${var.semantic_router_enabled}"
+%{ endif ~}
         destination:
           server: https://kubernetes.default.svc
           namespace: openshift-gitops

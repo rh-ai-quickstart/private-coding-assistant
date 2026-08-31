@@ -122,6 +122,19 @@ spec:
       parameters:
         - name: model.variant
           value: {{ .Values.aiServing.modelVariant | quote }}
+        {{- $srEn := .Values.aiServing.semanticRouterEnabled | default "" | toString | trim }}
+        {{- if and $srEn (ne $srEn "") }}
+        - name: semanticRouter.enabled
+          value: {{ $srEn | quote }}
+        - name: global.semanticRouter.enabled
+          value: {{ $srEn | quote }}
+        {{- end }}
+        - name: semanticRouter.modelsJson
+          value: {{ .Values.aiServing.semanticRouterModelsJson | default "[]" | quote }}
+          forceString: true
+        - name: semanticRouter.apiKeysJson
+          value: {{ .Values.aiServing.semanticRouterApiKeysJson | default "{}" | quote }}
+          forceString: true
   destination:
     server: https://kubernetes.default.svc
     namespace: ai-serving

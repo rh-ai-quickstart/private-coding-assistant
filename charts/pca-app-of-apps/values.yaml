@@ -11,5 +11,9 @@ hfToken:
 # this is a safe no-op for Helm-only installs of this chart that skip Terraform.
 aiServing:
   modelVariant: "qwen3.6"
+  # Empty = do not --set enable flags (ROSA overlay stays on, ARO stays off).
+  semanticRouterEnabled: ""
+  semanticRouterModelsJson: "[]"
+  semanticRouterApiKeysJson: "{}"
 devSpaces:
   modelVariant: "qwen3.6"
