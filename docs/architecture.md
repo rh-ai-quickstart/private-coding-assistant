@@ -26,7 +26,7 @@ flowchart TD
 1. **Developer workspace** — Continue, Cline, Roo Code, or OpenCode in a Dev Spaces pod call `maas-default-gateway` over cluster-internal HTTPS with a per-namespace API key.
 2. **MaaS / RHCL** — AuthPolicy validates the API key. HTTPRoute `pca-maas-front-door` sends chat to guardrails (when enabled), tab `/local/v1` and other `/v1` to llm-d. RHCL is the policy engine on this Gateway, not a second hop.
 3. **Guardrails** — TrustyAI detectors, then llm-d HTTP :80 (or Semantic Router when `semanticRouter.enabled`). Streaming chat is an input-only probe then llm-d SSE; output secret scans run on non-stream JSON only.
-4. **Semantic Router** — optional API-mode hop. Auto local vs external when a provider URL and AI-ns secret are set; otherwise pin-local. Not an OpenShift AI component.
+4. **Semantic Router** — optional official vLLM SR + Envoy behind Service `pca-semantic-router`. Helm injects local Qwen; extras are optional OpenAI-compatible backends. Keyword `code` or complexity `hard` → strongest extra; easy non-code → local Qwen. Not an OpenShift AI component.
 5. **llm-d / vLLM** — `LLMInferenceService` (KServe). EPP is off by default.
 
 See [maas-attachment.md](maas-attachment.md) for why PCA owns the HTTPRoute instead of `MaaSModelRef.endpointOverride`.
@@ -82,5 +82,6 @@ SVG sources for the same views live alongside the PNGs in [`docs/images/`](image
 ## Related
 
 - [Models and routing](models-and-routing.md)
+- [Semantic Router](semantic-router.md)
 - [IDE and extensions](ide-and-extensions.md)
 - [MaaS attachment spike](maas-attachment.md)

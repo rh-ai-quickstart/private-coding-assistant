@@ -27,7 +27,7 @@ flowchart TD
  Local --> EPP --> VLLM
 ```
 
-Chat with guardrails on: IDE → `maas-default-gateway` (API key) → `guardrails-proxy` → TrustyAI → `pca-llm-upstream` (Semantic Router when enabled, else llm-d) → vLLM. Chat with guardrails off: IDE → `maas-default-gateway` → Semantic Router or llm-d. Continue tab autocomplete uses authenticated `/local/v1` (skips guardrails and SR). OpenCode has one `/v1` URL, so its completions still follow the chat path.
+Chat with guardrails on: IDE → `maas-default-gateway` (API key) → `guardrails-proxy` → TrustyAI → `pca-semantic-router` (when Semantic Router is enabled) or llm-d → vLLM. Chat with guardrails off: IDE → `maas-default-gateway` → Semantic Router or llm-d. Continue tab autocomplete uses authenticated `/local/v1` (skips guardrails and SR). OpenCode has one `/v1` URL, so its completions still follow the chat path.
 
 ## Charts (waves)
 
@@ -38,7 +38,7 @@ ArgoCD syncs these Helm charts in order (via `pca-app-of-apps`):
 | `pca-app-of-apps` | root | AppProject + child Applications; sync-wave ordering | `openshift-gitops` (no workloads) |
 | `pca-operators` | 1 | Operator Subscriptions, cert-manager, LWS, RHCL (Kuadrant) | `redhat-ods-operator` (RHOAI), `nvidia-gpu-operator`, `openshift-devspaces`, `openshift-nfd`, cert-manager, LWS, `kuadrant-system` |
 | `pca-platform-config` | 2 | Namespaces, HF token, DSC/DSCI, NFD, NVIDIA ClusterPolicy, CheCluster, OAuth HTPasswd, Maas gateway, LWS CR; optional `pca-mcp` | AI ns (default `ai-serving`); optional per-dev namespaces |
-| `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), llm-d gateway + HTTPRoute, MaaS HTTPRoute on `maas-default-gateway` + AuthPolicy; optional `pca-guardrails` / `pca-semantic-router`; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
+| `pca-ai-serving` | 3 | PVC, HardwareProfile, LLMInferenceService (llm-d/vLLM), llm-d gateway + HTTPRoute, MaaS HTTPRoute on `maas-default-gateway` + AuthPolicy; optional `pca-guardrails` / Semantic Router hop; `pca-observability` (Grafana; optional Langfuse/OTel) | AI ns |
 | `pca-devspaces` | 4 | DevWorkspace, Roo/Continue/Cline ConfigMaps, per-ns API keys, RBAC; global DevSpaces ConfigMaps | Per-dev ns; globals in `openshift-devspaces` |
 | `pca-benchmarks` | 5 | GuideLLM capacity Job (concurrent + throughput; **disabled by default — opt-in / `make performance-vllm`**) | AI ns |
 

@@ -318,6 +318,10 @@ devspaces_users = [
 # REQUIRED — your HuggingFace token
 huggingface_token = "hf_..."
 
+# Semantic Router: huggingface_token is also required when semantic_router_enabled = true
+# (MiniLM + local Qwen). Leave semantic_router_enabled unset to keep the ROSA chart
+# overlay (hop on, pin to Qwen until extras JSON is set). See docs/semantic-router.md.
+
 # REQUIRED — your forked repo URL
 gitops_repo_url      = "https://github.com/<your-org>/private-coding-assistant.git"
 gitops_repo_revision = "main"
