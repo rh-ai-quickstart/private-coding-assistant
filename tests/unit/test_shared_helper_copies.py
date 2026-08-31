@@ -31,8 +31,9 @@ def test_upsert_tls_secret_scripts_match() -> None:
     assert serving == platform
 
 
-def test_sse_http_files_match() -> None:
-    assert GUARDRAILS_SSE.read_text() == ROUTER_SSE.read_text()
+def test_sse_http_stays_in_guardrails_only() -> None:
+    assert GUARDRAILS_SSE.is_file()
+    assert not ROUTER_SSE.exists()
 
 
 def test_suite_oc_modules_reexport_pca_oc() -> None:

@@ -1,7 +1,6 @@
 """HTTP/1.1 chunked POST body + Content-Length SSE framing for Envoy.
 
-Copied into pca-guardrails and pca-semantic-router (separate images).
-Lock: tests/unit/test_shared_helper_copies.py.
+Guardrails-only. Lock: tests/unit/test_shared_helper_copies.py.
 """
 
 from __future__ import annotations

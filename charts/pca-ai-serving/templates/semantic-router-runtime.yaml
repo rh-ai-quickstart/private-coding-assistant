@@ -1,0 +1,210 @@
+{{- if .Values.semanticRouter.enabled }}
+{{- include "pca-ai-serving.sr.validateExtras" . }}
+{{- $ns := include "pca-ai-serving.sr.ns" . }}
+{{- $extras := include "pca-ai-serving.sr.extras" . | fromJsonArray }}
+{{- $keys := include "pca-ai-serving.sr.apiKeys" . | fromJson }}
+{{- $sr := .Values.semanticRouter }}
+{{- $extprocImage := (($sr.extproc).image | default "ghcr.io/vllm-project/semantic-router/extproc:v0.3.0") }}
+{{- $envoyImage := (($sr.envoy).image | default "envoyproxy/envoy:v1.34.4") }}
+{{- $replicas := $sr.replicas | default 1 }}
+{{- $res := $sr.resources | default dict }}
+{{- $req := $res.requests | default dict }}
+{{- $lim := $res.limits | default dict }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pca-semantic-router
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: pca-semantic-router
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pca-semantic-router
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/semantic-router-config.yaml") . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: pca-semantic-router
+    spec:
+      containers:
+        - name: envoy
+          image: {{ $envoyImage | quote }}
+          args:
+            - "-c"
+            - "/etc/envoy/envoy.yaml"
+            - "--service-cluster"
+            - pca-semantic-router
+          ports:
+            - containerPort: 8800
+              name: http
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/envoy/envoy.yaml
+              subPath: envoy.yaml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8800
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8800
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+        - name: extproc
+          image: {{ $extprocImage | quote }}
+          args:
+            - "--secure=false"
+          ports:
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+            - containerPort: 8080
+              name: classify
+              protocol: TCP
+            - containerPort: 9190
+              name: metrics
+              protocol: TCP
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+            - name: HUGGINGFACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+            - name: HF_HOME
+              value: /app/models
+{{- range $m := $extras }}
+{{- $existing := $m.apiKeySecret | default "" | toString | trim }}
+{{- $secret := $existing }}
+{{- if not $secret }}
+{{- $secret = include "pca-ai-serving.sr.secretName" $m.name }}
+{{- end }}
+            - name: {{ include "pca-ai-serving.sr.envKey" $m.name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: {{ $m.apiKeySecretKey | default "api-key" }}
+{{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: config
+              mountPath: /app/config/tools_db.json
+              subPath: tools_db.json
+              readOnly: true
+            - name: models
+              mountPath: /app/models
+          resources:
+            requests:
+              cpu: {{ $req.cpu | default "500m" }}
+              memory: {{ $req.memory | default "1Gi" }}
+            limits:
+              cpu: {{ $lim.cpu | default "2" }}
+              memory: {{ $lim.memory | default "4Gi" }}
+          startupProbe:
+            tcpSocket:
+              port: 50051
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 60
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 50051
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: config
+          configMap:
+            name: pca-semantic-router-config
+        - name: models
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pca-semantic-router
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: pca-semantic-router
+spec:
+  selector:
+    app.kubernetes.io/name: pca-semantic-router
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8800
+      protocol: TCP
+    - name: classify
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: metrics
+      port: 9190
+      targetPort: 9190
+      protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pca-semantic-router
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  labels:
+    app.kubernetes.io/name: pca-semantic-router
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pca-semantic-router
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+{{- end }}

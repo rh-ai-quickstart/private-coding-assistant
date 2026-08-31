@@ -5,8 +5,5 @@ dependencies:
 - name: pca-guardrails
   repository: ""
   version: 0.1.0
-- name: pca-semantic-router
-  repository: ""
-  version: 0.1.0
-digest: sha256:7500eed0d58651f5595dc7baeb03c61308149ad958a6964820f27ca037d1510b
-generated: "2026-08-20T17:44:38.733679208+03:00"
+digest: sha256:f5056f8eb6a770e826d5165dd4b63bfa0688eaf28ab72e03a5f2e21c5a443337
+generated: "2026-08-31T13:56:14.393152703+03:00"

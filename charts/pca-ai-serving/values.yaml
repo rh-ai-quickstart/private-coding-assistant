@@ -107,29 +107,37 @@ maas:
     daily: 50000000
   tls:
     secretName: maas-default-gateway-tls
+# Official vLLM SR hop behind Service pca-semantic-router. Local Qwen is injected
+# from model.id; models[] is extras only. Set both enable flags together.
 semanticRouter: &semanticRouter
   enabled: false
+  replicas: 1
+  extproc:
+    image: ghcr.io/vllm-project/semantic-router/extproc:v0.3.0
+  envoy:
+    image: envoyproxy/envoy:v1.34.4
+  embedding:
+    model: sentence-transformers/all-MiniLM-L6-v2
+  keywords:
+    code:
+      - implement
+      - refactor
+      - debug
+      - function
+      - class
+      - python
+      - javascript
+      - typescript
+      - golang
+      - code
+  models: []
+  modelsJson: ""
+  apiKeysJson: {}
 # Guardrails subchart reads global.semanticRouter.enabled (Helm global pass-through).
 # Keep equal to semanticRouter.enabled. Enable:
 #   --set semanticRouter.enabled=true,global.semanticRouter.enabled=true
 global:
   semanticRouter: *semanticRouter
-pca-semantic-router:
-  namespace: ai-serving
-  # Must match pca-ai-serving.llmdGatewayService ({gatewayName}-{gatewayClassName}).
-  llmdGatewayService: llm-d-gateway-data-science-gateway-class
-  semanticRouter:
-    replicas: 1
-    routeMode: pin-local
-    localModel: ""
-    autoKeywords: "code,function,class,implement,refactor,debug,complete,python,javascript,typescript,golang,rust"
-    local:
-      baseUrl: ""
-    external:
-      baseUrl: ""
-      models: ""
-      secretName: pca-semantic-router-external
-      secretKey: api-key
 # Observability (pca-observability subchart)
 # Installs when observability.enabled (default true because grafana.enabled defaults true).
 # Set observability.enabled=false to skip the entire subchart.
@@ -168,7 +176,7 @@ pca-guardrails:
   guardrails:
     enforcement: block
     llmService:
-      # Empty (or legacy pca-llm-upstream): llm-d HTTP :80, or pca-semantic-router when global.semanticRouter.enabled.
+      # Empty: llm-d HTTP :80, or pca-semantic-router when global.semanticRouter.enabled.
       host: ""
       port: 80
       tlsSecret: ""

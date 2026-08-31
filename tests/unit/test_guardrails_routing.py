@@ -132,16 +132,15 @@ def test_httproute_chat_goes_to_sr_when_guardrails_off_and_sr_on():
     assert f"/v1/models/->{LLMD_SVC}:80" in backends
     assert f"/local/v1->{LLMD_SVC}:80" in backends
     deploy = _named(docs, "Deployment", "pca-semantic-router")
-    env = {
-        item["name"]: item.get("value")
-        for item in deploy["spec"]["template"]["spec"]["containers"][0]["env"]
-        if "value" in item
+    containers = {
+        c["name"] for c in deploy["spec"]["template"]["spec"]["containers"]
     }
-    assert env["ROUTE_MODE"] == "pin-local"
-    assert env["LOCAL_BASE_URL"] == f"http://{LLMD_SVC}.ai-serving.svc.cluster.local:80/v1"
-    script_cm = _named(docs, "ConfigMap", "pca-semantic-router-script")
-    assert "sse_http.py" in script_cm.get("data", {})
-    assert "semantic_router.py" in script_cm.get("data", {})
+    assert containers == {"envoy", "extproc"}
+    cfg_cm = _named(docs, "ConfigMap", "pca-semantic-router-config")
+    assert "config.yaml" in cfg_cm.get("data", {})
+    assert "envoy.yaml" in cfg_cm.get("data", {})
+    assert "semantic_router.py" not in (cfg_cm.get("data") or {})
+    assert "/tokenize" in cfg_cm["data"]["envoy.yaml"]
 
 
 def test_orchestrator_pins_local_when_sr_off_and_points_at_sr_when_on():
@@ -261,6 +260,14 @@ def test_rosa_overlay_enables_langfuse_and_semantic_router():
     _named(docs, "Deployment", "pca-semantic-router")
     _named(docs, "Service", "pca-semantic-router")
     assert "hostname: pca-semantic-router." in _orchestrator_host(docs)
+    deploy = _named(docs, "Deployment", "pca-semantic-router")
+    containers = {
+        c["name"] for c in deploy["spec"]["template"]["spec"]["containers"]
+    }
+    assert "envoy" in containers
+    assert "extproc" in containers
+    env_blob = str(deploy["spec"]["template"]["spec"]["containers"])
+    assert "ROUTE_MODE" not in env_blob
     kinds = {(d.get("kind"), d.get("metadata", {}).get("name")) for d in docs}
     assert ("Deployment", "pca-otel-collector") in kinds
     assert any(name and str(name).startswith("pca-langfuse") for _, name in kinds)
