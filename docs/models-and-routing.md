@@ -9,7 +9,7 @@ NVIDIA models are deployed with KServe **`LLMInferenceService`** only. The stack
 - llm-d Endpoint Picker (EPP)
 - HTTPRoute through the data-science / llm-d gateway
 - **MaaS / RHCL front door** (`maas-default-gateway`) with AuthPolicy on `pca-maas-front-door`
-- Optional **Semantic Router** (`semanticRouter.enabled`, default off) as an HTTP hop after TrustyAI
+- Optional **Semantic Router** (`semanticRouter.enabled`, default off) as an HTTP hop after TrustyAI. See [semantic-router.md](semantic-router.md).
 
 ### Default model
 
@@ -77,16 +77,20 @@ Details: [deploy_existing_openshift/README.md](../deploy_existing_openshift/READ
 
 ## Semantic Router
 
-Optional subchart (`semanticRouter.enabled`, default **false**). Community workload, not an OpenShift AI DSC component. API-mode hop (not Envoy ExtProc).
+Optional official vLLM Semantic Router plus Envoy, still Service `pca-semantic-router`. Community workload, not an OpenShift AI DSC component. ExtProc is wrapped in that Service; it is not attached to `maas-default-gateway`.
 
-- **Off (default):** TrustyAI pins llm-d HTTP `:80`. Chat stays local. Grafana SR panels are empty — that is expected.
-- **On, `routeMode: pin-local`:** SR pod always forwards to llm-d. Use this to prove the hop before enabling auto.
-- **On, `routeMode: auto`:** needs `pca-semantic-router.semanticRouter.external.baseUrl` plus Secret `pca-semantic-router-external` in the AI namespace (never in DevSpaces). Code-like prompts stay local; named external models / non-code go off-cluster. Decision header `X-PCA-Route-Backend` and metric `pca_semantic_router_decisions_total`.
+Full operator notes: [semantic-router.md](semantic-router.md).
 
-Rotate the provider key by replacing that AI-ns Secret. Rotate IDE keys by replacing `pca-maas-apikey` (DevSpaces ns + Authorino mirror). Disable SR by setting `semanticRouter.enabled=false` and syncing — chat pins local; it does not fail closed.
+- **Off (parent default; ARO overlay):** TrustyAI pins llm-d HTTP `:80`. Chat stays local. Grafana SR panels are empty — that is expected.
+- **On, no extras:** Helm injects local Qwen from `model.id`. Chat pins to that provider. ROSA overlay already enables this hop.
+- **On, extras:** operators list extra OpenAI-compatible backends only (`endpoint`, `modelId`, `strength`). Code keywords or complexity `hard` go to the strongest extra; easy non-code stays on local Qwen. Keys stay in the AI namespace (`apiKeysJson` or `apiKeySecret`), never in DevSpaces.
+- **Flags:** set `semanticRouter.enabled` and `global.semanticRouter.enabled` together. `/tokenize` stays on llm-d. Tab `/local/v1` skips SR.
+
+Rotate extra-model keys by replacing the AI-ns Secret. Rotate IDE keys by replacing `pca-maas-apikey` (DevSpaces ns + Authorino mirror). Disable SR with both flags `false` — chat pins local via llm-d.
 
 ## Related
 
 - [Architecture](architecture.md)
+- [Semantic Router](semantic-router.md)
 - [Benchmarks](benchmarks.md)
 - [IDE and extensions](ide-and-extensions.md)

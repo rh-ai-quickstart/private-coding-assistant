@@ -160,6 +160,7 @@ make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1
 | [docs/requirements.md](docs/requirements.md) | Hardware, software, permissions |
 | [docs/ide-and-extensions.md](docs/ide-and-extensions.md) | Dev Spaces, Continue / Cline / Roo |
 | [docs/models-and-routing.md](docs/models-and-routing.md) | vLLM, llm-d, RHCL |
+| [docs/semantic-router.md](docs/semantic-router.md) | Official vLLM SR hop, extras, inject |
 | [docs/models-and-hardware.md](docs/models-and-hardware.md) | Changing models and accelerators |
 | [docs/benchmarks.md](docs/benchmarks.md) | Performance highlights + links |
 | [docs/customization.md](docs/customization.md) | Prompts, rules, MCP, quality gates |

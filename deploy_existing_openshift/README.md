@@ -136,7 +136,10 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 | `N` | *(empty)* | Devspace | When set, deploy `dev-user1..N` in `dev-userN-devspaces` and sync `values-platform-config.yaml` instances (passwords `DevN@PCA2026!`) |
 | `DEV_USER` | *(required if N unset)* | Devspace | OpenShift username; namespace is always `<DEV_USER>-devspaces` |
 | `TYPE` | `opencode` | Devspace | `opencode` (default) or `continue` (Continue/Roo/Cline) |
-| `HF_TOKEN` | from `.env` (`HUGGINGFACE_TOKEN`) | AI serving | HuggingFace token |
+| `HF_TOKEN` | from `.env` (`HUGGINGFACE_TOKEN`) | AI serving | HuggingFace token (required; also used by MiniLM when SR is on) |
+| `SEMANTIC_ROUTER_ENABLED` | `false` | AI serving | When `true`, Make sets `semanticRouter.enabled` and `global.semanticRouter.enabled` together |
+| `SEMANTIC_ROUTER_MODELS_JSON` | `[]` | AI serving | Extra OpenAI-compatible backends only. Do not list local Qwen |
+| `SEMANTIC_ROUTER_API_KEYS_JSON` | `{}` | AI serving | Keys for extras, keyed by model name. Stays in the AI namespace |
 | `MCP_ENABLED` | `false` | Both | Enable `pca-mcp` + IDE MCP wiring |
 | `HELM_ARGS` | *(empty)* | Both | Extra `helm upgrade --install` flags |
 
@@ -151,7 +154,7 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 | `--set aiGateway.escapeHatchToLlmd=true` | Skip MaaS; IDEs call llm-d Gateway directly |
 | `--set maas.enabled=false` | Disable MaaS HTTPRoute / AuthPolicy (IDEs fall back to llm-d) |
 | `--set maas.hostname=<Gateway/Route host>` | Pin HTTPRoute, AuthConfig, and EnvoyFilter to the public MaaS host (`oc get gateway maas-default-gateway -n openshift-ingress`). Empty default is Istio catch-all `*:443`. Do not commit the cluster hostname in values files. |
-| `--set semanticRouter.enabled=true,global.semanticRouter.enabled=true` | Deploy the Semantic Router hop (still pin-local until an external URL + secret are set) |
+| `--set semanticRouter.enabled=true,global.semanticRouter.enabled=true` | Deploy the Semantic Router hop (pins local Qwen until extras exist). Prefer `SEMANTIC_ROUTER_ENABLED=true` so Make sets both flags |
 
 ### Related make targets
 
@@ -467,5 +470,5 @@ Dev Spaces inherits the cluster IDP automatically. Once users can `oc login`, th
 |-------|-----|
 | Token quota | `MaaSSubscription` tokenRateLimits on `pca-ide` (hourly/daily in `maas.tokenLimit`) |
 | Disable Semantic Router | `semanticRouter.enabled=false` (and `global.semanticRouter.enabled=false`) — TrustyAI pins local via llm-d HTTP :80. Grafana SR panels go empty. |
-| External provider | AI-ns Secret `pca-semantic-router-external` + `routeMode: auto`. Never put provider keys in DevSpaces. |
+| Extra models | `SEMANTIC_ROUTER_MODELS_JSON` + `SEMANTIC_ROUTER_API_KEYS_JSON` (or Helm `semanticRouter.models` / `apiKeysJson`). Secrets stay in the AI namespace. Never put provider keys in DevSpaces. See [docs/semantic-router.md](../docs/semantic-router.md). |
 | Rotate IDE keys | Replace `pca-maas-apikey` in the DevSpaces ns and the Authorino mirror in the AI ns |

@@ -299,6 +299,8 @@ Edit `terraform.tfvars`:
 | `pull_secret` | Red Hat pull secret (single-line JSON string) |
 | `cluster_name` | Cluster name (default: `aro-pca-aue`) |
 | `location` | Azure region (default: `australiaeast`) |
+| `huggingface_token` | HuggingFace token (required for local Qwen; also required if `semantic_router_enabled = true`) |
+| `semantic_router_enabled` | Optional. Leave unset so the ARO overlay keeps SR off. Set `true` only with `huggingface_token` plus extras JSON if you want a split |
 | `gitops_repo_url` | Your fork of the `Private_AI_Coding_Assistant` repo |
 
 ### Step 3: Deploy Infrastructure with Terraform
