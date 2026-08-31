@@ -12,9 +12,10 @@ KServe InferenceService name for prompt injection (keep short for DNS limits).
 */}}
 {{- define "pca-guardrails.llmHost" -}}
 {{- $explicit := .Values.guardrails.llmService.host | default "" | toString | trim -}}
+{{- $srOn := (((.Values.global).semanticRouter).enabled | default false) | toString | lower | trim -}}
 {{- if and $explicit (ne $explicit "pca-llm-upstream") -}}
 {{- $explicit -}}
-{{- else if (((.Values.global).semanticRouter).enabled | default false) -}}
+{{- else if or (eq $srOn "true") (eq $srOn "1") -}}
 pca-semantic-router
 {{- else -}}
 {{- .Values.llmdGatewayService | default "llm-d-gateway-data-science-gateway-class" -}}

@@ -1,7 +1,21 @@
 {{/*
 Semantic Router helpers. Operator extras live on .Values.semanticRouter.
 Local Qwen is always injected from model.id; never listed in models[].
+ArgoCD helm.parameters are strings; "false" must not enable the hop.
 */}}
+
+{{- define "pca-ai-serving.sr.truthy" -}}
+{{- $v := . | toString | lower | trim -}}
+{{- if or (eq $v "true") (eq $v "1") -}}true{{- else -}}false{{- end -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.sr.enabled" -}}
+{{- include "pca-ai-serving.sr.truthy" ((.Values.semanticRouter).enabled | default false) -}}
+{{- end -}}
+
+{{- define "pca-ai-serving.sr.globalEnabled" -}}
+{{- include "pca-ai-serving.sr.truthy" (((.Values.global).semanticRouter).enabled | default false) -}}
+{{- end -}}
 
 {{- define "pca-ai-serving.sr.ns" -}}
 {{- .Values.namespace | default "ai-serving" -}}
