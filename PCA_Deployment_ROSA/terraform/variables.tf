@@ -233,10 +233,40 @@ variable "cluster_admin_password" {
 # Secrets
 # ──────────────────────────────────────────────
 variable "huggingface_token" {
-  description = "HuggingFace API token for model downloads"
+  description = "HuggingFace API token for model downloads. Required when semantic_router_enabled is true (local Qwen + MiniLM)."
   type        = string
   sensitive   = true
   default     = ""
+}
+
+variable "semantic_router_enabled" {
+  description = "When true, set both Helm Semantic Router flags on pca-ai-serving. null (default) leaves the chart overlay in charge (ROSA on, ARO off). true requires huggingface_token."
+  type        = bool
+  default     = null
+  nullable    = true
+}
+
+variable "semantic_router_models_json" {
+  description = "JSON array of extra OpenAI-compatible backends. Do not list local Qwen. Empty [] pins chat to the injected local model."
+  type        = string
+  default     = "[]"
+
+  validation {
+    condition     = can(jsondecode(var.semantic_router_models_json))
+    error_message = "semantic_router_models_json must be valid JSON."
+  }
+}
+
+variable "semantic_router_api_keys_json" {
+  description = "JSON object mapping extra model name to API key. Never commit this. Required for each extra in semantic_router_models_json."
+  type        = string
+  sensitive   = true
+  default     = "{}"
+
+  validation {
+    condition     = can(jsondecode(var.semantic_router_api_keys_json))
+    error_message = "semantic_router_api_keys_json must be valid JSON."
+  }
 }
 
 # ──────────────────────────────────────────────

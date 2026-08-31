@@ -36,6 +36,15 @@ aiGateway:
   tls:
     secretName: llm-d-gateway-tls
 # Guardrails workloads (TrustyAI operator toggle stays in pca-platform-config cluster.trustyai).
-# llmService host/port/tlsSecret: inherited (pca-llm-upstream → llm-d HTTP :80, or SR when enabled).
+# llmService host/port/tlsSecret: inherited (llm-d HTTP :80, or pca-semantic-router when SR is on).
+# Extra OpenAI-compatible backends only — do not list local Qwen (Helm injects model.id).
+# semanticRouter:
+#   enabled: true
+#   models:
+#     - name: cloud
+#       strength: strong
+#       endpoint: https://api.example.com/v1
+#       modelId: gpt-4o
+#   apiKeysJson: '{"cloud":"sk-..."}'
 guardrails:
   enabled: true
