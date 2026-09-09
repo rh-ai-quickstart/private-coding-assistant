@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import ssl
 import threading
 import time
@@ -323,6 +324,10 @@ def normalize_orchestrator_messages(body: dict) -> dict:
 
 class ProxyHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+
+    def setup(self):
+        super().setup()
+        self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
     def _write_payload(self, status: int, payload: bytes, content_type: str) -> None:
         self.send_response(status)
