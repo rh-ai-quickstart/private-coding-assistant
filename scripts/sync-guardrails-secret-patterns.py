@@ -107,19 +107,17 @@ def extract_gitleaks_regexes(
                 if isinstance(item, str) and item.strip():
                     candidates.append(item.strip())
 
+    # No Python re.compile() validation: TrustyAI uses its own regex engine (not
+    # Python's re), so patterns invalid in Python are still valid for TrustyAI.
+    # Validating here causes non-deterministic output across Python versions.
     valid: list[str] = []
-    skipped: list[tuple[str, str]] = []
     seen: set[str] = set()
     for pattern in candidates:
         if pattern in seen:
             continue
         seen.add(pattern)
-        try:
-            re.compile(pattern)
-            valid.append(pattern)
-        except re.error as exc:
-            skipped.append((pattern, str(exc)))
-    return valid, skipped
+        valid.append(pattern)
+    return valid, []
 
 
 def build_pattern_list() -> tuple[list[str], list[tuple[str, str]]]:
@@ -133,11 +131,6 @@ def build_pattern_list() -> tuple[list[str], list[tuple[str, str]]]:
     patterns = [p for p in patterns if p not in remove_set]
 
     for extra in overrides.get("add", []):
-        try:
-            re.compile(extra)
-        except re.error as exc:
-            skipped.append((extra, f"override add: {exc}"))
-            continue
         if extra not in patterns:
             patterns.append(extra)
 

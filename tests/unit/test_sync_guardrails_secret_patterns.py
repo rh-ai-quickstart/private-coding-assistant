@@ -51,7 +51,7 @@ def test_vendor_toml_exists():
 def test_extract_gitleaks_regexes_returns_many_patterns(sync_mod):
     patterns, skipped = sync_mod.extract_gitleaks_regexes(VENDOR_TOML)
     assert len(patterns) >= 150
-    assert len(skipped) > 0
+    assert len(skipped) == 0
 
 
 def test_committed_secret_patterns_is_fresh(sync_mod):

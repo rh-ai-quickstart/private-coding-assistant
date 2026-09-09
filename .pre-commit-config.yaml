@@ -29,7 +29,7 @@ repos:
     hooks:
       - id: sync-guardrails-patterns-check
         name: guardrails secret patterns up to date
-        entry: python scripts/sync-guardrails-secret-patterns.py --check
+        entry: python3 scripts/sync-guardrails-secret-patterns.py --check
         language: system
         pass_filenames: false
         files: ^(scripts/(sync-guardrails-secret-patterns\.py|vendor/gitleaks-v8\.24\.2\.toml)|charts/pca-ai-serving/charts/pca-guardrails/files/secret-patterns(-overrides)?\.yaml)$

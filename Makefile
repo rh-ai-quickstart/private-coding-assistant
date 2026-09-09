@@ -162,10 +162,10 @@ unit: ## Local unit tests (PYTEST_ARGS=)
 	uv run --project tests/unit python -m pytest tests/unit -v $(PYTEST_ARGS)
 
 sync-guardrails-patterns: ## Refresh guardrails secret patterns from vendored gitleaks rules
-	python scripts/sync-guardrails-secret-patterns.py
+	python3 scripts/sync-guardrails-secret-patterns.py
 
 sync-guardrails-patterns-check: ## Fail if secret-patterns.yaml is stale vs vendor TOML
-	python scripts/sync-guardrails-secret-patterns.py --check
+	python3 scripts/sync-guardrails-secret-patterns.py --check
 
 e2e: ## Cluster e2e tests (DEV_USER= required; PYTEST_ARGS=)
 	@if [ -z "$(DEV_USER)" ] && [ -z "$(DEV_NAMESPACE)" ]; then \
