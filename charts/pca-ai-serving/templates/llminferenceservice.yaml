@@ -23,8 +23,8 @@ spec:
     route: {}
     gateway:
       refs:
-        - name: {{ .Values.gatewayName | default "llm-d-gateway" }}
-          namespace: {{ .Values.gatewayNamespace | default .Values.namespace }}
+        - name: {{ (.Values.maas).gatewayName | default "maas-default-gateway" }}
+          namespace: {{ (.Values.maas).gatewayNamespace | default "openshift-ingress" }}
   template:
     volumes:
       - name: kserve-provision-location
