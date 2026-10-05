@@ -1,6 +1,6 @@
 # Architecture
 
-Private AI Code Assistant runs on OpenShift: developers use OpenShift Dev Spaces; inference stays on-cluster via an OpenAI-compatible MaaS / RHCL gateway in front of vLLM (llm-d).
+Private AI Code Assistant runs on OpenShift: developers use OpenShift Dev Spaces and an OpenAI-compatible MaaS / RHCL gateway in front of vLLM (llm-d). Inference stays on-cluster unless external model backends are configured.
 
 ## Request path
 
@@ -30,6 +30,8 @@ flowchart TD
 5. **llm-d / vLLM** — `LLMInferenceService` (KServe). EPP is off by default.
 
 See [maas-attachment.md](maas-attachment.md) for why PCA owns the HTTPRoute instead of `MaaSModelRef.endpointOverride`.
+
+Illustrative inference traffic flow:
 
 ![Inference traffic flow](images/architecture-traffic-flow.svg)
 

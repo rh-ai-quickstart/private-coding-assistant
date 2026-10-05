@@ -3,9 +3,9 @@
 Fully reproducible deployment of an enterprise-grade private AI code assistant on Red Hat OpenShift (ROSA HCP), using **Terraform** for infrastructure provisioning and **ArgoCD (GitOps)** for all on-cluster components.
 
 The end result is a ROSA HCP cluster running:
-- **Qwen/Qwen3.6-35B-A3B-FP8** served via KServe + llm-d with intelligent EPP routing
-- **OpenShift Dev Spaces** with pre-configured VS Code extensions (Roo Code, Continue, Cline) consuming the self-hosted model
-- All inference traffic stays **cluster-internal** (zero external egress)
+- **Qwen/Qwen3.6-35B-A3B-FP8** served via KServe + llm-d; EPP is disabled by default
+- **OpenShift Dev Spaces** with OpenCode by default; `type: continue` provides Continue, Cline, and Roo Code
+- Inference stays **cluster-internal** unless external Semantic Router backends are configured
 
 ---
 
@@ -66,11 +66,11 @@ private-coding-assistant/              ← repo root (fork and clone this)
 │   ├── pca-app-of-apps/               #   Root ArgoCD AppProject + child Applications
 │   ├── pca-operators/                 #   Wave 1: Operator Subscriptions (RHOAI, GPU, DevSpaces, NFD, RHCL, …)
 │   ├── pca-platform-config/           #   Wave 2: Namespace, RBAC, secrets, DSC, CheCluster
-│   │   ├── charts/pca-guardrails/     #     Optional: TrustyAI guardrails proxy
 │   │   └── charts/pca-mcp/           #     Optional: OpenShift MCP server
 │   ├── pca-ai-serving/                #   Wave 3: LLMInferenceService, llm-d Gateway, RHCL AI Gateway
-│   │   └── charts/pca-observability/ #     Optional: Grafana + Langfuse/OTel Collector
-│   ├── pca-devspaces/                 #   Wave 4: DevWorkspaces + Roo/Continue/Cline + API keys
+│   │   ├── charts/pca-guardrails/     #     TrustyAI guardrails proxy (enabled by default)
+│   │   └── charts/pca-observability/ #     Grafana + Langfuse/OTel Collector (enabled on ROSA)
+│   ├── pca-devspaces/                 #   Wave 4: OpenCode or Continue/Roo/Cline workspaces + API keys
 │   └── pca-benchmarks/               #   Wave 5: GuideLLM sweep (disabled by default)
 │
 └── PCA_Deployment_ROSA/               ← You are here
@@ -503,7 +503,7 @@ helm template pca-root charts/pca-app-of-apps \
 
 ### Step 10: Monitor ArgoCD Sync
 
-ArgoCD now automatically syncs all four waves. This takes **15-30 minutes** (longer if GPU nodes are still scaling).
+ArgoCD now automatically syncs all five waves. This takes **15-30 minutes** (longer if GPU nodes are still scaling).
 
 #### 10a. Open the ArgoCD dashboard
 
@@ -645,33 +645,33 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 
 ### Wave 2 — Platform Configuration (`pca-platform-config`)
 
-- Namespace: `ai-serving` (default; configurable via `aiNamespace` in values)
+- Namespace: `ai-serving` (`namespace` in chart values; align workspace `aiServingNamespace` and ArgoCD destinations when changing it)
 - DataScienceCluster and DSCI with KServe enabled
 - CheCluster instance in `openshift-devspaces`
 - NVIDIA ClusterPolicy and NFD instance
 - OAuth HTPasswd IDP with developer users
 - HuggingFace token secret
-- Optional: `pca-guardrails` (TrustyAI guardrails proxy) and `pca-mcp` (OpenShift MCP server)
+- Optional: `pca-mcp` (OpenShift MCP server)
 
 ### Wave 3 — AI Serving (`pca-ai-serving`)
 
 - **PVC**: 100Gi `model-cache` on `gp3-csi` (persists model weights across restarts). Chart always sets `HF_HUB_OFFLINE=1` for LLMIS local-path load (storage-initializer populates the PVC before vLLM starts).
 - **LLMInferenceService** (`qwen3-coder`): `Qwen/Qwen3.6-35B-A3B-FP8` via `vllm.image` (API name matches `model.id`) with vLLM args:
   - `--tool-call-parser qwen3_xml --reasoning-parser qwen3`
-  - `--max-model-len 32000 --gpu-memory-utilization 0.90`
+  - `--max-model-len 32000`; GPU memory utilization uses vLLM's default unless overridden
   - `--enable-prefix-caching --kv-cache-dtype fp8`
   - HTTPS on :8000 (`--ssl-*` + probe `scheme: HTTPS`; requires cluster `enableLLMInferenceServiceTLS=true`)
   - Workload Service: `qwen3-coder-kserve-workload-svc:8000`
-  - EPP scorer weights: queue=2, kv-cache=2, prefix-cache=3
-- **llm-d Gateway + HTTPRoute**: cluster-internal llm-d Gateway with EPP routing
+- **llm-d Gateway + HTTPRoute**: routes directly to the vLLM workload Service; EPP resources are disabled by default
 - **MaaS / RHCL Gateway** (`maas-default-gateway`): HTTPS front door with per-developer API key auth (AuthPolicy)
 - **HardwareProfile**: GPU hardware profile definition
 - **ServingRuntime** (optional): vLLM Neuron runtime template for Inferentia/Trainium only
-- **pca-observability** (optional): Grafana dashboards + optional Langfuse/OTel Collector
+- **pca-guardrails**: TrustyAI guardrails proxy (enabled by default)
+- **pca-observability**: Grafana dashboards + Langfuse/OTel Collector (enabled in the ROSA overlay)
 
 ### Wave 4 — Developer Workspaces (`pca-devspaces`)
 
-- Roo Code, Continue, and Cline ConfigMaps per namespace (pre-configured with model endpoint)
+- OpenCode configuration at workspace startup; Roo Code, Continue, and Cline ConfigMaps for `type: continue` workspaces
 - Per-namespace API key secrets for RHCL AI Gateway authentication
 - DevWorkspaces with postStart auto-install of extensions
 - Global DevSpaces ConfigMaps in `openshift-devspaces`
@@ -683,19 +683,19 @@ echo "Console: $(terraform output -raw cluster_console_url)"
 
 ### Extension Pre-Configuration Details
 
-Each extension connects to the self-hosted model endpoint. Here is exactly what is pre-populated:
+OpenCode is the default; `type: continue` installs all three extensions below per workspace. IDEs use MaaS with per-namespace API keys. Direct llm-d access is an escape hatch (`aiGateway.escapeHatchToLlmd=true`).
 
 | Setting | Value |
 |---------|-------|
-| **Model Endpoint (Base URL)** | `https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1` |
+| **Model Endpoint (Base URL)** | `https://maas-default-gateway-data-science-gateway-class.openshift-ingress.svc.cluster.local/v1` |
 | **Model ID** | `Qwen/Qwen3.6-35B-A3B-FP8` |
-| **API Key** | `EMPTY` (no auth required — cluster-internal) |
+| **API Key** | Per-namespace key from the `pca-maas-apikey` Secret |
 
 | Extension | Auto-Configured? | How | What the User Sees |
 |-----------|------------------|-----|---------------------|
-| **Roo Code** | Yes | ConfigMap auto-mounted into workspace | Profile named **"Private AI Assistant"** is pre-selected with all modes (architect, code, ask, debug) pointed at the model. Streaming is disabled (required for tool calling). |
-| **Continue** | Yes (dev1 only) | `~/.continue/config.yaml` written by postStart script | Model named **"Private AI Assistant"** appears in the chat panel. Tab autocomplete (named **"Private AI Autocomplete"**) is also pre-configured. |
-| **Cline** | Installed only (dev1 only) | Extension is installed but requires **manual UI setup** (Cline stores settings in VS Code `globalState`, not in files) | User must open Cline settings and enter: Provider = OpenAI Compatible, Base URL / Model ID / API Key from the table above. |
+| **Roo Code** | Yes | Provider profiles ConfigMap | Profile **"llm-d-qwen3-coder"** selects the model for all configured modes; streaming is disabled. |
+| **Continue** | Yes | `~/.continue/config.yaml` ConfigMap | **"Private model (llm-d)"** and **"Private model Autocomplete (llm-d)"** are configured for chat and tab autocomplete. |
+| **Cline** | Provider files supplied | Provider ConfigMaps + postStart copy | OpenAI-compatible URL, model ID, and API key are supplied for each workspace. |
 
 ---
 
@@ -725,10 +725,10 @@ Each extension connects to the self-hosted model endpoint. Here is exactly what 
 | vLLM Argument | Value | Purpose |
 |---------------|-------|---------|
 | `--max-model-len` | `32000` (`tokens.total`) | Context window (tokens) |
-| `--gpu-memory-utilization` | `0.90` | GPU memory fraction |
+| `--gpu-memory-utilization` | Unset unless overridden | Uses vLLM's default GPU memory fraction |
 | `--enable-prefix-caching` | — | KV-cache reuse across requests |
 | `--enable-auto-tool-choice` | — | Tool/function calling support |
-| `--tool-call-parser` | `qwen3_coder` | Tool call format parser |
+| `--tool-call-parser` | `qwen3_xml` | Tool call format parser for the default Qwen3.6 model |
 | `--reasoning-parser` | `qwen3` | Reasoning extraction |
 | `--kv-cache-dtype` | `fp8` | Memory-efficient KV-cache |
 
@@ -909,7 +909,7 @@ oc get gateway,httproute -n ai-serving
 | ROSA HCP | 4.21.7 | Terraform (RHCS provider) |
 | RHOAI | 3.3 | OperatorHub (stable-2.19) |
 | KServe | 0.15 | Managed by RHOAI |
-| llm-d EPP | 0.4 | Managed by RHOAI |
+| llm-d EPP | Disabled by default | Optional chart resources |
 | vLLM | 0.13.0+rhai11 | RHOAI runtime image |
 | Service Mesh | 3.2+ | OperatorHub (stable) |
 | NVIDIA GPU Operator | 26.3 | OperatorHub (v26.3) |

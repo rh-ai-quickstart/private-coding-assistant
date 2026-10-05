@@ -100,7 +100,7 @@ oc patch datasciencecluster default-dsc -n redhat-ods-applications --type merge 
 
 ### Upgrading: guardrails moved to ai-serving
 
-If you previously deployed guardrails under `pca-platform-config`, upgrade **ai-serving before platform-config** so guardrails are recreated in the AI namespace before the old platform release prunes them. ArgoCD wave order (platform wave 2, ai-serving wave 3) already does this; for `make ai-serving-deploy-existing-openshift`, run that target before any platform-config upgrade that removes the old subchart.
+ArgoCD and `make ai-serving-deploy-existing-openshift` deploy **platform-config before ai-serving**. Migrating guardrails from an older platform-config release requires a separate staged upgrade; the normal deployment order does not perform that migration.
 
 ### Demo DevSpaces (`dev-user1..N`)
 
@@ -126,7 +126,7 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 
 > **OpenCode build:** `opencode-build` is cluster-singleton infrastructure owned by the first Helm release. The Makefile auto-detects whether it already exists and suppresses `opencodeBuild` for subsequent runs. If deploying manually with `helm upgrade --install`, pass `--set opencodeBuild.enabled=false` from the second developer onward.
 >
-> **Do not uninstall** the release that owns `opencode-build` while other OpenCode workspaces exist — doing so deletes the BuildConfig and ImageStream (the Namespace is kept), breaking image pulls for all running workspaces. Recovery: delete the empty namespace (`oc delete namespace opencode-build`), then re-run any opencode devspace deploy without `--set opencodeBuild.enabled=false` to recreate the full build infrastructure.
+> **Shared build resources:** Helm uninstall preserves the `opencode-build` Namespace, BuildConfig, ImageStream, and image-puller RoleBindings (`helm.sh/resource-policy: keep`).
 
 ## Parameters
 
@@ -151,8 +151,7 @@ make devspace-deploy-existing-openshift DEV_USER=dev-user2
 | `--set opencodeBuild.enabled=false` | 2nd+ opencode developer — avoids Helm ownership conflict on the shared `opencode-build` namespace (Makefile detects this automatically) |
 | `--set pca-observability.langfuse.enabled=true` | Opt in Langfuse (+ OTel) with AI serving |
 | `--set guardrails.enabled=false` | Disable guardrails subchart on ai-serving (default is enabled) |
-| `--set aiGateway.escapeHatchToLlmd=true` | Skip MaaS; IDEs call llm-d Gateway directly |
-| `--set maas.enabled=false` | Disable MaaS HTTPRoute / AuthPolicy (IDEs fall back to llm-d) |
+| `--set aiGateway.escapeHatchToLlmd=true` | On DevSpaces, skip MaaS; IDEs call llm-d Gateway directly |
 | `--set maas.hostname=<Gateway/Route host>` | Pin HTTPRoute, AuthConfig, and EnvoyFilter to the public MaaS host (`oc get gateway maas-default-gateway -n openshift-ingress`). Empty default is Istio catch-all `*:443`. Do not commit the cluster hostname in values files. |
 | `--set semanticRouter.enabled=true,global.semanticRouter.enabled=true` | Deploy the Semantic Router hop (pins local Qwen until extras exist). Prefer `SEMANTIC_ROUTER_ENABLED=true` so Make sets both flags |
 
@@ -198,7 +197,7 @@ Grafana (boards B/C — latency, KV/GPU) deploys by default with AI serving via 
 
 | Flag | Default | What you get |
 |------|---------|--------------|
-| `grafana.enabled` | `true` | 1-pod Grafana + boards B/C. Boards A/D when Langfuse is on |
+| `pca-observability.grafana.enabled` | `true` | 1-pod Grafana + boards B/C. Boards A/D when Langfuse is on |
 | `pca-observability.langfuse.enabled` | `false` | Langfuse + OTel Collector; wires vLLM OTLP in the same release |
 | `pca-observability.langfuse.ioCapture` | `full` | When Langfuse is on: store full prompt/completion via vLLM middleware (async). Set `metadata` for tokens/latency only |
 
@@ -222,7 +221,7 @@ oc get secret pca-langfuse-credentials -n $AI_NAMESPACE -o jsonpath='{.data.init
 ```bash
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true \
   HELM_ARGS='--set pca-observability.langfuse.enabled=true'
-make devspace-deploy-existing-openshift N=2 MCP_ENABLED=true
+make devspace-deploy-existing-openshift N=2 TYPE=continue MCP_ENABLED=true
 ```
 
 ---
@@ -233,14 +232,16 @@ MCP gives AI coding extensions (Continue, Roo Code) live read-only access to clu
 
 ### Deploy with MCP enabled from the start
 
-Pass `MCP_ENABLED=true` to both the AI serving and devspace make targets:
+Pass `MCP_ENABLED=true` to both targets and `TYPE=continue` for automatic Continue/Roo Code wiring. The default OpenCode configuration has no MCP entry.
 
 ```bash
 make ai-serving-deploy-existing-openshift HF_TOKEN=hf_xxx MCP_ENABLED=true
-make devspace-deploy-existing-openshift N=2 MCP_ENABLED=true
+make devspace-deploy-existing-openshift N=2 TYPE=continue MCP_ENABLED=true
 ```
 
 ### Enable MCP on an already-running deployment
+
+Automatic IDE wiring applies to `type: continue` workspaces:
 
 ```bash
 make mcp-enable AI_NAMESPACE=<ai-ns> DEV_USER=dev-user1
@@ -298,10 +299,12 @@ This target:
 
 The DevWorkspace is created with `started: false`.
 
-### Step 2 — Trigger the image build (first time only)
+### Step 2 — Wait for the image build (first time only)
+
+The BuildConfig's `ConfigChange` trigger starts the build automatically. Follow its logs:
 
 ```bash
-oc start-build devspaces-opencode -n opencode-build --follow
+oc logs -f bc/devspaces-opencode -n opencode-build
 ```
 
 The build installs OpenCode CLI (version pinned via `opencodeBuild.opencodeVersion` in values) and stubs `xdg-open` to prevent crashes in headless environments.

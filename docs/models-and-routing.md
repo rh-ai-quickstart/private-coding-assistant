@@ -5,8 +5,7 @@
 NVIDIA models are deployed with KServe **`LLMInferenceService`** only. The stack provisions:
 
 - vLLM pods (RawDeployment)
-- InferencePool / InferenceModel (Gateway API Inference Extension)
-- llm-d Endpoint Picker (EPP)
+- Optional EPP / InferencePool / InferenceModel resources (`epp.enabled`, off in all supplied overlays)
 - HTTPRoute through the data-science / llm-d gateway
 - **MaaS / RHCL front door** (`maas-default-gateway`) with AuthPolicy on `pca-maas-front-door`
 - Optional **Semantic Router** (`semanticRouter.enabled`, default off) as an HTTP hop after TrustyAI. See [semantic-router.md](semantic-router.md).
@@ -34,15 +33,14 @@ Step-by-step guide: [models-and-hardware.md](models-and-hardware.md)
 
 ## llm-d scoring
 
-The EPP typically weights:
+EPP is disabled in the supplied values. Its optional configuration defines these scorers:
 
-| Scorer | Effect |
-|--------|--------|
-| Prefix-cache | Prefer pods that already hold the prompt prefix |
-| KV-cache utilization | Prefer pods with KV headroom |
-| Queue depth | Prefer shorter queues |
+| Scorer | Weight | Effect |
+|--------|--------|--------|
+| Prefix-cache | 3 | Prefer pods that already hold the prompt prefix |
+| Queue depth | 2 | Prefer shorter queues |
 
-Shared system prompts and similar file context benefit from prefix-cache-aware routing (lower TTFT under multi-user load).
+The current llm-d catch-all HTTPRoute targets the vLLM workload Service directly. Enabling EPP resources does not rewire that route; vLLM prefix caching is enabled independently.
 
 ## Accelerator notes
 
