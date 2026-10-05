@@ -183,3 +183,4 @@ make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1
 - **Industry:** Media and IT services
 - **Product:** OpenShift AI
 - **Use case:** AI coding assistant, private inference
+- **Status:** published
