@@ -1,6 +1,6 @@
 # Private AI Code Assistant on Red Hat OpenShift
 
-Deploy a private self-hosted AI coding assistant on OpenShift so developers get AI-powered IDEs while no code leaves your environment
+Deploy a self-hosted AI coding assistant on OpenShift, with private inference unless you enable external model backends.
 
 ## Table of Contents
 
@@ -30,18 +30,18 @@ Teams want IDE-integrated AI coding help without sending proprietary source to p
 
 This quickstart deploys:
 
-- **OpenShift Dev Spaces** workspaces with OpenCode (Continue, Cline, Roo Code optional)
-- **On-cluster inference** with vLLM behind **llm-d** intelligent routing — default model `Qwen/Qwen3.6-35B-A3B-FP8` (you can change it to any open-source model you want)
-- An optional **RHCL AI Gateway** front door with per-developer API keys
+- **OpenShift Dev Spaces** workspaces offering OpenCode (default), Continue, Cline, or Roo Code
+- **On-cluster vLLM inference** through **llm-d** — default model `Qwen/Qwen3.6-35B-A3B-FP8`, configurable for compatible models
+- **MaaS / RHCL AI Gateway** with per-developer API keys, enabled by default
 - GitOps Helm charts (ROSA/ARO) or Helm-only install on an existing cluster
 
 ### Features
 
 - Source and inference stay inside your OpenShift network boundary when configured that way
 - OpenAI-compatible `/v1` API for IDE extensions
-- Prefix-cache–aware routing via llm-d Endpoint Picker (EPP)
+- vLLM prefix caching; EPP off by default
 - Multi-developer namespaces with ConfigMap-prewired extensions
-- Optional observability (Grafana; Langfuse/OTel), guardrails, and MCP
+- Grafana/guardrails by default; ROSA/ARO Langfuse/OTel; optional MCP
 
 ### Solution stack
 
@@ -49,7 +49,7 @@ This quickstart deploys:
 |-------|------------|
 | IDE | OpenShift Dev Spaces |
 | Auth front door | MaaS / RHCL (`maas-default-gateway`) |
-| Routing | llm-d + Gateway API + EPP |
+| Routing | llm-d + Gateway API; optional EPP |
 | Serving | vLLM / KServe `LLMInferenceService` |
 | Platform | Red Hat OpenShift AI, NVIDIA GPU Operator, NFD |
 | Delivery | Unified Helm charts in `charts/` (ArgoCD or `make`) |
@@ -57,6 +57,8 @@ This quickstart deploys:
 ### Architecture diagrams
 
 Developers → Dev Spaces → maas-default-gateway → (optional guardrails / Semantic Router) → llm-d → vLLM on NVIDIA GPU.
+
+Illustrative inference traffic flow:
 
 ![Inference traffic flow from Dev Spaces through RHCL AI Gateway to llm-d and vLLM](docs/images/architecture-traffic-flow.svg)
 
@@ -158,7 +160,7 @@ make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1
 |-----|--------|
 | [docs/architecture.md](docs/architecture.md) | Stack, traffic path, diagrams |
 | [docs/requirements.md](docs/requirements.md) | Hardware, software, permissions |
-| [docs/ide-and-extensions.md](docs/ide-and-extensions.md) | Dev Spaces, Continue / Cline / Roo |
+| [docs/ide-and-extensions.md](docs/ide-and-extensions.md) | Dev Spaces, OpenCode / Continue / Cline / Roo Code |
 | [docs/models-and-routing.md](docs/models-and-routing.md) | vLLM, llm-d, RHCL |
 | [docs/semantic-router.md](docs/semantic-router.md) | Official vLLM SR hop, extras, inject |
 | [docs/models-and-hardware.md](docs/models-and-hardware.md) | Changing models and accelerators |
@@ -177,7 +179,7 @@ make ai-serving-undeploy-existing-openshift DELETE_NAMESPACE=1
 ## Tags
 
 - **Title:** Private AI Code Assistant on Red Hat OpenShift
-- **Description:** Deploy a private self-hosted AI coding assistant on OpenShift so developers get AI-powered IDEs while no code leaves your environment
+- **Description:** Deploy a self-hosted AI coding assistant on OpenShift, with private inference unless you enable external model backends.
 - **Industry:** Media and IT services
 - **Product:** OpenShift AI
 - **Use case:** AI coding assistant, private inference

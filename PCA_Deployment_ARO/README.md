@@ -13,17 +13,13 @@ Developer (DevSpaces / OpenCode)
   │
   │  HTTPS (cluster-internal, self-signed TLS)
   ▼
-Data Science Gateway (TLS termination, port 443)
-  │  Gateway API + HTTPRoute
+MaaS / RHCL Gateway (HTTPS + per-namespace API key)
+  │  Chat: /v1/chat/completions
   ▼
-Envoy Proxy (EPP sidecar, port 8081)
-  │  ExtProc → EPP gRPC (port 9002)
+Guardrails proxy + TrustyAI (enabled by default)
+  │  Optional Semantic Router (off in the ARO overlay)
   ▼
-Endpoint Picker Plugin (EPP)
-  │  Selects optimal vLLM replica via:
-  │    • Queue depth scoring (weight: 2)
-  │    • Prefix cache hit scoring (weight: 3)
-  │  Sets x-gateway-destination-endpoint header
+llm-d Gateway → workload Service (EPP disabled by default)
   ▼
 vLLM Replica N (KServe LLMInferenceService, port 8000 HTTPS)
   │  Upstream vLLM via vllm.image (v0.19.0)
@@ -36,27 +32,16 @@ Qwen/Qwen3.6-35B-A3B-FP8
 NVIDIA H100 NVL 94GB HBM3
 ```
 
-### Scalable Routing Pattern
+### Routing Pattern
 
-All client traffic flows through the EPP-based routing stack. The pattern is
-designed for multi-replica, multi-GPU scaling:
+The supplied ARO values deploy one vLLM replica with EPP disabled:
 
-1. **Data Science Gateway** — TLS termination, stable cluster-internal endpoint
-2. **HTTPRoute** — `/v1/chat/completions` and `/v1/completions` route to the EPP
-   Envoy proxy; `/v1/models` routes directly to the LLMIS workload Service
-   (`qwen3-coder-kserve-workload-svc:8000`, HTTPS)
-3. **Envoy + EPP (ExtProc)** — Envoy calls the EPP via gRPC ExtProc. The EPP
-   uses the InferencePool to discover all vLLM replicas, scores them by queue
-   depth and prefix cache affinity, and sets `x-gateway-destination-endpoint` to
-   the optimal pod's IP. Envoy uses ORIGINAL_DST to forward directly.
-4. **InferencePool** — selects pods by label (`serving.kserve.io/inferenceservice: qwen3-coder`)
-   and exposes target port 8000. Automatically discovers new replicas.
-5. **InferenceModel** — maps model name `Qwen/Qwen3.6-35B-A3B-FP8` to the pool,
-   enabling future multi-model routing through a single gateway.
+1. **MaaS / RHCL** — `maas-default-gateway` authenticates per-namespace API keys.
+2. **Chat** — `/v1/chat/completions` goes through guardrails by default, then llm-d. Semantic Router is an optional hop.
+3. **Local/non-chat requests** — Continue tab `/local/v1` and other `/v1` paths go to llm-d, skipping guardrails and Semantic Router.
+4. **llm-d HTTPRoute** — forwards directly to `qwen3-coder-kserve-workload-svc:8000` (HTTPS).
 
-**Current demo: 1 replica.** Scale by increasing GPU nodes and
-`LLMInferenceService` `spec.replicas` — the EPP automatically discovers and
-routes to new replicas.
+EPP, InferencePool, and InferenceModel resources render only with `epp.enabled=true`. The current catch-all route still targets the workload Service; enabling those resources does not change its backend.
 
 ---
 
@@ -107,10 +92,10 @@ routes to new replicas.
 | Model | Qwen/Qwen3.6-35B-A3B-FP8 | 35B total / 3B active MoE, FP8, 256K ctx (native max) |
 | Serving | KServe `LLMInferenceService` | Sole NVIDIA serving path (`vllm.image`) |
 | Gateway | Data Science Gateway | Gateway API + HTTPRoute (TLS) |
-| EPP | RHOAI odh-llm-d-inference-scheduler | Prefix-cache + queue-depth scoring |
-| Envoy Proxy | v1.33.2 (distroless) | ExtProc sidecar for EPP |
-| InferencePool | GAIE v1 (GA CRD) | Pod discovery + EPP reference |
-| InferenceModel | GAIE v1alpha2 | Model-to-pool mapping |
+| EPP | Disabled by default | Optional prefix-cache + queue-depth scorer resources |
+| Envoy Proxy | v1.33.2 (distroless) | Optional EPP sidecar; not deployed by default |
+| InferencePool | GAIE v1 (GA CRD) | Optional pod discovery + EPP reference |
+| InferenceModel | GAIE v1alpha2 | Optional model-to-pool mapping |
 
 ### IaC / CLI Tools
 
@@ -184,13 +169,13 @@ leaks in output and silently dropped tool calls.
 
 ### Terraform Variables
 
-The parser configuration is exposed as Terraform variables for easy model swaps:
+Use Terraform `model_variant` to select a curated model preset:
 
 ```hcl
-variable "vllm_tool_call_parser" { default = "qwen3_xml" }
-variable "vllm_reasoning_parser" { default = "qwen3" }
-variable "model_id"              { default = "Qwen/Qwen3.6-35B-A3B-FP8" }
+model_variant = "qwen3.6" # or "qwen3.8"
 ```
+
+Custom model IDs and parsers belong in Helm values: `model.id`, `vllm.toolCallParser`, and `vllm.reasoningParser` on `pca-ai-serving`; keep `modelId` in `pca-devspaces` aligned. The `qwen3.8` preset overrides the model ID and tool parser, so use the default passthrough preset for custom values.
 
 ### Verifying Tool Calling Works
 
@@ -324,16 +309,9 @@ oc login <API_URL> --username=kubeadmin --password=<PASSWORD>
 
 ### Step 5: Set Up DevSpaces Users
 
-After the stack is deployed and the model is serving, create HTPasswd users
-and their DevWorkspaces. The script handles OAuth setup, namespace discovery,
-and workspace creation as each user (required for dashboard visibility).
+Configure developer identities in `pca-platform-config`'s `devspaces.instances` and keep usernames/namespaces aligned with `pca-devspaces`'s `devspaces` list. The ARO workspace overlay targets `Dev1` / `dev1-devspaces` and `Dev2` / `dev2-devspaces`. Supply non-empty passwords for the demo HTPasswd IDP, or use your cluster's existing IDP.
 
-```bash
-export KUBEADMIN_PASS="<kubeadmin password>"
-./scripts/setup-devspaces-users.sh
-```
-
-> Edit the `USERS` array inside the script to add/remove developers.
+Sync the charts, then log in to the DevSpaces dashboard as each user and start the pre-created workspace. Helm renders DevWorkspaces with `started: false`.
 
 **Alternative: Factory URL (self-service).** Users can also create their own
 workspace by navigating to the DevSpaces factory URL — no admin script needed:
@@ -342,10 +320,7 @@ workspace by navigating to the DevSpaces factory URL — no admin script needed:
 https://<devspaces-url>/#https://github.com/manujoy7/Private_AI_Coding_Assistant.git
 ```
 
-DevSpaces reads `devfile.yaml` from the repo root, provisions the workspace
-with all pre-configured settings (custom image, env vars, OpenCode extension,
-Web UI), and the Devfile tab in the dashboard shows the full devfile content.
-This is the recommended enterprise approach for self-service onboarding.
+DevSpaces reads `devfile.yaml` from the repo root. That factory devfile uses direct llm-d access with key `EMPTY`; prefer chart-managed workspaces for MaaS authentication and chat guardrails.
 
 ### Step 6: Verify Deployment
 
@@ -363,10 +338,10 @@ oc get servingruntime -n ai-serving
 # Check AI Gateway
 oc get gateway,httproute -n ai-serving
 
-# Check DevSpaces — workspaces are in auto-provisioned namespaces
+# Check DevSpaces — workspaces are in the configured namespaces
 oc get devworkspace -A
 
-# Test the model via AI Gateway
+# Test direct llm-d access (escape hatch; skips MaaS and guardrails)
 GATEWAY_SVC="llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local"
 curl -sk https://${GATEWAY_SVC}/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -393,13 +368,13 @@ private-coding-assistant/              ← repo root
 │   ├── pca-platform-config/           #   Wave 2: Namespace, RBAC, DSC, CheCluster
 │   │   ├── values.yaml
 │   │   ├── values-aro.yaml            #   ARO overrides (managed-csi storage class)
-│   │   ├── charts/pca-guardrails/     #   Optional: TrustyAI guardrails proxy
 │   │   └── charts/pca-mcp/           #   Optional: OpenShift MCP server
 │   ├── pca-ai-serving/                #   Wave 3: LLMInferenceService, llm-d, MaaS front door
 │   │   ├── values.yaml
 │   │   ├── values-aro.yaml            #   ARO overrides (model, storage, EPP disabled, …)
-│   │   └── charts/pca-observability/ #   Optional: Grafana + Langfuse/OTel Collector
-│   ├── pca-devspaces/                 #   Wave 4: DevWorkspaces + Roo/Continue/Cline + API keys
+│   │   ├── charts/pca-guardrails/     #   TrustyAI guardrails proxy (enabled by default)
+│   │   └── charts/pca-observability/ #   Grafana + Langfuse/OTel Collector (enabled on ARO)
+│   ├── pca-devspaces/                 #   Wave 4: OpenCode or Continue/Roo/Cline workspaces + API keys
 │   │   ├── values.yaml
 │   │   └── values-aro.yaml
 │   └── pca-benchmarks/               #   Wave 5: GuideLLM sweep (enabled in values-aro.yaml)
@@ -455,7 +430,7 @@ and GPU (1x `nvidia.com/gpu`) resource bounds.
 | `--model=/model-cache` | Local path after storage-initializer |
 | `--served-model-name=…` | OpenAI API model name (defaults to `model.id`) |
 | `--trust-remote-code` | Required for Qwen3.5-MoE architecture |
-| `--enable-prefix-caching` | KV cache reuse for shared prefixes (EPP affinity) |
+| `--enable-prefix-caching` | KV cache reuse for shared prefixes within vLLM |
 | `--enable-auto-tool-choice` | Allow model to decide when to use tools (required by OpenCode/Roo Code) |
 | `--tool-call-parser=qwen3_xml` | Parse Qwen3.x XML tool calls into OpenAI `tool_calls` |
 | `--ssl-certfile` / `--ssl-keyfile` | Serve TLS on :8000 (cluster `enableLLMInferenceServiceTLS=true`) |
@@ -517,9 +492,7 @@ upgrades for a warm cache.
 ### AI Gateway (`llm-d-gateway`)
 
 Gateway API `Gateway` with HTTPS listener (self-signed TLS) and `HTTPRoute`.
-Inference requests (`/v1/chat/completions`, `/v1/completions`, `/v1`) route
-through the EPP Envoy proxy for intelligent scheduling. Metadata requests
-(`/v1/models`) bypass EPP and go directly to the LLMIS workload Service.
+The catch-all HTTPRoute forwards requests directly to the LLMIS workload Service. EPP is disabled in the supplied ARO values. IDEs normally reach this gateway through the MaaS front door; direct access is the escape hatch.
 
 **Cluster-internal endpoint:**
 ```
@@ -528,7 +501,7 @@ https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1
 
 ### Endpoint Picker Plugin (EPP)
 
-The EPP is the intelligent request scheduler deployed as an Envoy sidecar.
+EPP and its Envoy sidecar are optional chart resources, disabled by default. Their configuration is described below; the current catch-all HTTPRoute targets the workload Service rather than EPP.
 
 | Component | Image |
 |-----------|-------|
@@ -550,87 +523,57 @@ The EPP is the intelligent request scheduler deployed as an Envoy sidecar.
 
 ### InferencePool (`qwen3-coder-inference-pool`)
 
-Selects vLLM pods by label `serving.kserve.io/inferenceservice: qwen3-coder`
+When `epp.enabled=true`, selects vLLM pods by label `serving.kserve.io/inferenceservice: qwen3-coder`
 and forwards traffic to port 8000. Automatically discovers new replicas when
 the `LLMInferenceService` scales up.
 
 ### InferenceModel (`qwen3-coder-model`)
 
-Maps model name `Qwen/Qwen3.6-35B-A3B-FP8` to `qwen3-coder-inference-pool`. For
-multi-model setups, create additional InferenceModel resources pointing to
-different InferencePools.
+When `epp.enabled=true`, maps model name `Qwen/Qwen3.6-35B-A3B-FP8` to `qwen3-coder-inference-pool`. This automation deploys only one local model at a time.
 
 ---
 
 ## DevSpaces + OpenCode
 
-Each developer workspace runs VS Code in the browser with OpenCode pre-configured
-to use the private Qwen3.6 model through the AI Gateway. Two access modes are
-available — both are enabled for every workspace:
+The default OpenCode workspace runs VS Code in the browser with the private model configured through MaaS. OpenCode is available through its VS Code extension and Web UI; `type: continue` provides Continue, Cline, and Roo Code instead.
 
 ### OpenCode Access Modes
 
 | Mode | How to Access | Description |
 |------|---------------|-------------|
 | **VS Code Extension** | `Ctrl+Esc` in editor | Opens OpenCode TUI in a split terminal panel. Context-aware — shares current editor selection. File reference shortcut: `Alt+Ctrl+K`. Extension `sst-dev.opencode` auto-installed via `DEFAULT_EXTENSIONS` env var (official CheCode mechanism — `.vsix` downloaded in `postStart`, then installed by the editor at startup). |
-| **Browser Web UI (in-IDE)** | VS Code: `F1` → "Simple Browser: Show" → `http://localhost:4096` | Opens the full OpenCode Web UI inside a VS Code editor tab. **Recommended** — no routing or auth complexity. |
-| **Browser Web UI (external)** | Direct route URL from DevSpaces dashboard | Full graphical web UI in a separate browser tab. Uses a direct OpenShift route (no path-prefix issues). **Do NOT set `OPENCODE_SERVER_PASSWORD`** — it conflicts with the che-gateway OAuth, causing a double-auth loop. |
+| **Browser Web UI (in-IDE)** | VS Code: `F1` → "Simple Browser: Show" → `http://localhost:4096` | Opens the OpenCode Web UI inside an editor tab; use the workspace's OpenCode password when prompted. |
+| **Browser Web UI (external)** | Direct route URL from DevSpaces dashboard | Full Web UI in a separate browser tab. The chart starts it with the password from `opencode-web-password`. |
 
 ### User Accounts
 
-Users authenticate via HTPasswd identity provider. Accounts are created by the
-`scripts/setup-devspaces-users.sh` script.
+Users authenticate through the configured cluster IDP. For demo HTPasswd, configure matching users/passwords in `pca-platform-config` as described in [Step 5](#step-5-set-up-devspaces-users).
 
 | User | Dashboard Login |
 |------|-----------------|
 | `Dev1` | DevSpaces URL with Dev1 credentials |
 | `Dev2` | DevSpaces URL with Dev2 credentials |
 
-### DevSpaces Namespace Provisioning (Critical)
+### DevSpaces Namespace Provisioning
 
-DevSpaces auto-provisions a **unique namespace** for each user the first time
-they access the dashboard:
+Helm renders stopped DevWorkspaces in `devspaces[].namespace`. The ARO workspace overlay uses `dev1-devspaces` and `dev2-devspaces`, without random suffixes. Keep the platform namespace/user list aligned with those workspace entries.
 
-```
-Pattern: <username>-devspaces-<random-suffix>
-Example: Dev1 → dev1-devspaces-wk1ug6
-```
-
-**DevWorkspaces CANNOT be pre-deployed into statically-named namespaces via
-ArgoCD.** The DevWorkspace controller stamps each workspace with a
-`controller.devfile.io/creator` label matching the creating user's UID. The
-dashboard only shows workspaces where this label matches the logged-in user.
-
-**Correct workspace creation procedure:**
-
-1. Create users via HTPasswd IDP (handled by `setup-devspaces-users.sh`)
-2. Each user logs in (triggers DevSpaces namespace auto-provisioning)
-3. The script discovers the auto-provisioned namespace
-4. Grants `system:image-puller` RBAC for the custom OpenCode image
-5. Logs in as each user via `oc login` and creates the DevWorkspace
-   (this sets the `controller.devfile.io/creator` label correctly)
-
-```bash
-export KUBEADMIN_PASS="<kubeadmin password>"
-./scripts/setup-devspaces-users.sh
-```
-
-> **Common mistake:** Creating workspaces as `kubeadmin` in a static namespace
-> (e.g., `dev1-devspaces`) results in workspaces that are invisible to the
-> target user in the DevSpaces dashboard.
+Users log in to the dashboard and start their pre-created workspace so the controller can stamp the creator identity. ArgoCD ignores changes to `spec.started`, allowing users to start and stop their workspace.
 
 ### OpenCode Configuration
+
+IDEs use MaaS with per-namespace API keys. Direct llm-d access is an escape hatch (`aiGateway.escapeHatchToLlmd=true`).
 
 | Config | Value |
 |--------|-------|
 | Provider | OpenAI-compatible (vLLM) |
-| Base URL | `https://llm-d-gateway-data-science-gateway-class.ai-serving.svc.cluster.local/v1` |
+| Base URL | `https://maas-default-gateway-data-science-gateway-class.openshift-ingress.svc.cluster.local/v1` |
 | Model | `Qwen/Qwen3.6-35B-A3B-FP8` |
-| API Key | `EMPTY` (no auth required for cluster-internal traffic) |
+| API Key | Per-namespace key from the `pca-maas-apikey` Secret |
 | TLS | Self-signed cert (`NODE_TLS_REJECT_UNAUTHORIZED=0`) |
 | Extension | `sst-dev.opencode` (auto-installed via `DEFAULT_EXTENSIONS` env var — see [CheCode docs](https://eclipse.dev/che/docs/stable/administration-guide/default-extensions-for-microsoft-visual-studio-code/)) |
 | Web UI Port | 4096 (auto-started via `postStart`; access via VS Code Simple Browser at `http://localhost:4096`) |
-| Web UI Auth | None — **do NOT set `OPENCODE_SERVER_PASSWORD`** (conflicts with che-gateway OAuth causing double-auth loop) |
+| Web UI Auth | Password-protected; startup loads `OPENCODE_SERVER_PASSWORD` from the namespace's `opencode-web-password` Secret |
 
 ### Custom OpenCode Image
 
@@ -641,8 +584,8 @@ Developer Image (UDI) with OpenCode pre-installed and pre-configured:
 |-----------|--------|
 | Base image | `registry.redhat.io/devspaces/udi-rhel8:latest` |
 | OpenCode binary | Copied to `/usr/local/bin/opencode` (not symlinked — see troubleshooting) |
-| Config | `~/.config/opencode/opencode.json` — points to llm-d gateway |
-| Auth | `~/.local/share/opencode/auth.json` — API key `EMPTY` |
+| Config | `~/.config/opencode/opencode.json` — points to MaaS at workspace startup |
+| Auth | `~/.local/share/opencode/auth.json` — bake-time `EMPTY` replaced at startup with the namespace's `pca-maas-apikey` key |
 | Build namespace | `opencode-build` |
 | ImageStream | `devspaces-opencode:latest` |
 | Rebuild | `oc start-build devspaces-opencode -n opencode-build` |
@@ -713,8 +656,7 @@ analysis, see [`assets/GPU_Sizing_Considerations_for_AI_Code_Assistant_v3.md`](.
 
 ### Scaling GPU Nodes and Model Replicas
 
-The architecture supports scaling from 1 to N replicas. Each replica requires
-one H100 GPU node.
+The chart renders one vLLM replica. Additional replicas require GPU capacity and a persisted GitOps change; live patches below are temporary under ArgoCD self-healing.
 
 ```bash
 # 1. Scale GPU MachineSet to N nodes
@@ -727,17 +669,15 @@ oc get nodes -l nvidia.com/gpu.present=true -w
 oc patch llminferenceservice qwen3-coder -n ai-serving --type merge \
   -p '{"spec":{"replicas": N}}'
 
-# 4. Verify EPP discovers new replicas (check EPP logs)
-oc logs deploy/llm-d-epp -n ai-serving -c epp | grep "Starting refresher"
+# 4. Check workload pods (EPP is disabled by default)
+oc get pods -n ai-serving -l serving.kserve.io/inferenceservice=qwen3-coder
 ```
 
-The InferencePool automatically discovers new vLLM pods via label selector.
-The EPP immediately starts collecting metrics from new replicas and routes
-requests using queue depth + prefix cache scoring.
+The current route targets the workload Service. EPP resources and scoring are not part of the default deployment.
 
 ### Scaling EPP
 
-For very high throughput, scale EPP replicas:
+Only for a custom deployment with EPP enabled and its gateway routing configured:
 
 ```bash
 oc scale deploy/llm-d-epp -n ai-serving --replicas=2
@@ -751,15 +691,9 @@ oc patch llminferenceservice qwen3-coder -n ai-serving --type merge \
 oc scale machineset <infra_id>-gpu-h100 -n openshift-machine-api --replicas=0
 ```
 
-### Adding a Second Model
+### Switching Local Models
 
-To serve a second model (e.g., a coding-specific model alongside the general one):
-
-1. Add a second `LLMInferenceService` (or chart release) for the second model
-2. Create a new `InferencePool` selecting the second model's pods
-3. Create a new `InferenceModel` mapping the model name to the new pool
-4. Deploy a second EPP instance pointing to the new pool
-5. Add `HTTPRoute` rules to route based on model name header
+This automation deploys **one local model at a time**. Concurrent local models behind the same AI Gateway are unsupported. Use Terraform `model_variant` (`qwen3.6` or `qwen3.8`) to switch models.
 
 ---
 
@@ -795,11 +729,9 @@ the compat libs (575.57.08) in `LD_LIBRARY_PATH`. If you see CUDA errors on
 driver 550, verify `LD_LIBRARY_PATH` includes `/usr/local/cuda/compat`.
 
 **AI Gateway returns 503 or 504:**
-Check that the EPP pod is Ready (2/2 containers). Check that the InferencePool
-has discovered the vLLM pods: `oc logs deploy/llm-d-epp -c epp | grep "Starting refresher"`.
-Verify the HTTPRoute backend resolves: `oc get httproute model-route -n ai-serving -o yaml`.
+Check the guardrails proxy and vLLM workload pods, then inspect `pca-maas-front-door` and `llm-d-gateway-route` in `ai-serving`. The default deployment has no EPP pod or InferencePool to diagnose.
 
-**EPP pod in CrashLoopBackOff:**
+**EPP pod in CrashLoopBackOff (only when explicitly enabled):**
 Check the EPP config version (`apiVersion: inference.networking.x-k8s.io/v1alpha1`).
 Ensure RBAC includes `inferenceobjectives` and `leases`. Check that the
 `qwen3-coder-inference-pool` InferencePool exists.
@@ -823,17 +755,7 @@ of symlinking from `~/.local/bin`. If you still see `opencode: command not found
 rebuild the image: `oc start-build devspaces-opencode -n opencode-build`.
 
 **DevSpaces dashboard shows 0 workspaces for a user:**
-DevSpaces auto-provisions namespaces with a random suffix (e.g.,
-`dev1-devspaces-wk1ug6`). The workspace controller sets a
-`controller.devfile.io/creator` label to the creating user's UID. The dashboard
-only shows workspaces where this label matches the logged-in user. Common causes:
-
-- Workspace was created by `kubeadmin` instead of the actual user
-- Workspace is in a statically-named namespace (e.g., `dev1-devspaces`) instead
-  of the auto-provisioned one
-
-Fix: Run `scripts/setup-devspaces-users.sh` which logs in as each user and creates
-workspaces in the correct namespaces.
+Check that `devspaces.instances` in platform-config and `devspaces` in the workspace chart agree on the username and namespace. Verify that the DevWorkspace exists there and the user has its RoleBinding. Users should start chart-created workspaces from the dashboard so the controller stamps the correct creator identity.
 
 **OpenCode VS Code extension not auto-installed:**
 The extension is installed via the `DEFAULT_EXTENSIONS` env var — the only reliable
@@ -859,9 +781,7 @@ fail to load because the browser resolves them against the domain root. **Do NOT
 set `urlRewriteSupported: true`** on the `opencode-web` endpoint — this causes
 path-prefix stripping which breaks asset loading.
 
-Additionally, **do NOT set `OPENCODE_SERVER_PASSWORD`** — it causes a double-auth
-loop: (1) che-gateway handles OAuth via cookies, then (2) OpenCode demands HTTP
-Basic Auth, resulting in a persistent password popup that never resolves.
+The chart deliberately enables password authentication. Retrieve the namespace's `opencode-web-password` Secret and use that password when prompted; keep the startup command that exports `OPENCODE_SERVER_PASSWORD`.
 
 The correct configuration for the `opencode-web` endpoint:
 ```yaml
@@ -870,10 +790,7 @@ endpoints:
     targetPort: 4096
     exposure: public
     protocol: https
-    attributes:
-      cookiesAuthEnabled: true    # boolean true, NOT string "true"
-      # NO urlRewriteSupported    # OpenCode doesn't support URL rewriting
-# NO OPENCODE_SERVER_PASSWORD env var
+# postStart loads OPENCODE_SERVER_PASSWORD from opencode-web-password
 ```
 
 For in-IDE access (recommended): use VS Code Simple Browser → `http://localhost:4096`.
@@ -884,5 +801,8 @@ image was built with the old symlink approach, the binary won't be found. Rebuil
 the image with the `/usr/local/bin` copy fix. To start manually in the meantime:
 ```bash
 export PATH="/home/user/.opencode/bin:$PATH"
+NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+export OPENCODE_SERVER_PASSWORD=$(oc get secret opencode-web-password -n "$NS" \
+  -o jsonpath='{.data.password}' | base64 -d)
 nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
 ```

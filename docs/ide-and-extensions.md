@@ -1,6 +1,6 @@
 # IDE and extensions
 
-Developers use **OpenShift Dev Spaces**. AI extensions call the cluster-internal RHCL AI Gateway (OpenAI-compatible `/v1`), which forwards to llm-d / vLLM. Source code and inference stay on the cluster when configured that way.
+Developers use **OpenShift Dev Spaces**. AI assistants call the MaaS / RHCL AI Gateway (OpenAI-compatible `/v1`), which forwards to llm-d / vLLM. Source code and inference stay on the cluster when configured that way.
 
 ## Access modes
 
@@ -18,7 +18,7 @@ Desktop IDEs can attach to the workspace over an authenticated `oc` tunnel (SSHD
 
 ## Extension comparison
 
-**OpenCode** is the default IDE on ROSA, ARO, and existing OpenShift (custom Dev Spaces image + Web UI). Continue, Cline, and Roo Code remain available as an opt-in (`type: continue` / `TYPE=continue`) on che-code; they are Apache 2.0, speak OpenAI-compatible APIs, and are installable on Open VSX. The charts pre-wire them via ConfigMaps in `pca-devspaces` when that type is selected.
+**OpenCode** is the default AI assistant in che-code workspaces; `type: continue` / `TYPE=continue` provides Continue, Cline, and Roo Code. These three extensions are Apache 2.0, speak OpenAI-compatible APIs, and are installable on Open VSX. The charts pre-wire them via ConfigMaps in `pca-devspaces` when that type is selected.
 
 | Capability | Continue | Cline | Roo Code |
 |------------|----------|-------|----------|
@@ -26,18 +26,20 @@ Desktop IDEs can attach to the workspace over an authenticated `oc` tunnel (SSHD
 | Tab autocomplete | Yes | No | No |
 | File / terminal | Yes | Yes | Yes |
 | MCP | Yes | Yes | Yes |
-| Config delivery | `config.yaml` ConfigMap | Settings ConfigMap + one-time UI fields | `settings.json` + provider profiles ConfigMaps |
+| Config delivery | `config.yaml` ConfigMap | Provider ConfigMaps | Provider profiles ConfigMap |
 | Self-hosted vLLM | `apiBase` + model | OpenAI-compatible base URL | Needs native `tool_calls` from the model |
 
 **Practical split:** OpenCode for the default agentic UX; Continue for autocomplete; Cline/Roo for agentic workflows on che-code. See [deploy_existing_openshift/README.md](../deploy_existing_openshift/README.md) and [PCA_Deployment_ARO/README.md](../PCA_Deployment_ARO/README.md).
 
-## Gateway URL (in-cluster)
+## Gateway URL
 
-Default IDE endpoint (MaaS / RHCL front door):
+ROSA/ARO default IDE endpoint (MaaS / RHCL front door):
 
 ```text
 https://maas-default-gateway-data-science-gateway-class.openshift-ingress.svc.cluster.local/v1
 ```
+
+Existing OpenShift uses the configured Gateway class (`openshift-default` in the supplied overlay) or listener hostname. The deployment script prefers the live listener hostname unless `maas.hostname` is explicitly set.
 
 Continue tab autocomplete uses `/local/v1` on that same host (authenticated, skips guardrails and Semantic Router). OpenCode has no second URL.
 
