@@ -1,5 +1,5 @@
 {{- $maas := .Values.maas | default dict }}
-{{- if $maas.enabled | default true }}
+{{- if ne false $maas.enabled }}
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSModelRef
 metadata:

@@ -188,7 +188,7 @@ spec:
   source: redhat-operators
   sourceNamespace: openshift-marketplace
 {{- end }}
-{{- if (.Values.operators).rhcl.enabled | default true }}
+{{- if ne false ((.Values.operators).rhcl).enabled }}
 ---
 # Red Hat Connectivity Link (RHCL / Kuadrant) — AI Gateway auth + future quotas
 # Authorino and Limitador Operators are installed automatically as RHCL dependencies.
