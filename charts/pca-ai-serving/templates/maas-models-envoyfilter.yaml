@@ -1,5 +1,6 @@
 {{- $maas := .Values.maas | default dict }}
-{{- if $maas.enabled | default true }}
+{{- if and ($maas.enabled | default true) (not ($maas.nativeAuth | default false)) }}
+{{/* Skip custom PCA EnvoyFilter when maas.nativeAuth=true. */}}
 {{- $gwNs := $maas.gatewayNamespace | default "openshift-ingress" }}
 {{- $gwName := $maas.gatewayName | default "maas-default-gateway" }}
 {{- $public := include "pca-ai-serving.maasPublicHostname" . }}

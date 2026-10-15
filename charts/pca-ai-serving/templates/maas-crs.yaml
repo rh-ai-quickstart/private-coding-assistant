@@ -12,9 +12,9 @@ spec:
   modelRef:
     kind: LLMInferenceService
     name: {{ include "pca-ai-serving.model.name" . }}
-  {{- if $maas.hostname }}
+  {{- if and (not ($maas.nativeAuth | default false)) $maas.hostname }}
   endpointOverride: https://{{ $maas.hostname }}/v1
-  {{- else }}
+  {{- else if not ($maas.nativeAuth | default false) }}
   endpointOverride: https://{{ include "pca-ai-serving.maasGatewayService" . }}/v1
   {{- end }}
 ---
@@ -38,7 +38,7 @@ spec:
           window: "1h"
         - limit: {{ ($maas.tokenLimit).daily | default 50000000 }}
           window: "24h"
-  priority: 10
+  priority: {{ $maas.subscriptionPriority | default 10 }}
 ---
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSAuthPolicy

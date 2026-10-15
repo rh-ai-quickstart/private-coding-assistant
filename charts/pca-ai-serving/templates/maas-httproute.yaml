@@ -1,5 +1,6 @@
 {{- $maas := .Values.maas | default dict }}
-{{- if $maas.enabled | default true }}
+{{- if and ($maas.enabled | default true) (not ($maas.nativeAuth | default false)) }}
+{{/* Skip custom PCA HTTPRoute when maas.nativeAuth=true — RHOAI creates routes on maas-default-gateway. */}}
 {{- $llmdSvc := include "pca-ai-serving.llmdGatewayService" . }}
 {{/* MaaS Envoy talks HTTP to backends. Use llm-d :80 (HTTP listener), not :443. */}}
 {{- $llmdPort := 80 }}
