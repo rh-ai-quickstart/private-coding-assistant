@@ -60,7 +60,9 @@ spec:
           - --enable-prefix-caching
           - --enable-auto-tool-choice
           - --tool-call-parser={{ include "pca-ai-serving.vllm.toolCallParser" . }}
+          {{- if .Values.vllm.reasoningParser }}
           - --reasoning-parser={{ .Values.vllm.reasoningParser }}
+          {{- end }}
           {{- if .Values.vllm.kvCacheDtype }}
           - --kv-cache-dtype={{ .Values.vllm.kvCacheDtype }}
           {{- end }}
