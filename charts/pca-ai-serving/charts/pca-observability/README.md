@@ -114,4 +114,4 @@ Guardrails proxy forwards these headers. Flagged requests (input skip or output 
 
 ## Persistence
 
-Modest defaults when Langfuse is on: Postgres ~10Gi, ClickHouse ~20Gi, MinIO ~10Gi. Omit `storageClassName` (cluster default) unless `persistence.storageClass` / bitnami persistence overrides are set. Grafana is ephemeral (ConfigMap dashboards).
+Modest defaults when Langfuse is on: Postgres ~10Gi, ClickHouse ~20Gi, object storage ~10Gi (`aws-compatible-storage.storage.data.size`). Omit `storageClassName` (cluster default) unless `aws-compatible-storage.storage.data.storageClass` is set. Grafana is ephemeral (ConfigMap dashboards).

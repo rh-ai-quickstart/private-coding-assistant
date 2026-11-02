@@ -2,5 +2,8 @@ dependencies:
 - name: langfuse
   repository: https://langfuse.github.io/langfuse-k8s
   version: 1.5.38
-digest: sha256:8f6baa06158763167e7dcd54079ea3f5810111a0023c6558117fc62d0e788c62
-generated: "2026-07-13T14:10:22.210943611+03:00"
+- name: aws-compatible-storage
+  repository: https://rh-ai-quickstart.github.io/ai-architecture-charts
+  version: 0.2.0
+digest: sha256:a5128c61ef539dc2956f2e6e274f984040eb6587c8f0442735bf75892b8d7939
+generated: "2026-11-02T10:09:29.681673-05:00"
