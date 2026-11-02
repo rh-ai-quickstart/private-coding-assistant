@@ -126,16 +126,43 @@ langfuse:
       size: 20Gi
     zookeeper:
       fullnameOverride: pca-langfuse-zookeeper
+  # Langfuse S3 client — external store (aws-compatible-storage below).
+  # deploy: false disables the MinIO bundled with the langfuse chart
   s3:
-    deploy: true
-    fullnameOverride: pca-langfuse-s3
-    auth:
-      rootUser: minio
-      existingSecret: pca-langfuse-credentials
-      rootUserSecretKey: s3-root-user
-      rootPasswordSecretKey: s3-root-password
-    persistence:
+    deploy: false
+    bucket: langfuse
+    region: us-east-1
+    endpoint: http://pca-langfuse-s3:7480
+    forcePathStyle: true
+    accessKeyId:
+      secretKeyRef:
+        name: pca-langfuse-s3-credentials
+        key: AWS_ACCESS_KEY_ID
+    secretAccessKey:
+      secretKeyRef:
+        name: pca-langfuse-s3-credentials
+        key: AWS_SECRET_ACCESS_KEY
+# Object storage for Langfuse, replacing the MinIO bundled with the langfuse chart.
+aws-compatible-storage:
+  fullnameOverride: pca-langfuse-s3
+  s3:
+    existingSecret: pca-langfuse-s3-credentials
+    region: us-east-1
+    endpoint: http://localhost:7480
+  auth:
+    enabled: false
+  route:
+    enabled: false
+    s3Api:
+      enabled: false
+  storage:
+    data:
       size: 10Gi
+  # Creates the bucket only (urls: [] → nothing uploaded).
+  sampleFileUpload:
+    enabled: true
+    bucket: langfuse
+    urls: []
 otelCollector:
   image: otel/opentelemetry-collector-contrib:0.120.0
   replicas: 1
@@ -157,4 +184,3 @@ persistence:
   storageClass: ""
   postgresSize: 10Gi
   clickhouseSize: 20Gi
-  minioSize: 10Gi

@@ -7,3 +7,8 @@ dependencies:
     version: "1.5.38"
     repository: https://langfuse.github.io/langfuse-k8s
     condition: langfuse.enabled
+  # Object storage for Langfuse
+  - name: aws-compatible-storage
+    version: "0.2.0"
+    repository: https://rh-ai-quickstart.github.io/ai-architecture-charts
+    condition: aws-compatible-storage.enabled,langfuse.enabled
